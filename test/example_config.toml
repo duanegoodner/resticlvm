@@ -1,0 +1,28 @@
+[general]
+dry_run = true
+
+[partitions.boot]
+mount_point = "/boot"
+repo_path = "/path/to/bootrepo/"
+repo_password_file = "/path/to/boot/repo/password_file"
+excldue_paths = []
+
+[logical_volumes.example_lvm]
+vg_name = "vg_example"
+lv_name = "lv_example"
+mount_point = "/path/to/snapshot/dir/"
+repo_path = "/path/to/example_lvm/repo/"
+paths_for_backup = ["/"]
+exclude_paths = [
+    "/dev",
+    "/media",
+    "/mnt",
+    "/proc",
+    "/run",
+    "/sys",
+    "/tmp",
+    "/var/tmp",
+    "/var/lib/libvirt/images",
+    "/var/lib/libvirt/isos",
+]
+snapshot_size = "10G"
