@@ -5,3 +5,5 @@ dev_config.toml
 .vscode/
 __pycache__/
 *.egg-info/
+
+restic_backup_ext_ssd.sh
