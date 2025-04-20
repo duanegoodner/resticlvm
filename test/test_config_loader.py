@@ -46,5 +46,16 @@ def test_load_config_str(expected_config):
     result = load_config(config_path)
 
     assert (
-        result == expected_config
-    ), f"Expected {expected_config}, but got {result}"
+        result.keys() == expected_config.keys()
+    ), f"Expected keys {expected_config.keys()}, but got {result.keys()}"
+
+    assert (
+        result["general"] == expected_config["general"]
+    ), f"Expected {expected_config['general']}, but got {result['general']}"
+
+    assert (
+        result["partitions"] == expected_config["partitions"]
+    ), f"Expected {expected_config['partitions']}, but got {result['partitions']}"
+    assert (
+        result["logical_volumes"] == expected_config["logical_volumes"]
+    ), f"Expected {expected_config['logical_volumes']}, but got {result['logical_volumes']}"

@@ -30,4 +30,4 @@ def run_with_sudo(cmd: list[str], dry_run: bool = False, password: str = None):
     """
     if password:
         cmd = ["echo", password] + cmd
-    subprocess.run(args=cmd, check=True)
+    subprocess.run(args=["sudo"] + cmd, check=True)
