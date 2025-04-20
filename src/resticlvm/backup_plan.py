@@ -1,13 +1,11 @@
-from typing import List, Union
-
-from backup_jobs import BootBackupJob, LVMBackupJob
+from resticlvm.backup_jobs import BootBackupJob, LVMBackupJob
 
 
 class BackupPlan:
-    def __init__(self, jobs: List[Union[BootBackupJob, LVMBackupJob]] = None):
+    def __init__(self, jobs: list[BootBackupJob | LVMBackupJob] = None):
         self.jobs = jobs if jobs is not None else []
 
-    def add_job(self, job: Union[BootBackupJob, LVMBackupJob]):
+    def add_job(self, job: BootBackupJob | LVMBackupJob):
         self.jobs.append(job)
 
     def run(self):

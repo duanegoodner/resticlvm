@@ -1,5 +1,5 @@
-from local_classes import BootDir
-from restic_snapshot import ResticBootSnapshot, ResticLVMSnapshot
+from resticlvm.local_classes import BootDir
+from resticlvm.restic_snapshot import ResticBootSnapshot, ResticLVMSnapshot
 
 
 class LVMBackupJob:

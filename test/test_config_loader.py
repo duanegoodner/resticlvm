@@ -19,7 +19,7 @@ def expected_config():
             "example_lvm": {
                 "vg_name": "vg_example",
                 "lv_name": "lv_example",
-                "mount_point": "/path/to/snapshot/dir/",
+                "snapshot_mount_point": "/path/to/snapshot/dir/",
                 "repo_path": "/path/to/example_lvm/repo/",
                 "paths_for_backup": ["/"],
                 "exclude_paths": [

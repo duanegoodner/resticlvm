@@ -1,1 +1,7 @@
 backup_config.toml
+dev_config.toml
+
+.idea/
+.vscode/
+__pycache__/
+*.egg-info/
