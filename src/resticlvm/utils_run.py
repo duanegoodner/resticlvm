@@ -19,15 +19,25 @@ def optional_run(cmd: list[str], dry_run: bool = False):
         subprocess.run(cmd, check=True)
 
 
-def run_with_sudo(cmd: list[str], dry_run: bool = False, password: str = None):
+def run_with_sudo(cmd: list[str], password: str = None):
     """
-    Run a command with sudo if not in dry run mode.
+    Run a command with sudo.
 
     Args:
-        cmd (list[str]): The command and arguments to run.
-        dry_run (bool): If True, only print the command without executing it.
-        password (str): Sudo password if required.
+        cmd (list[str]): The command to run (e.g., ["ls", "-l"]).
+        password (str): If provided, used for sudo via stdin.
     """
+    sudo_cmd = ["sudo", "-S"] + cmd
+
     if password:
-        cmd = ["echo", password] + cmd
-    subprocess.run(args=["sudo"] + cmd, check=True)
+        result = subprocess.run(
+            sudo_cmd,
+            input=f"{password}\n",
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+    else:
+        result = subprocess.run(sudo_cmd, check=True)
+
+    return result

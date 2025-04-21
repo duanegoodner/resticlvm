@@ -2,7 +2,7 @@ from resticlvm.utils_run import optional_run, run_with_sudo
 
 
 def test_run_with_sudo():
-    run_with_sudo(["echo", "Hello, World!"])
+    run_with_sudo(cmd=["echo", "Hello, World!"], password="test123")
 
 
 # def test_optional_run(mocker):

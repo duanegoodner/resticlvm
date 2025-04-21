@@ -1,9 +1,28 @@
+import os
+
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from resticlvm.chroot_utils import optional_run_with_chroot, prepare_for_chroot
-from resticlvm.mount_utils import remount_readonly, remount_rw
-from resticlvm.local_classes import LogicalVolume, LVMSnapshot
-from resticlvm.utils_run import optional_run
+from pdb import run
+from resticlvm.utils_chroot import (
+    post_chroot_cleanup,
+    prepare_for_chroot,
+)
+from resticlvm.utils_mount import remount_readonly, remount_rw
+from resticlvm.logical_volume import LogicalVolume, LVMSnapshot
+from resticlvm.utils_run import run_with_sudo
+
+
+@contextmanager
+def temporary_remount_readonly(path: Path):
+    """
+    Context manager to temporarily remount a path as read-only.
+    """
+    try:
+        remount_readonly(path=path)
+        yield
+    finally:
+        remount_rw(path=path)
 
 
 @dataclass
@@ -13,7 +32,16 @@ class ResticPathBackupJob:
     repo_password_file: Path
     exclude_paths: list[Path]
     remount_readonly: bool
-    dry_run: bool
+
+    def __post_init__(self):
+        if self.remount_readonly and not self.is_mount_point:
+            raise ValueError(
+                f"Path {self.path_to_backup} is not a mount point, cannot remount."
+            )
+
+    @property
+    def is_mount_point(self) -> bool:
+        return os.path.ismount(self.path_to_backup)
 
     @property
     def exclude_args(self) -> list[str]:
@@ -39,17 +67,10 @@ class ResticPathBackupJob:
 
     def run(self):
         if self.remount_readonly:
-            remount_readonly(path=self.path_to_backup, dry_run=self.dry_run)
-
-        optional_run(
-            cmd=self.backup_cmd,
-            dry_run=self.dry_run,
-        )
-
-        if self.remount_readonly:
-            remount_rw(path=self.path_to_backup, dry_run=self.dry_run)
-
-    # def send_to_restic_repo(self):
+            with temporary_remount_readonly(path=self.path_to_backup):
+                run_with_sudo(cmd=self.backup_cmd, password="test123")
+        else:
+            run_with_sudo(cmd=self.backup_cmd, password="test123")
 
 
 @dataclass
@@ -63,7 +84,6 @@ class ResticLVMBackupJob:
     repo_password_file: Path
     paths_for_backup: list[Path]
     exclude_paths: list[Path]
-    dry_run: bool
 
     @classmethod
     def from_config(cls, config: dict) -> "ResticLVMBackupJob":
@@ -83,6 +103,25 @@ class ResticLVMBackupJob:
     def logical_volume(self) -> LogicalVolume:
         return LogicalVolume(vg_name=self.vg_name, lv_name=self.lv_name)
 
+    @property
+    def exclude_args(self) -> list[str]:
+        return [f"--exclude={p}" for p in self.exclude_paths]
+
+    def backup_path_to_repo(self, path: Path) -> list[str]:
+        run_with_sudo(
+            cmd=[
+                "export",
+                f"RESTIC_PASSWORD_FILE={self.repo_password_file}",
+                "restic",
+                self.exclude_args,
+                "-r",
+                self.repo_path,
+                "backup",
+                str(path),
+                "--verbose",
+            ]
+        )
+
     def run(self):
         # Create a snapshot of the logical volume
         snapshot = LVMSnapshot(
@@ -93,38 +132,22 @@ class ResticLVMBackupJob:
             dry_run=self.dry_run,
         )
 
-        # Mount the snapshot
-        optional_run(
-            cmd=[
-                "mount",
-                str(snapshot.device_path),
-                str(snapshot.mount_point),
-            ],
-            dry_run=False,
+        snapshot.prepare_for_backup()
+
+        bind_targets = prepare_for_chroot(
+            chroot_base=self.snapshot_mount_point,
+            extra_sources=[self.repo_path],
         )
 
-        prepare_for_chroot(
-            chroot_base=self.snapshot_mount_point, dry_run=self.dry_run
+        run_with_sudo(
+            cmd=["chroot", str(self.snapshot_mount_point)], password="test123"
         )
 
-        optional_run_with_chroot()
+        for path in self.paths_for_backup:
+            self.backup_path_to_repo(path=path)
 
-        # Run the backup job
-        backup_job = ResticPathBackupJob(
-            path_to_backup=snapshot.mount_point,
-            repo_path=self.repo_path,
-            repo_password_file=self.repo_password_file,
-            exclude_paths=self.exclude_paths,
-            remount_readonly=True,
-            dry_run=False,
-        )
-        backup_job.run()
+        run_with_sudo(cmd=["exit"], password="test123")
 
-        # Unmount the snapshot
-        optional_run(
-            cmd=[
-                "umount",
-                str(snapshot.mount_point),
-            ],
-            dry_run=False,
-        )
+        post_chroot_cleanup(bind_targets=bind_targets)
+
+        snapshot.post_backup_cleanup()

@@ -1,4 +1,4 @@
-from resticlvm.local_classes import BootDir
+from resticlvm.logical_volume import BootDir
 from resticlvm.restic_snapshot import ResticBootSnapshot, ResticLVMSnapshot
 
 

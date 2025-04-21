@@ -1,10 +1,10 @@
 import subprocess
 from pathlib import Path
 
-from resticlvm.utils_run import optional_run
+from resticlvm.utils_run import optional_run, run_with_sudo
 
 
-def bind_mount_onto(source: Path, target_base: Path, dry_run: bool) -> None:
+def bind_mount_onto(source: Path, target_base: Path) -> None:
     """Bind-mount a source path onto a matching location inside a target base path.
 
     This function creates a bind mount of the `source` path inside a target root
@@ -47,13 +47,12 @@ def bind_mount_onto(source: Path, target_base: Path, dry_run: bool) -> None:
         if not full_target.exists():
             full_target.touch()
 
-    subprocess.run(
-        ["mount", "--bind", str(source), str(full_target)], check=True
-    )
+    cmd = ["mount", "--bind", str(source), str(full_target)]
+    run_with_sudo(cmd=cmd, password="test123")
 
 
 def prepare_for_chroot(
-    chroot_base: Path, extra_sources: list[Path], dry_run: bool = False
+    chroot_base: Path, extra_sources: list[Path]
 ) -> list[Path]:
     """
     Bind mounts standard system paths and extra sources into a chroot base.
@@ -78,7 +77,7 @@ def prepare_for_chroot(
     return bind_targets
 
 
-def post_chroot_cleanup(bind_targets: list[Path], dry_run: bool = False):
+def post_chroot_cleanup(bind_targets: list[Path]):
     """
     Unmounts a list of bind-mounted paths inside the chroot.
 
@@ -88,14 +87,12 @@ def post_chroot_cleanup(bind_targets: list[Path], dry_run: bool = False):
     """
     for target in reversed(bind_targets):
         try:
-            optional_run(["umount", str(target)], dry_run=dry_run)
+            run_with_sudo(cmd=["umount", str(target)], password="test123")
         except subprocess.CalledProcessError as e:
             print(f"Warning: Failed to unmount {target}: {e}")
 
 
-def optional_run_with_chroot(
-    cmd: list[str], chroot_path: Path, dry_run: bool = False
-):
+def run_with_chroot(cmd: list[str], chroot_path: Path):
     """
     Run a command inside a chroot environment if not in dry run mode.
 
@@ -104,17 +101,11 @@ def optional_run_with_chroot(
         chroot_path (Path): The path to the chroot environment.
         dry_run (bool): If True, only print the command without executing it.
     """
-    cmd_str = " ".join(cmd)
-    print(
-        f"[DRY RUN] Pretending to run in chroot: {cmd_str}"
-        if dry_run
-        else f"Running in chroot: {cmd_str}"
+
+    run_with_sudo(
+        ["chroot", str(chroot_path), "/bin/bash", "-c", " ".join(cmd)],
+        password="test123",
     )
-    if not dry_run:
-        subprocess.run(
-            ["chroot", str(chroot_path), "/bin/bash", "-c", " ".join(cmd)],
-            check=True,
-        )
 
 
 def prepare_and_run_in_chroot(
@@ -148,6 +139,6 @@ def prepare_and_run_in_chroot(
         bind_targets = prepare_for_chroot(
             chroot_base, mount_sources, dry_run=dry_run
         )
-        optional_run_with_chroot(cmd, chroot_path=chroot_base, dry_run=dry_run)
+        run_with_chroot(cmd, chroot_path=chroot_base)
     finally:
         post_chroot_cleanup(bind_targets, dry_run=dry_run)

@@ -6,7 +6,7 @@ from pathlib import Path
 from resticlvm.backup_jobs import BootBackupJob, LVMBackupJob
 from resticlvm.backup_plan import BackupPlan
 from resticlvm.config_loader import load_config
-from resticlvm.local_classes import BootDir, LogicalVolume, LVMSnapshot
+from resticlvm.logical_volume import BootDir, LogicalVolume, LVMSnapshot
 from resticlvm.restic_classes import ResticRepo
 from resticlvm.restic_snapshot import ResticBootSnapshot, ResticLVMSnapshot
 

@@ -6,7 +6,6 @@ import pytest
 @pytest.fixture
 def expected_config():
     return {
-        "general": {"dry_run": True},
         "partitions": {
             "boot": {
                 "mount_point": "/boot",

@@ -1,0 +1,34 @@
+[partitions.boot]
+mount_point = "/boot"
+repo_path = "/backups/resticlvm/restic-boot"
+repo_password_file = "/home/duane/resticlvm/test/test_password.txt"
+excldue_paths = []
+
+[logical_volumes.root]
+vg_name = "vg0"
+lv_name = "lv0"
+snapshot_mount_point = "/srv/root_snapshot_for_restic"
+snapshot_size = 1
+snapshot_size_unit = "G"
+repo_path = "/backups/resticlvm/restic-root"
+paths_for_backup = ["/"]
+exclude_paths = [
+    "/dev",
+    "/media",
+    "/mnt",
+    "/proc",
+    "/run",
+    "/sys",
+    "/tmp",
+    "/var/tmp",
+]
+
+[logical_volumes.storage]
+vg_name = "vg_storage"
+lv_name = "lv_storage"
+snapshot_mount_point = "/srv/storage_snapshot_for_restic"
+snapshot_size = 1
+snapshot_size_unit = "G"
+repo_path = "/backups/resticlvm/restic-storage"
+paths_for_backup = ["/"]
+exclude_paths = ["/data/storage/data_to_ignore"]

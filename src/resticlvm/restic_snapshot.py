@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from resticlvm.local_classes import BootDir, LVMSnapshot
+from resticlvm.logical_volume import BootDir, LVMSnapshot
 from resticlvm.restic_classes import ResticRepo
 from resticlvm.utils_run import optional_run
 
@@ -51,7 +51,7 @@ class ResticPathBackupJob:
     @property
     def exclude_args(self) -> list[str]:
         return [f"--exclude={p}" for p in self.exclude_paths]
-    
+
     @property
     def backup_cmd(self) -> list[str]:
         return (
@@ -70,10 +70,6 @@ class ResticPathBackupJob:
             ]
         )
 
-    def send_to_restic_repo(self):
-
-
-    
     def run(self):
         if self.remount_readonly:
             remount_readonly(path=self.path_to_backup, dry_run=self.dry_run)
@@ -97,9 +93,6 @@ class ResticPathBackupJob:
         )
 
         optional_run(cmd=cmd, dry_run=self.dry_run)
-
-
-
 
 
 @dataclass

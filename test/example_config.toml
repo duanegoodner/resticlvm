@@ -1,6 +1,3 @@
-[general]
-dry_run = true
-
 [partitions.boot]
 mount_point = "/boot"
 repo_path = "/path/to/bootrepo/"
