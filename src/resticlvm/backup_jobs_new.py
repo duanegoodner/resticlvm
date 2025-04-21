@@ -1,6 +1,6 @@
 import os
 
-from contextlib import contextmanager
+
 from dataclasses import dataclass
 from pathlib import Path
 from pdb import run
@@ -8,21 +8,9 @@ from resticlvm.utils_chroot import (
     post_chroot_cleanup,
     prepare_for_chroot,
 )
-from resticlvm.utils_mount import remount_readonly, remount_rw
+from resticlvm.utils_mount import temporary_remount_readonly
 from resticlvm.logical_volume import LogicalVolume, LVMSnapshot
 from resticlvm.utils_run import run_with_sudo
-
-
-@contextmanager
-def temporary_remount_readonly(path: Path):
-    """
-    Context manager to temporarily remount a path as read-only.
-    """
-    try:
-        remount_readonly(path=path)
-        yield
-    finally:
-        remount_rw(path=path)
 
 
 @dataclass
@@ -59,25 +47,18 @@ class ResticPathBackupJob:
 
     @property
     def backup_cmd(self) -> list[str]:
-        return (
-            [
-                "export",
-                f"RESTIC_PASSWORD_FILE={str(self.repo_password_file)}",
-                "restic",
-            ]
-            + self.exclude_args
-            + [
-                "-r",
-                str(self.repo_path),
-                "backup",
-                str(self.source),
-                "--verbose",
-            ]
-        )
+        return [
+            "restic",
+            "-r",
+            str(self.repo_path),
+            "backup",
+            str(self.source),
+            "--verbose",
+        ] + self.exclude_args
 
     def run(self):
         if self.remount_readonly:
-            with temporary_remount_readonly(path=self.path_to_backup):
+            with temporary_remount_readonly(path=self.source):
                 run_with_sudo(cmd=self.backup_cmd, password="test123")
         else:
             run_with_sudo(cmd=self.backup_cmd, password="test123")
@@ -123,7 +104,7 @@ class ResticLVMBackupJob:
     def restic_path_backup_jobs(self) -> list[ResticPathBackupJob]:
         return [
             ResticPathBackupJob(
-                path=path,
+                source=path,
                 repo_path=self.repo_path,
                 repo_password_file=self.repo_password_file,
                 exclude_paths=self.exclude_paths,

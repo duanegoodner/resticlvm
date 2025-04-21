@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 from resticlvm.utils_run import run_with_sudo
@@ -35,3 +36,15 @@ def remount_rw(path: Path):
         ],
         password="test123",
     )
+
+
+@contextmanager
+def temporary_remount_readonly(path: Path):
+    """
+    Context manager to temporarily remount a path as read-only.
+    """
+    try:
+        remount_readonly(path=path)
+        yield
+    finally:
+        remount_rw(path=path)

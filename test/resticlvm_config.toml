@@ -33,5 +33,5 @@ snapshot_size = 1
 snapshot_size_unit = "G"
 repo_path = "/backups/resticlvm/restic-storage"
 repo_password_file = "/home/duane/resticlvm/test/test_password.txt"
-paths_for_backup = ["/"]
+paths_for_backup = ["/data/storage"]
 exclude_paths = ["/data/storage/data_to_ignore"]
