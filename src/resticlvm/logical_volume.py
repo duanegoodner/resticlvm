@@ -63,7 +63,6 @@ class LVMSnapshot:
         size: int,
         size_unit: str,
         mount_point: Path,
-        dry_run: bool = False,
     ):
         self.origin = origin
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -72,7 +71,6 @@ class LVMSnapshot:
         self.size = size
         self.size_unit = size_unit
         self.mount_point = mount_point
-        self.dry_run = dry_run
         self._create()
 
     @property

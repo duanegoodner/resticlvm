@@ -1,13 +1,16 @@
-[partitions.boot]
-mount_point = "/boot"
+[path_sources.boot]
+source = "/boot"
 repo_path = "/path/to/bootrepo/"
 repo_password_file = "/path/to/boot/repo/password_file"
 excldue_paths = []
+remount_readonly = true
 
-[logical_volumes.example_lvm]
-vg_name = "vg_example"
-lv_name = "lv_example"
+[logical_volume_sources.example_lvm]
+source_vg_name = "vg_example"
+source_lv_name = "lv_example"
 snapshot_mount_point = "/path/to/snapshot/dir/"
+snapshot_size = 1
+snapshot_size_unit = "G"
 repo_path = "/path/to/example_lvm/repo/"
 paths_for_backup = ["/"]
 exclude_paths = [
@@ -22,4 +25,3 @@ exclude_paths = [
     "/var/lib/libvirt/images",
     "/var/lib/libvirt/isos",
 ]
-snapshot_size = "10G"

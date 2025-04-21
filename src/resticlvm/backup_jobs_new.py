@@ -27,21 +27,31 @@ def temporary_remount_readonly(path: Path):
 
 @dataclass
 class ResticPathBackupJob:
-    path_to_backup: Path
+    source: Path
     repo_path: Path
     repo_password_file: Path
     exclude_paths: list[Path]
     remount_readonly: bool
 
+    @classmethod
+    def from_config(cls, config: dict) -> "ResticPathBackupJob":
+        return cls(
+            source=Path(config["source"]),
+            repo_path=Path(config["repo_path"]),
+            repo_password_file=Path(config["repo_password_file"]),
+            exclude_paths=[Path(p) for p in config["exclude_paths"]],
+            remount_readonly=config["remount_readonly"],
+        )
+
     def __post_init__(self):
-        if self.remount_readonly and not self.is_mount_point:
+        if self.remount_readonly and not self.is_for_mount_point:
             raise ValueError(
-                f"Path {self.path_to_backup} is not a mount point, cannot remount."
+                f"Path {self.source} is not a mount point, cannot remount."
             )
 
     @property
-    def is_mount_point(self) -> bool:
-        return os.path.ismount(self.path_to_backup)
+    def is_for_mount_point(self) -> bool:
+        return os.path.ismount(self.source)
 
     @property
     def exclude_args(self) -> list[str]:
@@ -52,15 +62,15 @@ class ResticPathBackupJob:
         return (
             [
                 "export",
-                f"RESTIC_PASSWORD_FILE={self.repo_password_file};",
+                f"RESTIC_PASSWORD_FILE={str(self.repo_password_file)}",
                 "restic",
             ]
             + self.exclude_args
             + [
                 "-r",
-                self.repo_path,
+                str(self.repo_path),
                 "backup",
-                str(self.path_to_backup),
+                str(self.source),
                 "--verbose",
             ]
         )
@@ -75,8 +85,8 @@ class ResticPathBackupJob:
 
 @dataclass
 class ResticLVMBackupJob:
-    vg_name: str
-    lv_name: str
+    source_vg_name: str
+    source_lv_name: str
     snapshot_mount_point: Path
     snapshot_size: int
     snapshot_size_unit: str
@@ -88,8 +98,8 @@ class ResticLVMBackupJob:
     @classmethod
     def from_config(cls, config: dict) -> "ResticLVMBackupJob":
         return cls(
-            vg_name=config["vg_name"],
-            lv_name=config["lv_name"],
+            source_vg_name=config["source_vg_name"],
+            source_lv_name=config["source_lv_name"],
             snapshot_mount_point=Path(config["snapshot_mount_point"]),
             snapshot_size=int(config["snapshot_size"]),
             snapshot_size_unit=config["snapshot_size_unit"],
@@ -101,26 +111,41 @@ class ResticLVMBackupJob:
 
     @property
     def logical_volume(self) -> LogicalVolume:
-        return LogicalVolume(vg_name=self.vg_name, lv_name=self.lv_name)
+        return LogicalVolume(
+            vg_name=self.source_vg_name, lv_name=self.source_lv_name
+        )
 
     @property
     def exclude_args(self) -> list[str]:
         return [f"--exclude={p}" for p in self.exclude_paths]
 
-    def backup_path_to_repo(self, path: Path) -> list[str]:
-        run_with_sudo(
-            cmd=[
-                "export",
-                f"RESTIC_PASSWORD_FILE={self.repo_password_file}",
-                "restic",
-                self.exclude_args,
-                "-r",
-                self.repo_path,
-                "backup",
-                str(path),
-                "--verbose",
-            ]
-        )
+    @property
+    def restic_path_backup_jobs(self) -> list[ResticPathBackupJob]:
+        return [
+            ResticPathBackupJob(
+                path=path,
+                repo_path=self.repo_path,
+                repo_password_file=self.repo_password_file,
+                exclude_paths=self.exclude_paths,
+                remount_readonly=False,
+            )
+            for path in self.paths_for_backup
+        ]
+
+    # def backup_path_to_repo(self, path: Path) -> list[str]:
+    #     run_with_sudo(
+    #         cmd=[
+    #             "export",
+    #             f"RESTIC_PASSWORD_FILE={self.repo_password_file}",
+    #             "restic",
+    #             self.exclude_args,
+    #             "-r",
+    #             self.repo_path,
+    #             "backup",
+    #             str(path),
+    #             "--verbose",
+    #         ]
+    #     )
 
     def run(self):
         # Create a snapshot of the logical volume
@@ -143,8 +168,11 @@ class ResticLVMBackupJob:
             cmd=["chroot", str(self.snapshot_mount_point)], password="test123"
         )
 
-        for path in self.paths_for_backup:
-            self.backup_path_to_repo(path=path)
+        for path_backup_job in self.restic_path_backup_jobs:
+            path_backup_job.run()
+
+        # for path in self.paths_for_backup:
+        #     self.backup_path_to_repo(path=path)
 
         run_with_sudo(cmd=["exit"], password="test123")
 
