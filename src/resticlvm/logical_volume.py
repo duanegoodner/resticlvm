@@ -73,6 +73,13 @@ class LVMSnapshot:
         self.mount_point = mount_point
         self._create()
 
+    def __enter__(self):
+        self.prepare_for_backup()
+        return self
+
+    def __exit__(self):
+        self.post_backup_cleanup()
+
     @property
     def device_path(self) -> Path:
         return Path(f"/dev/{self.origin.vg_name}/{self.name}")

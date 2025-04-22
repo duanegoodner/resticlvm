@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from pdb import run
 from resticlvm.utils_chroot import (
+    chroot_bind_environment,
     post_chroot_cleanup,
     prepare_for_chroot,
+    run_chrooted_command,
 )
 from resticlvm.utils_mount import temporary_remount_readonly
 from resticlvm.logical_volume import LogicalVolume, LVMSnapshot
@@ -119,22 +121,26 @@ class ResticLVMBackupJob:
             mount_point=self.snapshot_mount_point,
         )
 
-        snapshot.prepare_for_backup()
+        # snapshot.prepare_for_backup() -- now handled by LVMSnapshot __enter__
 
-        bind_targets = prepare_for_chroot(
-            chroot_base=self.snapshot_mount_point,
-            extra_sources=[self.repo_path],
-        )
+        # bind_targets = prepare_for_chroot(
+        #     chroot_base=self.snapshot_mount_point,
+        #     extra_sources=[self.repo_path],
+        # )
 
-        run_with_sudo(
-            cmd=["chroot", str(self.snapshot_mount_point)], password="test123"
-        )
+        # run_with_sudo(
+        #     cmd=["chroot", str(self.snapshot_mount_point)], password="test123"
+        # )
 
-        for path_backup_job in self.restic_path_backup_jobs:
-            path_backup_job.run()
+        with chroot_bind_environment(
+            chroot_base=self.snapshot_mount_point, extra_sources=self.repo_path
+        ):
 
-        run_with_sudo(cmd=["exit"], password="test123")
+            for path_backup_job in self.restic_path_backup_jobs:
+                path_backup_job.run()
 
-        post_chroot_cleanup(bind_targets=bind_targets)
+        # run_with_sudo(cmd=["exit"], password="test123")
 
-        snapshot.post_backup_cleanup()
+        # post_chroot_cleanup(bind_targets=bind_targets)
+
+        # snapshot.post_backup_cleanup() - now handled by LVMSnapshot __exit__

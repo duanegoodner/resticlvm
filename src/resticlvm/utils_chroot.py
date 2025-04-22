@@ -1,5 +1,8 @@
+import shlex
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from resticlvm.utils_run import optional_run, run_with_sudo
 
@@ -92,53 +95,67 @@ def post_chroot_cleanup(bind_targets: list[Path]):
             print(f"Warning: Failed to unmount {target}: {e}")
 
 
-def run_with_chroot(cmd: list[str], chroot_path: Path):
-    """
-    Run a command inside a chroot environment if not in dry run mode.
-
-    Args:
-        cmd (list[str]): The command and arguments to run inside the chroot.
-        chroot_path (Path): The path to the chroot environment.
-        dry_run (bool): If True, only print the command without executing it.
-    """
-
-    run_with_sudo(
-        ["chroot", str(chroot_path), "/bin/bash", "-c", " ".join(cmd)],
-        password="test123",
-    )
-
-
-def prepare_and_run_in_chroot(
-    cmd: list[str],
-    mount_sources: list[Path],
+@contextmanager
+def chroot_bind_environment(
     chroot_base: Path,
-    dry_run: bool = False,
-):
+    extra_sources: list[Path],
+) -> Iterator[list[Path]]:
     """
-    Prepares a chroot environment with required bind mounts, runs a command inside it,
-    and then performs cleanup by unmounting everything.
-
-    This function:
-      - Bind mounts standard system paths (/dev, /proc, /sys) into the chroot
-      - Bind mounts additional specified host paths into the chroot
-      - Runs the given command using chroot
-      - Unmounts all bind-mounted paths afterward (in reverse order)
+    Context manager that prepares and tears down a chroot bind-mount environment.
 
     Args:
-        cmd (list[str]): The command to run inside the chroot.
-        mount_sources (list[Path]): Extra host paths to mount into the chroot.
-        chroot_base (Path): The root directory of the chroot environment.
-        dry_run (bool): If True, simulate the steps without performing them.
+        chroot_base (Path): The root of the chroot environment.
+        extra_sources (List[Path]): Additional host paths to mount into the chroot.
 
-    Raises:
-        subprocess.CalledProcessError: If the command or any mount operation fails.
+    Yields:
+        List[Path]: The list of bind-mounted target paths (inside chroot).
     """
-    bind_targets = []
+    bind_targets = prepare_for_chroot(chroot_base, extra_sources)
 
     try:
-        bind_targets = prepare_for_chroot(
-            chroot_base, mount_sources, dry_run=dry_run
-        )
-        run_with_chroot(cmd, chroot_path=chroot_base)
+        yield bind_targets
     finally:
-        post_chroot_cleanup(bind_targets, dry_run=dry_run)
+        post_chroot_cleanup(bind_targets)
+
+
+def run_chrooted_command(
+    chroot_base: Path,
+    command: list[str],
+    sudo_password: str,
+    check: bool = True,
+    capture_output: bool = False,
+):
+    """
+    Run a shell command inside a chroot environment using sudo.
+
+    Args:
+        chroot_base (Path): Path to the root of the chroot environment.
+        command (List[str]): Command to run (as list of strings).
+        sudo_password (str): Sudo password to pass via stdin.
+        check (bool): Whether to raise CalledProcessError on failure.
+        capture_output (bool): If True, captures and returns stdout/stderr.
+
+    Returns:
+        subprocess.CompletedProcess | None: Only returned if capture_output=True.
+    """
+    command_str = " ".join(shlex.quote(arg) for arg in command)
+
+    base_cmd = [
+        "sudo",
+        "-S",
+        "chroot",
+        str(chroot_base),
+        "/bin/bash",
+        "-c",
+        command_str,
+    ]
+
+    kwargs = {"input": sudo_password + "\n", "text": True, "check": check}
+
+    if capture_output:
+        kwargs["stdout"] = subprocess.PIPE
+        kwargs["stderr"] = subprocess.PIPE
+
+    result = subprocess.run(base_cmd, **kwargs)
+
+    return result if capture_output else None
