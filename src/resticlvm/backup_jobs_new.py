@@ -136,8 +136,14 @@ class ResticLVMBackupJob:
             chroot_base=self.snapshot_mount_point, extra_sources=self.repo_path
         ):
 
-            for path_backup_job in self.restic_path_backup_jobs:
-                path_backup_job.run()
+            for backup_job in self.restic_path_backup_jobs:
+                run_chrooted_command(
+                    chroot_base=self.snapshot_mount_point,
+                    command=backup_job.restic_repo.base_command
+                    + ["backup", str(backup_job.source), "--verbose"]
+                    + self.exclude_args,
+                    sudo_password="test123",
+                )
 
         # run_with_sudo(cmd=["exit"], password="test123")
 
