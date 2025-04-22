@@ -10,6 +10,7 @@ from resticlvm.utils_chroot import (
 )
 from resticlvm.utils_mount import temporary_remount_readonly
 from resticlvm.logical_volume import LogicalVolume, LVMSnapshot
+from resticlvm.restic_classes import ResticRepo
 from resticlvm.utils_run import run_with_sudo
 
 
@@ -51,6 +52,7 @@ class ResticPathBackupJob:
             "restic",
             "-r",
             str(self.repo_path),
+            f"--password-file={str(self.repo_password_file)}",
             "backup",
             str(self.source),
             "--verbose",

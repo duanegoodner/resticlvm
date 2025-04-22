@@ -31,11 +31,10 @@ def test_boot_backup_job_init(boot_config):
     assert boot_backup_job.is_for_mount_point
     assert boot_backup_job.exclude_args == []
     assert boot_backup_job.backup_cmd == [
-        "export",
-        "RESTIC_PASSWORD_FILE=/home/duane/resticlvm/test/test_password.txt",
         "restic",
         "-r",
         str(Path("/backups/resticlvm/restic-boot")),
+        "--password-file=/home/duane/resticlvm/test/test_password.txt",
         "backup",
         str(Path("/boot")),
         "--verbose",
