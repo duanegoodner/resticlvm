@@ -6,4 +6,4 @@ dev_config.toml
 __pycache__/
 *.egg-info/
 
-restic_backup_ext_ssd.sh
+secrets/
