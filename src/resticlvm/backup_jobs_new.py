@@ -134,7 +134,8 @@ class ResticLVMBackupJob:
         # )
 
         with chroot_bind_environment(
-            chroot_base=self.snapshot_mount_point, extra_sources=self.repo_path
+            chroot_base=self.snapshot_mount_point,
+            extra_sources=[self.restic_repo.repo_path],
         ):
 
             for backup_job in self.restic_path_backup_jobs:

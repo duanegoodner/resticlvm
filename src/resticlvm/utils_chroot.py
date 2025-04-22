@@ -44,11 +44,20 @@ def bind_mount_onto(source: Path, target_base: Path) -> None:
     full_target = target_base / relative
 
     if source.is_dir():
-        full_target.mkdir(parents=True, exist_ok=True)
+        run_with_sudo(
+            cmd=["mkdir", "-p", str(full_target)], password="test123"
+        )
+
+        # full_target.mkdir(parents=True, exist_ok=True)
+        run_with_sudo(
+            cmd=["mkdir", "-p", str(full_target)], password="test123"
+        )
     else:
-        full_target.parent.mkdir(parents=True, exist_ok=True)
+        run_with_sudo(cmd=["mkdir", "-p", str(full_target.parent)])
+        # full_target.parent.mkdir(parents=True, exist_ok=True)
         if not full_target.exists():
-            full_target.touch()
+            run_with_sudo(cmd=["touch", str(full_target)], password="test123")
+            # full_target.touch()
 
     cmd = ["mount", "--bind", str(source), str(full_target)]
     run_with_sudo(cmd=cmd, password="test123")
