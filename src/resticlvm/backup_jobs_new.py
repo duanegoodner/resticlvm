@@ -70,8 +70,8 @@ class ResticLVMBackupJob:
     snapshot_mount_point: Path
     snapshot_size: int
     snapshot_size_unit: str
-    repo_path: Path
-    repo_password_file: Path
+    restic_repo: ResticRepo
+
     paths_for_backup: list[Path]
     exclude_paths: list[Path]
 
@@ -83,8 +83,10 @@ class ResticLVMBackupJob:
             snapshot_mount_point=Path(config["snapshot_mount_point"]),
             snapshot_size=int(config["snapshot_size"]),
             snapshot_size_unit=config["snapshot_size_unit"],
-            repo_path=Path(config["repo_path"]),
-            repo_password_file=Path(config["repo_password_file"]),
+            restic_repo=ResticRepo(
+                repo_path=Path(config["repo_path"]),
+                password_file=Path(config["repo_password_file"]),
+            ),
             paths_for_backup=[Path(p) for p in config["paths_for_backup"]],
             exclude_paths=[Path(p) for p in config["exclude_paths"]],
         )
@@ -104,8 +106,7 @@ class ResticLVMBackupJob:
         return [
             ResticPathBackupJob(
                 source=path,
-                repo_path=self.repo_path,
-                repo_password_file=self.repo_password_file,
+                restic_repo=self.restic_repo,
                 exclude_paths=self.exclude_paths,
                 remount_readonly=False,
             )
