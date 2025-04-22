@@ -33,7 +33,23 @@ else
     fi
 fi
 
-# Create snapshot
+# Run Restic backup for /boot
+echo "Running Restic backup for /boot..."
+restic -r $RESTIC_REPO_BOOT --password-file=$RESTIC_PASSWORD_FILE backup /boot --verbose
+if [ $? -ne 0 ]; then
+    echo "Restic backup for /boot failed."
+fi
+
+# Remount /boot as read-write
+if [ -n "$BOOT_PARTITION" ]; then
+    echo "Remounting /boot as read-write..."
+    mount -o remount,rw $BOOT_PARTITION
+    if [ $? -ne 0 ]; then
+        echo "Failed to remount /boot as read-write. Please check manually."
+    fi
+fi
+
+# Create snapshot of root LV
 echo "Creating LVM snapshot..."
 lvcreate --size $SNAP_SIZE --snapshot --name $SNAP_NAME /dev/$VG_NAME/$LV_NAME
 if [ $? -ne 0 ]; then
@@ -41,7 +57,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Mount snapshot
+# Mount root LV snapshot
 echo "Mounting LVM snapshot..."
 mkdir -p $SNAPSHOT_MOUNT_POINT
 mount /dev/$VG_NAME/$SNAP_NAME $SNAPSHOT_MOUNT_POINT
@@ -75,21 +91,7 @@ chroot $SNAPSHOT_MOUNT_POINT /bin/bash -c "
   restic $EXCLUDE_ARGS -r $RESTIC_REPO_ROOT backup / --verbose
 "
 
-# Run Restic backup for /boot
-echo "Running Restic backup for /boot..."
-restic -r $RESTIC_REPO_BOOT --password-file=$RESTIC_PASSWORD_FILE backup /boot --verbose
-if [ $? -ne 0 ]; then
-    echo "Restic backup for /boot failed."
-fi
 
-# Remount /boot as read-write
-if [ -n "$BOOT_PARTITION" ]; then
-    echo "Remounting /boot as read-write..."
-    mount -o remount,rw $BOOT_PARTITION
-    if [ $? -ne 0 ]; then
-        echo "Failed to remount /boot as read-write. Please check manually."
-    fi
-fi
 
 # Exit chroot and clean up
 echo "Cleaning up..."
