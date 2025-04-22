@@ -30,20 +30,14 @@ def test_boot_backup_job_init(boot_config):
     boot_backup_job = ResticPathBackupJob.from_config(config=boot_config)
     assert boot_backup_job.is_for_mount_point
     assert boot_backup_job.exclude_args == []
-    assert boot_backup_job.backup_cmd == [
-        "restic",
-        "-r",
-        str(Path("/backups/resticlvm/restic-boot")),
-        "--password-file=/home/duane/resticlvm/test/test_password.txt",
-        "backup",
-        str(Path("/boot")),
-        "--verbose",
-    ]
+    assert boot_backup_job.restic_repo is not None
 
 
 def test_run_boot_backup_job(boot_config):
     boot_backup_job = ResticPathBackupJob.from_config(config=boot_config)
+    orig_num_snapshots = boot_backup_job.restic_repo.num_snapshots
     boot_backup_job.run()
+    assert boot_backup_job.restic_repo.num_snapshots == orig_num_snapshots + 1
 
 
 def test_root_backup_job_init(root_config):
@@ -57,6 +51,11 @@ def test_root_backup_job_init(root_config):
     assert len(root_backup_job.restic_path_backup_jobs) == len(
         root_config["paths_for_backup"]
     )
+
+
+def test_run_root_backup_job(root_config):
+    root_backup_job = ResticLVMBackupJob.from_config(config=root_config)
+    root_backup_job.run()
 
 
 def test_storage_backup_init(storage_config):

@@ -19,7 +19,7 @@ def optional_run(cmd: list[str], dry_run: bool = False):
         subprocess.run(cmd, check=True)
 
 
-def run_with_sudo(cmd: list[str], password: str = None):
+def run_with_sudo(cmd: list[str], password: str):
     """
     Run a command with sudo.
 
@@ -29,15 +29,20 @@ def run_with_sudo(cmd: list[str], password: str = None):
     """
     sudo_cmd = ["sudo", "-S"] + cmd
 
-    if password:
+    try:
         result = subprocess.run(
             sudo_cmd,
             input=f"{password}\n",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            capture_output=True,
+            # capture_output=True,
             check=True,
         )
-    else:
-        result = subprocess.run(sudo_cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print("Command failed")
+        print("STDERR:", e.stderr)
+        print("STDOUT:", e.stdout)
+        exit(1)
 
     return result
