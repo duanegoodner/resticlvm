@@ -1,16 +1,27 @@
 #!/bin/bash
 
-# Set variables
-VG_NAME="vg0"                                   # Volume group name
-LV_NAME="lv0"                                   # Logical volume name
-SNAP_NAME="lv0_snapshot"                        # Snapshot name
-SNAP_SIZE="1G"                                  # Snapshot size
-SNAPSHOT_MOUNT_POINT="/srv/snapshot_for_restic" # Mount point for the snapshot
-RESTIC_REPO="/backup/restic/restic-root/"
-RESTIC_PASSWORD_FILE="/home/duane/resticlvm/secrets/repo_password.txt" # Path to Restic password file
+# Set volume info
+VG_NAME="vg0"
+LV_NAME="lv0"
+SNAP_SIZE="1G"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+
+# Derived names
+SNAP_NAME="${VG_NAME}-${LV_NAME}-${TIMESTAMP}"
+SNAPSHOT_MOUNT_POINT="/srv/${SNAP_NAME}-for-restic"
+
+# Restic config
+RESTIC_REPO="/backup/restic/restic-root"
+RESTIC_PASSWORD_FILE="/home/duane/resticlvm/secrets/repo_password.txt"
+
+# Chroot path where restic repo will be mounted
+CHROOT_REPO_PATH="/.restic_repo"
 
 # Paths to exclude (space-separated list)
 EXCLUDE_PATHS="/dev /media /mnt /proc /run /sys /tmp /var/tmp /var/lib/libvirt/images"
+
+# Prepend the chroot repo path to EXCLUDE_PATHS
+EXCLUDE_PATHS="$CHROOT_REPO_PATH $EXCLUDE_PATHS"
 
 # Ensure we run as root
 if [ "$EUID" -ne 0 ]; then
