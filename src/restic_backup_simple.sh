@@ -37,9 +37,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # Bind Restic repository to snapshot environment
-echo "Binding Restic repository..."
-mkdir -p $SNAPSHOT_MOUNT_POINT$(dirname $RESTIC_REPO)
-mount --bind $(dirname $RESTIC_REPO) $SNAPSHOT_MOUNT_POINT$(dirname $RESTIC_REPO)
+CHROOT_REPO_PATH="/.restic_repo"
+CHROOT_REPO_FULL="$CHROOT_REPO_PATH/$(basename $RESTIC_REPO)"
+mkdir -p "$SNAPSHOT_MOUNT_POINT/$CHROOT_REPO_FULL"
+mount --bind "$RESTIC_REPO" "$SNAPSHOT_MOUNT_POINT/$CHROOT_REPO_FULL"
 
 # Bind essential directories for chroot
 echo "Preparing chroot environment..."
@@ -54,20 +55,28 @@ for path in $EXCLUDE_PATHS; do
 done
 
 # Enter chroot and run Restic backup
-echo "Running Restic backup..."
-chroot $SNAPSHOT_MOUNT_POINT /bin/bash -c "
+chroot "$SNAPSHOT_MOUNT_POINT" /bin/bash -c "
   export RESTIC_PASSWORD_FILE=$RESTIC_PASSWORD_FILE
-  restic $EXCLUDE_ARGS -r $RESTIC_REPO backup / --verbose
+  restic $EXCLUDE_ARGS -r $CHROOT_REPO_FULL backup / --verbose
 "
 
 # Exit chroot and clean up
-echo "Cleaning up..."
-umount $SNAPSHOT_MOUNT_POINT/dev
-umount $SNAPSHOT_MOUNT_POINT/proc
-umount $SNAPSHOT_MOUNT_POINT/sys
-umount $SNAPSHOT_MOUNT_POINT$(dirname $RESTIC_REPO)
-umount $SNAPSHOT_MOUNT_POINT
-lvremove -y /dev/$VG_NAME/$SNAP_NAME
-rmdir $SNAPSHOT_MOUNT_POINT
+
+# Unmount restic repo bind
+mountpoint -q "$SNAPSHOT_MOUNT_POINT/$CHROOT_REPO_FULL" && umount "$SNAPSHOT_MOUNT_POINT/$CHROOT_REPO_FULL"
+
+# Unmount standard chroot system paths
+umount "$SNAPSHOT_MOUNT_POINT/dev"
+umount "$SNAPSHOT_MOUNT_POINT/proc"
+umount "$SNAPSHOT_MOUNT_POINT/sys"
+
+# Unmount snapshot root
+umount "$SNAPSHOT_MOUNT_POINT"
+
+# Remove the snapshot
+lvremove -y "/dev/$VG_NAME/$SNAP_NAME"
+
+# Optionally clean up mount directory
+rmdir "$SNAPSHOT_MOUNT_POINT"
 
 echo "Backup completed successfully."
