@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Set variables
-RESTIC_REPO="/backup/restic/restic-boot/"
-RESTIC_PASSWORD_FILE="/home/duane/resticlvm/secrets/repo_password.txt" # Path to Restic password file
+RESTIC_REPO="/backup/restic/restic-boot"
+RESTIC_PASSWORD_FILE="/home/duane/resticlvm/secrets/repo_password.txt"
 BACKUP_SOURCE="/boot"
-
-# Paths to exclude (space-separated list)
 EXCLUDE_PATHS=""
+
+REMOUNT_AS_RO=true # Set to false to skip remounting
 
 # Ensure we run as root
 if [ "$EUID" -ne 0 ]; then
@@ -14,31 +14,42 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Remount /boot as read-only
-echo "Remounting /boot as read-only..."
-if ! mount | grep -q 'on /boot '; then
-    echo "/boot is not mounted. Skipping /boot backup."
-else
-    BOOT_PARTITION=$(mount | grep 'on /boot ' | awk '{print $1}')
-    mount -o remount,ro $BOOT_PARTITION
-    if [ $? -ne 0 ]; then
-        echo "Failed to remount /boot as read-only. Exiting."
-        exit 1
+# Optionally remount the backup source as read-only
+if [ "$REMOUNT_AS_RO" = true ]; then
+    echo "Remounting ${BACKUP_SOURCE} as read-only..."
+
+    if ! mountpoint -q "$BACKUP_SOURCE"; then
+        echo "Warning: ${BACKUP_SOURCE} is not a mount point. Skipping remount."
+    else
+        PARTITION_DEV=$(findmnt -n -o SOURCE --target "$BACKUP_SOURCE")
+        mount -o remount,ro "$PARTITION_DEV"
+        if [ $? -ne 0 ]; then
+            echo "Failed to remount ${BACKUP_SOURCE} as read-only. Exiting."
+            exit 1
+        fi
     fi
 fi
 
-# Run Restic backup for /boot
-echo "Running Restic backup for /boot..."
-restic -r $RESTIC_REPO --password-file=$RESTIC_PASSWORD_FILE backup /boot --verbose
+# Convert exclude paths to a Restic-compatible array
+EXCLUDE_ARGS=()
+for path in $EXCLUDE_PATHS; do
+    EXCLUDE_ARGS+=("--exclude=$path")
+done
+
+# Run Restic backup
+echo "Running Restic backup for ${BACKUP_SOURCE}..."
+restic -r "$RESTIC_REPO" --password-file="$RESTIC_PASSWORD_FILE" backup "$BACKUP_SOURCE" "${EXCLUDE_ARGS[@]}" --verbose
+
 if [ $? -ne 0 ]; then
-    echo "Restic backup for /boot failed."
+    echo "Restic backup for ${BACKUP_SOURCE} failed."
 fi
 
-# Remount /boot as read-write
-if [ -n "$BOOT_PARTITION" ]; then
-    echo "Remounting /boot as read-write..."
-    mount -o remount,rw $BOOT_PARTITION
+# Remount back to read-write if needed
+if [ "$REMOUNT_AS_RO" = true ] && mountpoint -q "$BACKUP_SOURCE"; then
+    echo "Remounting ${BACKUP_SOURCE} as read-write..."
+    PARTITION_DEV=$(findmnt -n -o SOURCE --target "$BACKUP_SOURCE")
+    mount -o remount,rw "$PARTITION_DEV"
     if [ $? -ne 0 ]; then
-        echo "Failed to remount /boot as read-write. Please check manually."
+        echo "Failed to remount ${BACKUP_SOURCE} as read-write. Please check manually."
     fi
 fi
