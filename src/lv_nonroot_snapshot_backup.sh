@@ -65,14 +65,12 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Get mount point of original LV
 ORIGINAL_MOUNT_POINT=$(findmnt -n -o TARGET "/dev/$VG_NAME/$LV_NAME" || true)
 if [[ -z "$ORIGINAL_MOUNT_POINT" ]]; then
     echo "❌ Error: /dev/$VG_NAME/$LV_NAME is not mounted."
     exit 1
 fi
 
-# Default to full volume if backup source not given
 if [[ -z "$BACKUP_SOURCE" ]]; then
     BACKUP_SOURCE="$ORIGINAL_MOUNT_POINT"
 fi
@@ -82,23 +80,22 @@ if [[ "$BACKUP_SOURCE" != "$ORIGINAL_MOUNT_POINT"* ]]; then
     exit 1
 fi
 
-# Snapshot and mount path
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 SNAP_NAME="${VG_NAME}_${LV_NAME}_${TIMESTAMP}"
 MOUNT_POINT="/srv${ORIGINAL_MOUNT_POINT}"
 
-# Compute full backup path inside snapshot
 REL_PATH="${BACKUP_SOURCE#$ORIGINAL_MOUNT_POINT}"
 SNAPSHOT_BACKUP_PATH="$MOUNT_POINT$REL_PATH"
 
-# Convert exclude paths
-# Convert exclude paths relative to the snapshot
 EXCLUDE_ARGS=()
+RESTIC_TAGS=()
 for path in $EXCLUDE_PATHS; do
-    # Turn /data/data_to_ignore → /srv/data/data_to_ignore
-    rel="${path#$ORIGINAL_MOUNT_POINT}" # strip /data from front
-    abs="$MOUNT_POINT$rel"              # prepend /srv/data
+    rel="${path#$ORIGINAL_MOUNT_POINT}"
+    abs="$MOUNT_POINT$rel"
     EXCLUDE_ARGS+=("--exclude=$abs")
+
+    tag_path="${rel#/}" # Remove leading slash for tag
+    RESTIC_TAGS+=("--tag=exclude:/$tag_path")
 done
 
 echo ""
@@ -115,7 +112,6 @@ echo "  Exclude paths:    $EXCLUDE_PATHS"
 echo "  Dry run:          $DRY_RUN"
 echo ""
 
-# Pre-checks
 if [[ -e "$MOUNT_POINT" ]]; then
     echo "❌ Mount point $MOUNT_POINT already exists. Aborting."
     exit 1
@@ -130,7 +126,7 @@ if $DRY_RUN; then
     echo -e "\033[33m[DRY RUN] Would create snapshot: $SNAP_NAME\033[0m"
     echo -e "\033[33m[DRY RUN] Would mount snapshot at $MOUNT_POINT\033[0m"
     echo -e "\033[33m[DRY RUN] Would backup path: $SNAPSHOT_BACKUP_PATH\033[0m"
-    echo -e "\033[33m[DRY RUN] Would run: restic -r \"$RESTIC_REPO\" --password-file=\"$RESTIC_PASSWORD_FILE\" backup \"$SNAPSHOT_BACKUP_PATH\" ${EXCLUDE_ARGS[*]}\033[0m"
+    echo -e "\033[33m[DRY RUN] Would run: restic -r \"$RESTIC_REPO\" --password-file=\"$RESTIC_PASSWORD_FILE\" backup \"$SNAPSHOT_BACKUP_PATH\" ${EXCLUDE_ARGS[*]} ${RESTIC_TAGS[*]}\033[0m"
     echo -e "\033[33m[DRY RUN] Would clean up mount + remove snapshot\033[0m"
     exit 0
 fi
@@ -143,7 +139,11 @@ mkdir -p "$MOUNT_POINT"
 mount "/dev/$VG_NAME/$SNAP_NAME" "$MOUNT_POINT"
 
 echo "🚀 Running Restic backup..."
-restic -r "$RESTIC_REPO" --password-file="$RESTIC_PASSWORD_FILE" backup "$SNAPSHOT_BACKUP_PATH" "${EXCLUDE_ARGS[@]}"
+restic -r "$RESTIC_REPO" \
+    --password-file="$RESTIC_PASSWORD_FILE" \
+    backup "$SNAPSHOT_BACKUP_PATH" \
+    "${EXCLUDE_ARGS[@]}" \
+    "${RESTIC_TAGS[@]}"
 
 echo "🧹 Cleaning up..."
 umount "$MOUNT_POINT"

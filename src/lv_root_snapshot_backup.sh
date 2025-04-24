@@ -103,7 +103,7 @@ validate_args
 # ─── Generate names based on timestamp ────────────────────────────
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 SNAP_NAME="${VG_NAME}_${LV_NAME}_${TIMESTAMP}"
-SNAPSHOT_MOUNT_POINT="/srv/${SNAP_NAME}-for-restic"
+SNAPSHOT_MOUNT_POINT="/srv/${SNAP_NAME}_for_restic"
 CHROOT_REPO_FULL="$CHROOT_REPO_PATH/$(basename "$RESTIC_REPO")"
 EXCLUDE_PATHS="$CHROOT_REPO_PATH $EXCLUDE_PATHS"
 
