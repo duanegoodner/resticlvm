@@ -1,41 +1,43 @@
 #!/bin/bash
 
-# Ensure we run as root (even in dry run mode)
+set -euo pipefail
+
+# ─── Root Check ────────────────────────────────────────────────
 if [ "$EUID" -ne 0 ]; then
     echo "❌ Please run as root or with sudo."
     exit 1
 fi
 
-# Default values
+# ─── Default Values ────────────────────────────────────────────
 EXCLUDE_PATHS=""
 REMOUNT_AS_RO="false"
 DRY_RUN=false
 DRY_RUN_PREFIX="\033[1;33m[DRY RUN]\033[0m"
 
-# ─── Argument parsing ──────────────────────────────────────────────
+# ─── Argument Parsing ──────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
-    --restic-repo | -r)
+    -r | --restic-repo)
         RESTIC_REPO="$2"
         shift 2
         ;;
-    --password-file | -p)
+    -p | --password-file)
         RESTIC_PASSWORD_FILE="$2"
         shift 2
         ;;
-    --backup-source | -s)
+    -s | --backup-source)
         BACKUP_SOURCE="$2"
         shift 2
         ;;
-    --exclude-paths | -e)
+    -e | --exclude-paths)
         EXCLUDE_PATHS="$2"
         shift 2
         ;;
-    --remount-as-ro | -m)
+    -m | --remount-as-ro)
         REMOUNT_AS_RO="$2"
         shift 2
         ;;
-    --dry-run | -n)
+    -n | --dry-run)
         DRY_RUN=true
         shift
         ;;
@@ -46,44 +48,24 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ─── Validation ─────────────────────────────────────────────────────
+# ─── Validation ────────────────────────────────────────────────
 validate_args() {
     local missing=0
-
-    if [[ -z "$RESTIC_REPO" ]]; then
-        echo "❌ Error: --restic-repo is required"
-        missing=1
-    fi
-
-    if [[ -z "$RESTIC_PASSWORD_FILE" ]]; then
-        echo "❌ Error: --password-file is required"
-        missing=1
-    fi
-
-    if [[ -z "$BACKUP_SOURCE" ]]; then
-        echo "❌ Error: --backup-source is required"
-        missing=1
-    fi
+    [[ -z "${RESTIC_REPO:-}" ]] && echo "❌ Missing --restic-repo" && missing=1
+    [[ -z "${RESTIC_PASSWORD_FILE:-}" ]] && echo "❌ Missing --password-file" && missing=1
+    [[ -z "${BACKUP_SOURCE:-}" ]] && echo "❌ Missing --backup-source" && missing=1
 
     if [[ "$missing" -eq 1 ]]; then
         echo ""
         echo "Usage:"
-        echo "  $0 -r PATH -p FILE -s PATH [-e PATHS] [-m true|false] [-n]"
-        echo ""
-        echo "Options:"
-        echo "  -r, --restic-repo       Path to Restic repository"
-        echo "  -p, --password-file     Path to password file"
-        echo "  -s, --backup-source     Path to back up"
-        echo "  -e, --exclude-paths     Space-separated paths to exclude"
-        echo "  -m, --remount-as-ro     true or false (default: false)"
-        echo "  -n, --dry-run           Dry run mode (preview only)"
+        echo "  $0 -r REPO -p PASS -s SRC [-e EXCLUDES] [-m true|false] [-n]"
         exit 1
     fi
 }
 
 validate_args
 
-# ─── Print backup summary ───────────────────────────────────────────
+# ─── Summary ───────────────────────────────────────────────────
 echo ""
 echo "🧾 Backup Configuration:"
 echo "  Restic repo:          $RESTIC_REPO"
@@ -92,54 +74,57 @@ echo "  Backup source:        $BACKUP_SOURCE"
 echo "  Exclude paths:        $EXCLUDE_PATHS"
 echo "  Remount as read-only: $REMOUNT_AS_RO"
 echo "  Dry run:              $DRY_RUN"
+echo ""
 
 if [ "$DRY_RUN" = true ]; then
     echo -e "\n🟡 ${DRY_RUN_PREFIX} The following describes what *would* happen if this were a real backup run.\n"
 fi
 
-# ─── Dry-run aware wrapper ──────────────────────────────────────────
+# ─── Check if backup source exists ─────────────────────────────
+if [[ ! -e "$BACKUP_SOURCE" ]]; then
+    echo "❌ Backup source path does not exist: $BACKUP_SOURCE"
+    exit 1
+fi
+
+# ─── Dry Run Wrapper ───────────────────────────────────────────
 run_or_echo() {
     if [ "$DRY_RUN" = true ]; then
-        echo -e "${DRY_RUN_PREFIX} $*"
+        echo -e "$DRY_RUN_PREFIX $*"
     else
         eval "$@"
     fi
 }
 
-# ─── Optionally remount read-only ──────────────────────────────────
+# ─── Remount RO if needed ──────────────────────────────────────
 if [ "$REMOUNT_AS_RO" = true ]; then
-    if ! mountpoint -q "$BACKUP_SOURCE"; then
-        echo -e "⚠️  $BACKUP_SOURCE is not a mount point. Skipping remount."
+    if mountpoint -q "$BACKUP_SOURCE"; then
+        DEV=$(findmnt -n -o SOURCE --target "$BACKUP_SOURCE")
+        echo "🔒 Remounting $DEV as read-only..."
+        run_or_echo "mount -o remount,ro $DEV"
     else
-        PARTITION_DEV=$(findmnt -n -o SOURCE --target "$BACKUP_SOURCE")
-        echo "🔒 Remounting $PARTITION_DEV (mounted at $BACKUP_SOURCE) as read-only..."
-        run_or_echo "mount -o remount,ro \"$PARTITION_DEV\""
+        echo "⚠️ $BACKUP_SOURCE is not a mount point. Skipping remount."
     fi
 fi
 
-# ─── Convert exclude paths to Restic-compatible format ─────────────
+# ─── Exclude Conversion ─────────────────────────────────────────
 EXCLUDE_ARGS=()
 for path in $EXCLUDE_PATHS; do
     EXCLUDE_ARGS+=("--exclude=$path")
 done
 
-# ─── Run the backup ────────────────────────────────────────────────
+# ─── Restic Execution ───────────────────────────────────────────
 echo "🚀 Running Restic backup..."
-
-RESTIC_CMD="restic -r \"$RESTIC_REPO\" --password-file=\"$RESTIC_PASSWORD_FILE\" backup \"$BACKUP_SOURCE\" ${EXCLUDE_ARGS[*]} --verbose"
+RESTIC_CMD="restic -r $RESTIC_REPO --password-file=$RESTIC_PASSWORD_FILE backup $BACKUP_SOURCE ${EXCLUDE_ARGS[*]} --verbose"
 
 if [ "$DRY_RUN" = true ]; then
-    echo -e "${DRY_RUN_PREFIX} Would run: $RESTIC_CMD"
+    echo -e "$DRY_RUN_PREFIX Would run: $RESTIC_CMD"
 else
     eval "$RESTIC_CMD"
-    if [ $? -ne 0 ]; then
-        echo "❌ Restic backup failed."
-    fi
 fi
 
-# ─── Optionally remount back to read-write ─────────────────────────
+# ─── Remount Back ───────────────────────────────────────────────
 if [ "$REMOUNT_AS_RO" = true ] && mountpoint -q "$BACKUP_SOURCE"; then
-    PARTITION_DEV=$(findmnt -n -o SOURCE --target "$BACKUP_SOURCE")
-    echo "🔓 Remounting $PARTITION_DEV (mounted at $BACKUP_SOURCE) as read-write..."
-    run_or_echo "mount -o remount,rw \"$PARTITION_DEV\""
+    DEV=$(findmnt -n -o SOURCE --target "$BACKUP_SOURCE")
+    echo "🔓 Remounting $DEV as read-write..."
+    run_or_echo "mount -o remount,rw $DEV"
 fi
