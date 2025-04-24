@@ -8,6 +8,7 @@ fi
 
 # ─── Default values ───────────────────────────────────────────────
 EXCLUDE_PATHS="/dev /media /mnt /proc /run /sys /tmp /var/tmp /var/lib/libvirt/images"
+BACKUP_SOURCE="/" # Inside chroot
 DRY_RUN=false
 DRY_RUN_PREFIX="\033[1;33m[DRY RUN]\033[0m"
 CHROOT_REPO_PATH="/.restic_repo"
@@ -37,6 +38,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     --exclude-paths | -e)
         EXCLUDE_PATHS="$2"
+        shift 2
+        ;;
+    --backup-source | -s)
+        BACKUP_SOURCE="$2"
         shift 2
         ;;
     --dry-run | -n)
@@ -78,7 +83,7 @@ validate_args() {
     if [[ "$missing" -eq 1 ]]; then
         echo ""
         echo "Usage:"
-        echo "  $0 -g VG -l LV -z SIZE -r REPO -p PASSFILE [-e EXCLUDES] [-n]"
+        echo "  $0 -g VG -l LV -z SIZE -r REPO -p PASSFILE [-e EXCLUDES] [-s SRC] [-n]"
         echo ""
         echo "Options:"
         echo "  -g, --vg-name          Volume group name"
@@ -87,6 +92,7 @@ validate_args() {
         echo "  -r, --restic-repo      Restic repository path"
         echo "  -p, --password-file    Path to password file"
         echo "  -e, --exclude-paths    Space-separated paths to exclude"
+        echo "  -s, --backup-source    Path inside snapshot to back up (default: /)"
         echo "  -n, --dry-run          Dry run mode (preview only)"
         exit 1
     fi
@@ -96,7 +102,7 @@ validate_args
 
 # ─── Generate names based on timestamp ────────────────────────────
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-SNAP_NAME="${VG_NAME}-${LV_NAME}-${TIMESTAMP}"
+SNAP_NAME="${VG_NAME}_${LV_NAME}_${TIMESTAMP}"
 SNAPSHOT_MOUNT_POINT="/srv/${SNAP_NAME}-for-restic"
 CHROOT_REPO_FULL="$CHROOT_REPO_PATH/$(basename "$RESTIC_REPO")"
 EXCLUDE_PATHS="$CHROOT_REPO_PATH $EXCLUDE_PATHS"
@@ -112,6 +118,7 @@ echo "  Mount point:           $SNAPSHOT_MOUNT_POINT"
 echo "  Restic repo:           $RESTIC_REPO"
 echo "  Password file:         $RESTIC_PASSWORD_FILE"
 echo "  Exclude paths:         $EXCLUDE_PATHS"
+echo "  Backup source:         $BACKUP_SOURCE"
 echo "  Dry run:               $DRY_RUN"
 
 if [ "$DRY_RUN" = true ]; then
@@ -126,6 +133,24 @@ run_or_echo() {
         eval "$@"
     fi
 }
+
+# ─── Pre-check: does the backup source exist now if mounted? ──────
+LV_PATH="/dev/$VG_NAME/$LV_NAME"
+CURRENT_MOUNT=$(findmnt -n -o TARGET --source "$LV_PATH")
+
+if [ -n "$CURRENT_MOUNT" ]; then
+    TEST_PATH="$CURRENT_MOUNT$BACKUP_SOURCE"
+    if [ ! -e "$TEST_PATH" ]; then
+        echo "❌ Error: Backup source $BACKUP_SOURCE does not exist under currently mounted $LV_PATH"
+        echo "   → Checked path: $TEST_PATH"
+        echo "💡 Tip: If this LV isn't mounted, this check may be unreliable."
+        exit 1
+    else
+        echo "✅ Pre-check passed: found path $TEST_PATH"
+    fi
+else
+    echo "ℹ️  LV $LV_PATH is not currently mounted. Skipping pre-check."
+fi
 
 # ─── Create and mount snapshot ────────────────────────────────────
 echo "📸 Creating LVM snapshot..."
@@ -145,7 +170,14 @@ for path in /dev /proc /sys; do
     run_or_echo "mount --bind \"$path\" \"$SNAPSHOT_MOUNT_POINT$path\""
 done
 
-# ─── Build Restic command ────────────────────────────────────────
+# ─── Validate backup source path inside snapshot ─────────────────
+if [ "$DRY_RUN" = false ] && [ ! -e "$SNAPSHOT_MOUNT_POINT$BACKUP_SOURCE" ]; then
+    echo "❌ Error: Backup source $BACKUP_SOURCE does not exist inside snapshot."
+    echo "   → Checked: $SNAPSHOT_MOUNT_POINT$BACKUP_SOURCE"
+    exit 1
+fi
+
+# ─── Build and run Restic backup ─────────────────────────────────
 echo "🚀 Running Restic backup in chroot..."
 
 EXCLUDE_ARGS=""
@@ -153,7 +185,7 @@ for path in $EXCLUDE_PATHS; do
     EXCLUDE_ARGS+="--exclude=$path "
 done
 
-RESTIC_CMD="export RESTIC_PASSWORD_FILE=$RESTIC_PASSWORD_FILE && restic $EXCLUDE_ARGS -r $CHROOT_REPO_FULL backup / --verbose"
+RESTIC_CMD="export RESTIC_PASSWORD_FILE=$RESTIC_PASSWORD_FILE && restic $EXCLUDE_ARGS -r $CHROOT_REPO_FULL backup $BACKUP_SOURCE --verbose"
 
 if [ "$DRY_RUN" = true ]; then
     echo -e "${DRY_RUN_PREFIX} Would run in chroot: $RESTIC_CMD"
