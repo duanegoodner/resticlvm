@@ -200,13 +200,91 @@ run_or_echo() {
     fi
 }
 
+DRY_RUN_PREFIX="\033[1;33m[DRY RUN]\033[0m"
+run_in_chroot_or_echo() {
+    local dry_run="$1"
+    local mount_point="$2"
+    local cmd="$3"
+    shift
+    if [ "$dry_run" = true ]; then
+        echo -e "${DRY_RUN_PREFIX} chroot $*"
+    else
+        chroot "$mount_point" /bin/bash -c "$cmd"
+    fi
+}
+
+create_snapshot() {
+    echo "📸 Creating LVM snapshot..."
+    local dry_run=$1
+    local snap_size=$2
+    local snap_name=$3
+    local vg_name=$4
+    local lv_name=$5
+
+    run_or_echo "$dry_run" "lvcreate --size $snap_size --snapshot --name $snap_name /dev/$vg_name/$lv_name"
+}
+
+mount_snapshot() {
+    local dry_run=$1
+    local snapshot_mount_point=$2
+    local vg_name=$3
+    local snap_name=$4
+
+    echo "📂 Mounting snapshot..."
+    run_or_echo "$dry_run" "mkdir -p $snapshot_mount_point"
+    run_or_echo "$dry_run" "mount /dev/$vg_name/$snap_name $snapshot_mount_point"
+}
+
 clean_up_snapshot() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
     local vg_name="$3"
     local snap_name="$4"
 
+    echo "🧹 Cleaning up..."
     run_or_echo "$dry_run" "umount \"$snapshot_mount_point\""
     run_or_echo "$dry_run" "lvremove -y \"/dev/$vg_name/$snap_name\""
     run_or_echo "$dry_run" "rmdir \"$snapshot_mount_point\""
+}
+
+populate_exclude_paths() {
+    local -n exclude_args=$1
+    local exclude_paths=$2
+
+    for path in $exclude_paths; do
+        exclude_args+=("--exclude=$path")
+    done
+}
+
+populate_restic_tags() {
+    local -n restic_tags=$1
+    local exclude_paths=$2
+
+    for path in $exclude_paths; do
+        tag_path="${path#/}" # Remove leading slash for tag
+        restic_tags+=("--tag=excl:/$tag_path")
+    done
+}
+
+bind_repo_to_mounted_snapshot() {
+    local dry_run="$1"
+    local snapshot_mount_point="$2"
+    local restic_repo="$3"
+
+    echo "🪝 Binding Restic repo into chroot..."
+    echo "  Snapshot mount point: $snapshot_mount_point"
+    echo "  Restic repo: $restic_repo"
+    CHROOT_REPO_FULL="$CHROOT_REPO_PATH/$(basename "$restic_repo")"
+    run_or_echo "$dry_run" "mkdir -p $snapshot_mount_point/$CHROOT_REPO_FULL"
+    run_or_echo "$dry_run" "mount --bind $restic_repo $snapshot_mount_point/$CHROOT_REPO_FULL"
+}
+
+bind_chroot_essentials_to_mounted_snapshot() {
+    local dry_run="$1"
+    local snapshot_mount_point="$2"
+
+    echo "🔧 Preparing chroot environment..."
+    for path in /dev /proc /sys; do
+        run_or_echo "$dry_run" "mount --bind $path $snapshot_mount_point$path"
+    done
 }

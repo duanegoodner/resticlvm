@@ -108,9 +108,7 @@ fi
 
 # ─── Exclude Conversion ─────────────────────────────────────────
 EXCLUDE_ARGS=()
-for path in $EXCLUDE_PATHS; do
-    EXCLUDE_ARGS+=("--exclude=$path")
-done
+populate_exclude_paths EXCLUDE_ARGS "$EXCLUDE_PATHS"
 
 # ─── Restic Execution ───────────────────────────────────────────
 echo "🚀 Running Restic backup..."
