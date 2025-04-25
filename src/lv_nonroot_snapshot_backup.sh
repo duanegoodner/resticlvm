@@ -39,66 +39,40 @@ REAL_MOUNT=$(realpath "$LV_MOUNT_POINT")
 
 # ─── Generate names based on timestamp ────────────────────────────
 
+REAL_BACKUP=$(realpath -m "$BACKUP_SOURCE")
+
 REL_PATH="${BACKUP_SOURCE#$LV_MOUNT_POINT}"
 SNAPSHOT_BACKUP_PATH="$SNAPSHOT_MOUNT_POINT$REL_PATH"
 
 # ─── Pre-check: does source path exist under logical volume mount point  ──────
 # Resolve real paths
-REAL_MOUNT=$(realpath "$LV_MOUNT_POINT")
-REAL_BACKUP=$(realpath -m "$BACKUP_SOURCE")
 
-if [[ "$REAL_BACKUP" != "$REAL_MOUNT"* ]]; then
-    echo "❌ Error: Backup source '$BACKUP_SOURCE' is not within logical volume mount point '$REAL_MOUNT'"
-    echo "   → Resolved path: $REAL_BACKUP"
-    exit 1
-elif [[ ! -e "$REAL_BACKUP" ]]; then
-    echo "❌ Error: Backup source path '$REAL_BACKUP' does not exist."
-    exit 1
-else
-    echo "✅ Backup source $BACKUP_SOURCE resolves to $REAL_BACKUP and is valid."
-fi
+confirm_source_in_lv "$REAL_BACKUP" "$REAL_MOUNT" "$BACKUP_SOURCE"
 
-# ─── Pre-check: does the snapshot mount point already exist? ──────
-if [[ -e "$SNAPSHOT_MOUNT_POINT" ]]; then
-    echo "❌ Mount point $SNAPSHOT_MOUNT_POINT already exists. Aborting."
-    exit 1
-fi
+confirm_not_yet_exist_snapshot_mount_point "$SNAPSHOT_MOUNT_POINT"
 
-# ─── Show config summary ──────────────────────────────────────────
 display_snapshot_backup_config
 
-if [ "$DRY_RUN" = true ]; then
-    echo -e "\n🟡 ${DRY_RUN_PREFIX} The following describes what *would* happen if this were a real backup run.\n"
-fi
+display_dry_run_message "$DRY_RUN"
 
-# ─── Dry Run Wrapper ───────────────────────────────────────────
-run_or_echo() {
-    if [ "$DRY_RUN" = true ]; then
-        echo -e "${DRY_RUN_PREFIX} $*"
-    else
-        eval "$@"
-    fi
-}
+echo "📸 Creating snapshot..."
+run_or_echo "$DRY_RUN" "lvcreate --size \"$SNAP_SIZE\" --snapshot --name \"$SNAP_NAME\" \"/dev/$VG_NAME/$LV_NAME\""
 
+echo "📂 Mounting snapshot..."
+run_or_echo "$DRY_RUN" "mkdir -p \"$SNAPSHOT_MOUNT_POINT\""
+run_or_echo "$DRY_RUN" "mount \"/dev/$VG_NAME/$SNAP_NAME\" \"$SNAPSHOT_MOUNT_POINT\""
+
+# ─── Build and run Restic backup ─────────────────────────────────
+echo "🚀 Running Restic backup..."
 EXCLUDE_ARGS=()
 RESTIC_TAGS=()
 for path in $EXCLUDE_PATHS; do
     rel="${path#$LV_MOUNT_POINT}"
     abs="$SNAPSHOT_MOUNT_POINT$rel"
     EXCLUDE_ARGS+=("--exclude=$abs")
-
     tag_path="${rel#/}" # Remove leading slash for tag
     RESTIC_TAGS+=("--tag=excl:/$tag_path")
 done
-
-echo "📸 Creating snapshot..."
-run_or_echo "lvcreate --size \"$SNAP_SIZE\" --snapshot --name \"$SNAP_NAME\" \"/dev/$VG_NAME/$LV_NAME\""
-
-echo "📂 Mounting snapshot..."
-run_or_echo "mkdir -p \"$SNAPSHOT_MOUNT_POINT\""
-run_or_echo "mount \"/dev/$VG_NAME/$SNAP_NAME\" \"$SNAPSHOT_MOUNT_POINT\""
-
-echo "🚀 Running Restic backup..."
 
 # RESTIC_CMD="restic -r \"$RESTIC_REPO\" --password-file=\"$RESTIC_PASSWORD_FILE\" backup \"$SNAPSHOT_BACKUP_PATH\" ${EXCLUDE_ARGS[*]} ${RESTIC_TAGS[*]}"
 RESTIC_CMD="restic"
@@ -109,11 +83,9 @@ RESTIC_CMD+=" --password-file=$RESTIC_PASSWORD_FILE"
 RESTIC_CMD+=" backup $SNAPSHOT_BACKUP_PATH"
 RESTIC_CMD+=" --verbose"
 
-run_or_echo "$RESTIC_CMD"
+run_or_echo "$DRY_RUN" "$RESTIC_CMD"
 
 echo "🧹 Cleaning up..."
-run_or_echo "umount \"$SNAPSHOT_MOUNT_POINT\""
-run_or_echo "lvremove -y \"/dev/$VG_NAME/$SNAP_NAME\""
-run_or_echo "rmdir \"$SNAPSHOT_MOUNT_POINT\""
+clean_up_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
 echo "✅ Data volume backup completed."

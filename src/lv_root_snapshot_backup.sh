@@ -32,7 +32,6 @@ validate_args usage_lv_root
 LV_DEVICE_PATH="/dev/$VG_NAME/$LV_NAME"
 
 # ─── Pre-check: does lhe logical volue exist  ──────
-
 check_device_path "$LV_DEVICE_PATH"
 
 # ─── Pre-check: is the logical volume mounted  ──────
@@ -72,12 +71,10 @@ done
 
 # ─── Build and run Restic backup ─────────────────────────────────
 echo "🚀 Running Restic backup in chroot..."
-
 EXCLUDE_ARGS=()
 RESTIC_TAGS=()
 for path in $EXCLUDE_PATHS; do
     EXCLUDE_ARGS+=("--exclude=$path")
-
     tag_path="${path#/}" # Remove leading slash for tag
     RESTIC_TAGS+=("--tag=excl:/$tag_path")
 done
@@ -102,8 +99,7 @@ run_or_echo "$DRY_RUN" "umount \"$SNAPSHOT_MOUNT_POINT/$CHROOT_REPO_FULL\""
 for path in /dev /proc /sys; do
     run_or_echo "$DRY_RUN" "umount \"$SNAPSHOT_MOUNT_POINT$path\""
 done
-run_or_echo "$DRY_RUN" "umount \"$SNAPSHOT_MOUNT_POINT\""
-run_or_echo "$DRY_RUN" "lvremove -y \"/dev/$VG_NAME/$SNAP_NAME\""
-run_or_echo "$DRY_RUN" "rmdir \"$SNAPSHOT_MOUNT_POINT\""
+
+clean_up_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
 echo "✅ Backup completed (or would have, in dry-run mode)."

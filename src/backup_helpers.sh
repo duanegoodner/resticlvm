@@ -199,3 +199,14 @@ run_or_echo() {
         eval "$@"
     fi
 }
+
+clean_up_snapshot() {
+    local dry_run="$1"
+    local snapshot_mount_point="$2"
+    local vg_name="$3"
+    local snap_name="$4"
+
+    run_or_echo "$dry_run" "umount \"$snapshot_mount_point\""
+    run_or_echo "$dry_run" "lvremove -y \"/dev/$vg_name/$snap_name\""
+    run_or_echo "$dry_run" "rmdir \"$snapshot_mount_point\""
+}
