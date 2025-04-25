@@ -17,24 +17,9 @@ REMOUNT_AS_RO="false"
 DRY_RUN=false
 DRY_RUN_PREFIX="\033[1;33m[DRY RUN]\033[0m"
 
+# ### COLLECT AND VALUDATE ARGUMENTS ###########################
 parse_arguments usage_path "restic-repo password-file backup-source exclude-paths remount-as-ro dry-run" "$@"
-
-# ─── Validation ────────────────────────────────────────────────
-validate_args() {
-    local missing=0
-    [[ -z "${RESTIC_REPO:-}" ]] && echo "❌ Missing --restic-repo" && missing=1
-    [[ -z "${RESTIC_PASSWORD_FILE:-}" ]] && echo "❌ Missing --password-file" && missing=1
-    [[ -z "${BACKUP_SOURCE:-}" ]] && echo "❌ Missing --backup-source" && missing=1
-
-    if [[ "$missing" -eq 1 ]]; then
-        echo ""
-        echo "Usage:"
-        echo "  $0 -r REPO -p PASS -s SRC [-e EXCLUDES] [-m true|false] [-n]"
-        exit 1
-    fi
-}
-
-validate_args
+validate_args usage_path_backup RESTIC_REPO RESTIC_PASSWORD_FILE BACKUP_SOURCE
 
 # ─── Summary ───────────────────────────────────────────────────
 echo ""

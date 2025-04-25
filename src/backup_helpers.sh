@@ -183,28 +183,16 @@ parse_arguments() {
 
 validate_args() {
     local usage_function="$1"
+    shift
+    local required_vars=("$@")
     local missing=0
 
-    if [[ -z "$VG_NAME" ]]; then
-        echo "❌ Error: --vg-name is required"
-        missing=1
-    fi
-    if [[ -z "$LV_NAME" ]]; then
-        echo "❌ Error: --lv-name is required"
-        missing=1
-    fi
-    if [[ -z "$SNAP_SIZE" ]]; then
-        echo "❌ Error: --snap-size is required"
-        missing=1
-    fi
-    if [[ -z "$RESTIC_REPO" ]]; then
-        echo "❌ Error: --restic-repo is required"
-        missing=1
-    fi
-    if [[ -z "$RESTIC_PASSWORD_FILE" ]]; then
-        echo "❌ Error: --password-file is required"
-        missing=1
-    fi
+    for var in "${required_vars[@]}"; do
+        if [[ -z "${!var:-}" ]]; then
+            echo "❌ Error: --${var,,} is required"
+            missing=1
+        fi
+    done
 
     if [[ "$missing" -eq 1 ]]; then
         "$usage_function"
