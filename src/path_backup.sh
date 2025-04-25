@@ -2,13 +2,16 @@
 
 set -euo pipefail
 
-# ─── Root Check ────────────────────────────────────────────────
-if [ "$EUID" -ne 0 ]; then
-    echo "❌ Please run as root or with sudo."
-    exit 1
-fi
+# shellcheck disable=SC1091
+source "$(dirname "$0")/backup_helpers.sh"
+
+# ### REQUIRE RUNNING AS ROOT / SUDO ###########################
+root_check
 
 # ─── Default Values ────────────────────────────────────────────
+BACKUP_SOURCE=""
+RESTIC_REPO=""
+RESTIC_PASSWORD_FILE=""
 EXCLUDE_PATHS=""
 REMOUNT_AS_RO="false"
 DRY_RUN=false

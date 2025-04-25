@@ -23,7 +23,6 @@ CHROOT_REPO_PATH="/.restic_repo"
 # ### SET TIMESTAMP-BASED VARIABLES ###########################
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 SNAP_NAME="${VG_NAME}_${LV_NAME}_snapshot_${TIMESTAMP}"
-SNAPSHOT_MOUNT_POINT="/srv/${SNAP_NAME}"
 
 # ### COLLECT AND VALUDATE ARGUMENTS ###########################
 parse_arguments usage_lv_root "$@"
@@ -43,10 +42,11 @@ LV_MOUNT_POINT=$(check_mount_point "$LV_DEVICE_PATH")
 # Compute paths based on mount point
 REAL_MOUNT=$(realpath "$LV_MOUNT_POINT")
 REAL_BACKUP=$(realpath -m "$BACKUP_SOURCE")
-EXCLUDE_PATHS="$CHROOT_REPO_PATH $EXCLUDE_PATHS"
 
 # Does the backup source exist under the mount point?
 confirm_source_in_lv "$REAL_BACKUP" "$REAL_MOUNT" "$BACKUP_SOURCE"
+
+SNAPSHOT_MOUNT_POINT="/srv/${SNAP_NAME}"
 
 # Confirm that intended snapshot mount point does not already exist
 confirm_not_yet_exist_snapshot_mount_point "$SNAPSHOT_MOUNT_POINT"
@@ -60,10 +60,12 @@ create_snapshot "$DRY_RUN" "$SNAP_SIZE" "$SNAP_NAME" "$VG_NAME" "$LV_NAME"
 mount_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
 # ### SET BINDINGS #########################################
-bind_repo_to_mounted_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_REPO"
+CHROOT_REPO_FULL="$CHROOT_REPO_PATH/$(basename "$RESTIC_REPO")"
+bind_repo_to_mounted_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_REPO" "$CHROOT_REPO_FULL"
 bind_chroot_essentials_to_mounted_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT"
 
 # ### BUILD RESTIC BACKUP COMMAND ########################
+EXCLUDE_PATHS="$CHROOT_REPO_PATH $EXCLUDE_PATHS"
 EXCLUDE_ARGS=()
 populate_exclude_paths EXCLUDE_ARGS "$EXCLUDE_PATHS"
 RESTIC_TAGS=()
@@ -75,6 +77,8 @@ RESTIC_CMD+=" ${RESTIC_TAGS[*]}"
 RESTIC_CMD+=" -r $CHROOT_REPO_FULL"
 RESTIC_CMD+=" backup $BACKUP_SOURCE"
 RESTIC_CMD+=" --verbose"
+
+echo "🔍 Restic command: $RESTIC_CMD"
 
 # ### RUN RESTIC BACKUP #####################################
 echo "🚀 Running Restic backup in chroot..."

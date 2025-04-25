@@ -270,13 +270,14 @@ bind_repo_to_mounted_snapshot() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
     local restic_repo="$3"
+    local chroot_repo_full="$4"
 
     echo "🪝 Binding Restic repo into chroot..."
     echo "  Snapshot mount point: $snapshot_mount_point"
     echo "  Restic repo: $restic_repo"
-    CHROOT_REPO_FULL="$CHROOT_REPO_PATH/$(basename "$restic_repo")"
-    run_or_echo "$dry_run" "mkdir -p $snapshot_mount_point/$CHROOT_REPO_FULL"
-    run_or_echo "$dry_run" "mount --bind $restic_repo $snapshot_mount_point/$CHROOT_REPO_FULL"
+    echo "  Chroot repo path: $chroot_repo_full"
+    run_or_echo "$dry_run" "mkdir -p $snapshot_mount_point/$chroot_repo_full"
+    run_or_echo "$dry_run" "mount --bind $restic_repo $snapshot_mount_point/$chroot_repo_full"
 }
 
 bind_chroot_essentials_to_mounted_snapshot() {
