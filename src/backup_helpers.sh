@@ -7,6 +7,21 @@ root_check() {
     fi
 }
 
+usage_path() {
+    echo "Usage:"
+    echo "$0 -r REPO -p PASSFILE -s SRC [-e EXCLUDES] [-m] [-n]"
+    echo ""
+    echo "Options:"
+    echo "  -r, --restic-repo      Restic repository path"
+    echo "  -p, --password-file    Path to password file"
+    echo "  -s, --backup-source    Path to back up"
+    echo "  -e, --exclude-paths    Space-separated paths to exclude"
+    echo "  -m, --remount-as-ro   Remount source as read-only (default: false)"
+    echo "  -n, --dry-run          Dry run mode (preview only)"
+    echo "  -h, --help             Display this message and exit"
+    exit 1
+}
+
 usage_lv_root() {
     echo "Usage:"
     echo "$0 -g VG -l LV -z SIZE -r REPO -p PASSFILE [-e EXCLUDES] [-s SRC]  [-n]"
@@ -94,42 +109,70 @@ confirm_not_yet_exist_snapshot_mount_point() {
 parse_arguments() {
     local usage_function="$1"
     shift
+    local allowed_flags="$1"
+    shift
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-        --vg-name | -g)
-            VG_NAME="$2"
-            shift 2
+        -g | --vg-name)
+            if [[ "$allowed_flags" == *"vg-name"* ]]; then
+                VG_NAME="$2"
+                shift 2
+            else
+                echo "❌ Unexpected option: $1"
+                "$usage_function"
+            fi
             ;;
-        --lv-name | -l)
-            LV_NAME="$2"
-            shift 2
+        -l | --lv-name)
+            if [[ "$allowed_flags" == *"lv-name"* ]]; then
+                LV_NAME="$2"
+                shift 2
+            else
+                echo "❌ Unexpected option: $1"
+                "$usage_function"
+            fi
             ;;
-        --snap-size | -z)
-            SNAP_SIZE="$2"
-            shift 2
+        -z | --snap-size)
+            if [[ "$allowed_flags" == *"snap-size"* ]]; then
+                SNAP_SIZE="$2"
+                shift 2
+            else
+                echo "❌ Unexpected option: $1"
+                "$usage_function"
+            fi
             ;;
-        --restic-repo | -r)
+        -r | --restic-repo)
             RESTIC_REPO="$2"
             shift 2
             ;;
-        --password-file | -p)
+        -p | --password-file)
             RESTIC_PASSWORD_FILE="$2"
             shift 2
             ;;
-        --backup-source | -s)
+        -s | --backup-source)
             BACKUP_SOURCE="$2"
             shift 2
             ;;
-        --exclude-paths | -e)
+        -e | --exclude-paths)
             EXCLUDE_PATHS="$2"
             shift 2
             ;;
-        --dry-run | -n)
+        -m | --remount-as-ro)
+            if [[ "$allowed_flags" == *"remount-as-ro"* ]]; then
+                REMOUNT_AS_RO="$2"
+                shift 2
+            else
+                echo "❌ Unexpected option: $1"
+                "$usage_function"
+            fi
+            ;;
+        -n | --dry-run)
             DRY_RUN=true
             shift
             ;;
-        -h | --help) "$usage_function" ;;
+        -h | --help)
+            "$usage_function"
+            ;;
         *)
             echo "❌ Unknown option: $1"
             "$usage_function"

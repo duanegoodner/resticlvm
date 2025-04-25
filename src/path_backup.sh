@@ -8,7 +8,7 @@ source "$(dirname "$0")/backup_helpers.sh"
 # ### REQUIRE RUNNING AS ROOT / SUDO ###########################
 root_check
 
-# ─── Default Values ────────────────────────────────────────────
+# ### SET DEFAULT VALUES #######################################
 BACKUP_SOURCE=""
 RESTIC_REPO=""
 RESTIC_PASSWORD_FILE=""
@@ -17,39 +17,7 @@ REMOUNT_AS_RO="false"
 DRY_RUN=false
 DRY_RUN_PREFIX="\033[1;33m[DRY RUN]\033[0m"
 
-# ─── Argument Parsing ──────────────────────────────────────────
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-    -r | --restic-repo)
-        RESTIC_REPO="$2"
-        shift 2
-        ;;
-    -p | --password-file)
-        RESTIC_PASSWORD_FILE="$2"
-        shift 2
-        ;;
-    -s | --backup-source)
-        BACKUP_SOURCE="$2"
-        shift 2
-        ;;
-    -e | --exclude-paths)
-        EXCLUDE_PATHS="$2"
-        shift 2
-        ;;
-    -m | --remount-as-ro)
-        REMOUNT_AS_RO="$2"
-        shift 2
-        ;;
-    -n | --dry-run)
-        DRY_RUN=true
-        shift
-        ;;
-    *)
-        echo "❌ Unknown option: $1"
-        exit 1
-        ;;
-    esac
-done
+parse_arguments usage_path "restic-repo password-file backup-source exclude-paths remount-as-ro dry-run" "$@"
 
 # ─── Validation ────────────────────────────────────────────────
 validate_args() {
