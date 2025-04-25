@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# shellcheck disable=SC1091
+source "$(dirname "$0")/usage_commands.sh"
+
 root_check() {
     if [ "$EUID" -ne 0 ]; then
         echo "❌ Please run as root or with sudo."
@@ -7,53 +10,12 @@ root_check() {
     fi
 }
 
-usage_path() {
-    echo "Usage:"
-    echo "$0 -r REPO -p PASSFILE -s SRC [-e EXCLUDES] [-m] [-n]"
-    echo ""
-    echo "Options:"
-    echo "  -r, --restic-repo      Restic repository path"
-    echo "  -p, --password-file    Path to password file"
-    echo "  -s, --backup-source    Path to back up"
-    echo "  -e, --exclude-paths    Space-separated paths to exclude"
-    echo "  -m, --remount-as-ro   Remount source as read-only (default: false)"
-    echo "  -n, --dry-run          Dry run mode (preview only)"
-    echo "  -h, --help             Display this message and exit"
-    exit 1
-}
-
-usage_lv_root() {
-    echo "Usage:"
-    echo "$0 -g VG -l LV -z SIZE -r REPO -p PASSFILE [-e EXCLUDES] [-s SRC]  [-n]"
-    echo ""
-    echo "Options:"
-    echo "  -g, --vg-name          Volume group name"
-    echo "  -l, --lv-name          Logical volume name"
-    echo "  -z, --snap-size        Snapshot size (e.g., 1G)"
-    echo "  -r, --restic-repo      Restic repository path"
-    echo "  -p, --password-file    Path to password file"
-    echo "  -e, --exclude-paths    Space-separated paths to exclude (default: /dev /media /mnt /proc /run /sys /tmp /var/tmp /var/lib/libvirt/images)"
-    echo "  -s, --backup-source    Path inside snapshot to back up (default: /)"
-    echo "  -n, --dry-run          Dry run mode (preview only)"
-    echo "  -h, --help             Display this message and exit"
-    exit 1
-}
-
-usage_lv_nonroot() {
-    echo "Usage:"
-    echo "$0 -g VG -l LV -z SIZE -r REPO -p PASSFILE -e EXCLUDES -s SRC  [-n]"
-    echo ""
-    echo "Options:"
-    echo "  -g, --vg-name          Volume group name"
-    echo "  -l, --lv-name          Logical volume name"
-    echo "  -z, --snap-size        Snapshot size (e.g., 1G)"
-    echo "  -r, --restic-repo      Restic repository path"
-    echo "  -p, --password-file    Path to password file"
-    echo "  -e, --exclude-paths    Space-separated paths to exclude"
-    echo "  -s, --backup-source    Path inside snapshot to back up"
-    echo "  -n, --dry-run          Dry run mode (preview only)"
-    echo "  -h, --help             Display this message and exit"
-    exit 1
+check_if_path_exists() {
+    local path="$1"
+    if ! [ -e "$path" ]; then
+        echo "❌ Path $path does not exist."
+        exit 1
+    fi
 }
 
 check_device_path() {
@@ -102,6 +64,36 @@ confirm_not_yet_exist_snapshot_mount_point() {
 
     if [[ -e "$snapshot_mount_point" ]]; then
         echo "❌ Mount point $snapshot_mount_point already exists. Aborting."
+        exit 1
+    fi
+}
+
+remount_as_read_only() {
+    local dry_run="$1"
+    local backup_source="$2"
+
+    if mountpoint -q "$backup_source"; then
+        local dev
+        dev=$(findmnt -n -o SOURCE --target "$backup_source")
+        echo "🔒 Remounting $dev as read-only..."
+        run_or_echo "$dry_run" "mount -o remount,ro $dev"
+    else
+        echo "⚠️ $backup_source is not a mount point. Cannot use remount-as-ro option."
+        exit 1
+    fi
+}
+
+remount_as_read_write() {
+    local dry_run="$1"
+    local backup_source="$2"
+
+    if mountpoint -q "$backup_source"; then
+        local dev
+        dev=$(findmnt -n -o SOURCE --target "$backup_source")
+        echo "🔓 Remounting $dev as read-write..."
+        run_or_echo "$dry_run" "mount -o remount,rw $dev"
+    else
+        echo "⚠️ $backup_source is not a mount point. Cannot remount as read-write."
         exit 1
     fi
 }
@@ -197,6 +189,25 @@ validate_args() {
     if [[ "$missing" -eq 1 ]]; then
         "$usage_function"
     fi
+}
+
+display_config() {
+    local title="$1"
+    shift
+    local vars=("$@")
+
+    echo ""
+    echo "🧾 $title"
+    for var in "${vars[@]}"; do
+        printf "  %-22s %s\n" "$(prettify_var_name "$var"):" "${!var}"
+    done
+}
+
+prettify_var_name() {
+    local var_name="$1"
+    var_name="${var_name//_/-}"                                 # Replace underscores with dashes
+    var_name="$(echo "$var_name" | tr '[:lower:]' '[:upper:]')" # Capitalize (optional)
+    echo "$var_name"
 }
 
 display_snapshot_backup_config() {
@@ -318,5 +329,16 @@ bind_chroot_essentials_to_mounted_snapshot() {
     echo "🔧 Preparing chroot environment..."
     for path in /dev /proc /sys; do
         run_or_echo "$dry_run" "mount --bind $path $snapshot_mount_point$path"
+    done
+}
+
+unmount_chroot_bindings() {
+    local dry_run="$1"
+    local snapshot_mount_point="$2"
+    local chroot_repo_full="$3"
+
+    run_or_echo "$dry_run" "umount \"$snapshot_mount_point/$chroot_repo_full\""
+    for path in /dev /proc /sys; do
+        run_or_echo "$dry_run" "umount \"$snapshot_mount_point$path\""
     done
 }

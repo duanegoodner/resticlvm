@@ -53,7 +53,10 @@ SNAPSHOT_BACKUP_PATH="$SNAPSHOT_MOUNT_POINT$REL_PATH"
 confirm_not_yet_exist_snapshot_mount_point "$SNAPSHOT_MOUNT_POINT"
 
 # ### DISPLAY PRE-RUN INFO ######################################
-display_snapshot_backup_config
+# display_snapshot_backup_config
+display_config "LVM Snapshot Backup Configuration" \
+    VG_NAME LV_NAME SNAP_SIZE SNAP_NAME SNAPSHOT_MOUNT_POINT \
+    RESTIC_REPO RESTIC_PASSWORD_FILE EXCLUDE_PATHS BACKUP_SOURCE DRY_RUN
 display_dry_run_message "$DRY_RUN"
 
 # ### CREATE AND MOUNT SNAPSHOT ###############################

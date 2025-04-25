@@ -52,7 +52,11 @@ SNAPSHOT_MOUNT_POINT="/srv/${SNAP_NAME}"
 confirm_not_yet_exist_snapshot_mount_point "$SNAPSHOT_MOUNT_POINT"
 
 # ### DISPLAY PRE-RUN INFO ######################################
-display_snapshot_backup_config
+# display_snapshot_backup_config
+display_config "LVM Snapshot Backup Configuration" \
+    VG_NAME LV_NAME SNAP_SIZE SNAP_NAME SNAPSHOT_MOUNT_POINT \
+    RESTIC_REPO RESTIC_PASSWORD_FILE EXCLUDE_PATHS BACKUP_SOURCE DRY_RUN
+
 display_dry_run_message "$DRY_RUN"
 
 # ### CREATE AND MOUNT SNAPSHOT ###############################
@@ -78,19 +82,12 @@ RESTIC_CMD+=" -r $CHROOT_REPO_FULL"
 RESTIC_CMD+=" backup $BACKUP_SOURCE"
 RESTIC_CMD+=" --verbose"
 
-echo "🔍 Restic command: $RESTIC_CMD"
-
 # ### RUN RESTIC BACKUP #####################################
 echo "🚀 Running Restic backup in chroot..."
 run_in_chroot_or_echo "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_CMD"
 
-# ─── Cleanup ──────────────────────────────────────────────────────
-
-run_or_echo "$DRY_RUN" "umount \"$SNAPSHOT_MOUNT_POINT/$CHROOT_REPO_FULL\""
-for path in /dev /proc /sys; do
-    run_or_echo "$DRY_RUN" "umount \"$SNAPSHOT_MOUNT_POINT$path\""
-done
-
+# ### Cleanup #####################################
+unmount_chroot_bindings "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$CHROOT_REPO_FULL"
 clean_up_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
 echo "✅ Backup completed (or would have, in dry-run mode)."
