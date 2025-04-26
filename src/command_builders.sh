@@ -9,7 +9,7 @@ populate_exclude_paths() {
     done
 }
 
-polulate_exclude_paths_for_lv_nonroot() {
+populate_exclude_paths_for_lv_nonroot() {
     declare -n exclude_args=$1
     local exclude_paths=$2
     local lv_mount_point=$3

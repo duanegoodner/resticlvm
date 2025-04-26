@@ -55,3 +55,5 @@ run_or_echo "$DRY_RUN" "$RESTIC_CMD"
 if [ "$REMOUNT_AS_RO" = true ]; then
     remount_as_read_write "$DRY_RUN" "$BACKUP_SOURCE"
 fi
+
+echo "✅ Backup completed (or would have, in dry-run mode)."
