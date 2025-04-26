@@ -5,10 +5,10 @@ set -euo pipefail
 # shellcheck disable=SC1091
 source "$(dirname "$0")/backup_helpers.sh"
 
-# ### REQUIRE RUNNING AS ROOT / SUDO ###########################
+# ─── Require Running as Root ─────────────────────────────────────
 root_check
 
-# ### SET DEFAULT VALUES #######################################
+# ─── Default Values ──────────────────────────────────────────────
 VG_NAME=""
 LV_NAME=""
 SNAP_SIZE=""
@@ -18,15 +18,12 @@ BACKUP_SOURCE=""
 EXCLUDE_PATHS=""
 DRY_RUN=false
 
-# ### COLLECT AND VALUDATE ARGUMENTS ###########################
+# ─── Parse and Validate Arguments ─────────────────────────────────
 parse_arguments usage_lv_nonroot "vg-name lv-name snap-size restic-repo password-file backup-source exclude-paths dry-run" "$@"
 validate_args usage_lv_nonroot VG_NAME LV_NAME SNAP_SIZE RESTIC_REPO RESTIC_PASSWORD_FILE
 
 # ### SET TIMESTAMP-BASED VARIABLES ###########################
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-SNAP_NAME="${VG_NAME}_${LV_NAME}_${TIMESTAMP}"
-
-# Define LV_DEVICE_PATH now that VG_NAME and LV_NAME are set
+SNAP_NAME=$(generate_snapshot_name "$VG_NAME" "$LV_NAME")
 LV_DEVICE_PATH="/dev/$VG_NAME/$LV_NAME"
 
 # ### PRE-CHECKS ###############################################
