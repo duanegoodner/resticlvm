@@ -12,6 +12,12 @@ display_config() {
     done
 }
 
+display_config_lvm() {
+    display_config "LVM Snapshot Backup Configuration" \
+        VG_NAME LV_NAME SNAP_SIZE SNAP_NAME SNAPSHOT_MOUNT_POINT \
+        RESTIC_REPO RESTIC_PASSWORD_FILE EXCLUDE_PATHS BACKUP_SOURCE DRY_RUN
+}
+
 prettify_var_name() {
     local var_name="$1"
     var_name="${var_name//_/-}"                                 # Replace underscores with dashes

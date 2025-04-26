@@ -37,12 +37,8 @@ check_device_path "$LV_DEVICE_PATH"
 # Is the logical volume mounted and where?
 LV_MOUNT_POINT=$(check_mount_point "$LV_DEVICE_PATH")
 
-# Compute paths based on mount point
-REAL_MOUNT=$(realpath "$LV_MOUNT_POINT")
-REAL_BACKUP=$(realpath -m "$BACKUP_SOURCE")
-
 # Does the backup source exist under the mount point?
-confirm_source_in_lv "$REAL_BACKUP" "$REAL_MOUNT" "$BACKUP_SOURCE"
+confirm_source_in_lv "$LV_MOUNT_POINT" "$BACKUP_SOURCE"
 
 SNAPSHOT_MOUNT_POINT="/srv${LV_MOUNT_POINT}"
 

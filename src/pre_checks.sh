@@ -40,9 +40,13 @@ check_mount_point() {
 }
 
 confirm_source_in_lv() {
-    local real_backup="$1"
-    local real_mount="$2"
-    local backup_source="$3"
+    local lv_mount_point="$1"
+    local backup_source="$2"
+
+    real_mount=$(realpath -m "$lv_mount_point")
+    real_backup=$(realpath -m "$backup_source")
+    echo "Resolved mount point: $real_mount"
+    echo "Resolved backup source: $real_backup"
 
     if [[ "$real_backup" != "$real_mount"* ]]; then
         echo "❌ Error: Backup source '$backup_source' is not within logical volume mount point '$real_mount'"
