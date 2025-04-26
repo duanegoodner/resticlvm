@@ -20,13 +20,13 @@ DRY_RUN=false
 
 CHROOT_REPO_PATH="/.restic_repo"
 
-# ### SET TIMESTAMP-BASED VARIABLES ###########################
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-SNAP_NAME="${VG_NAME}_${LV_NAME}_snapshot_${TIMESTAMP}"
-
 # ### COLLECT AND VALUDATE ARGUMENTS ###########################
 parse_arguments usage_lv_root "vg-name lv-name snap-size restic-repo password-file backup-source exclude-paths dry-run" "$@"
 validate_args usage_lv_root VG_NAME LV_NAME SNAP_SIZE RESTIC_REPO RESTIC_PASSWORD_FILE
+
+# ### SET TIMESTAMP-BASED VARIABLES ###########################
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+SNAP_NAME="${VG_NAME}_${LV_NAME}_snapshot_${TIMESTAMP}"
 
 # Define LV_DEVICE_PATH now that VG_NAME and LV_NAME are set
 LV_DEVICE_PATH="/dev/$VG_NAME/$LV_NAME"
