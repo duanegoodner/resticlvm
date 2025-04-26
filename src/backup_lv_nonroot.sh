@@ -64,14 +64,9 @@ create_snapshot "$DRY_RUN" "$SNAP_SIZE" "$SNAP_NAME" "$VG_NAME" "$LV_NAME"
 mount_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
 EXCLUDE_ARGS=()
+polulate_exclude_paths_for_lv_nonroot EXCLUDE_ARGS "$EXCLUDE_PATHS" "$SNAPSHOT_MOUNT_POINT"
 RESTIC_TAGS=()
-for path in $EXCLUDE_PATHS; do
-    rel="${path#$LV_MOUNT_POINT}"
-    abs="$SNAPSHOT_MOUNT_POINT$rel"
-    EXCLUDE_ARGS+=("--exclude=$abs")
-    tag_path="${rel#/}" # Remove leading slash for tag
-    RESTIC_TAGS+=("--tag=exclude:/$tag_path")
-done
+populate_restic_tags_for_lv_nonroot RESTIC_TAGS "$EXCLUDE_PATHS" "$SNAPSHOT_MOUNT_POINT"
 
 RESTIC_CMD="restic -r $RESTIC_REPO"
 RESTIC_CMD+=" --password-file=$RESTIC_PASSWORD_FILE"
