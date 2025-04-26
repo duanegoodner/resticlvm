@@ -75,6 +75,23 @@ parse_arguments() {
     done
 }
 
+parse_for_lv() {
+    local usage_function="$1"
+    shift # Shift to remove the usage function from "$@"
+    local allowed_flags=""
+
+    allowed_flags+="vg-name "
+    allowed_flags+="lv-name "
+    allowed_flags+="snap-size "
+    allowed_flags+="restic-repo "
+    allowed_flags+="password-file "
+    allowed_flags+="backup-source "
+    allowed_flags+="exclude-paths "
+    allowed_flags+="dry-run"
+
+    parse_arguments "$usage_function" "$allowed_flags" "$@"
+}
+
 validate_args() {
     local usage_function="$1"
     shift

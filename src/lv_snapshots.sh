@@ -33,3 +33,11 @@ clean_up_snapshot() {
     run_or_echo "$dry_run" "lvremove -y \"/dev/$vg_name/$snap_name\""
     run_or_echo "$dry_run" "rmdir \"$snapshot_mount_point\""
 }
+
+generate_snapshot_name() {
+    local vg_name="$1"
+    local lv_name="$2"
+    local timestamp
+    timestamp=$(date +"%Y%m%d_%H%M%S")
+    echo "${vg_name}_${lv_name}_snapshot_${timestamp}"
+}
