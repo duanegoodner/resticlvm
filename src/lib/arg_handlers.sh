@@ -28,7 +28,7 @@ parse_arguments() {
             ;;
         -z | --snap-size)
             if [[ "$allowed_flags" == *"snap-size"* ]]; then
-                SNAP_SIZE="$2"
+                SNAPSHOT_SIZE="$2"
                 shift 2
             else
                 echo "❌ Unexpected option: $1"
@@ -44,7 +44,7 @@ parse_arguments() {
             shift 2
             ;;
         -s | --backup-source)
-            BACKUP_SOURCE="$2"
+            BACKUP_SOURCE_PATH="$2"
             shift 2
             ;;
         -e | --exclude-paths)

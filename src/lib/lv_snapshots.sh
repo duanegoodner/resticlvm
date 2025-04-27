@@ -3,12 +3,12 @@
 create_snapshot() {
     echo "📸 Creating LVM snapshot..."
     local dry_run=$1
-    local snap_size=$2
+    local snapshot_size=$2
     local snap_name=$3
     local vg_name=$4
     local lv_name=$5
 
-    run_or_echo "$dry_run" "lvcreate --size $snap_size --snapshot --name $snap_name /dev/$vg_name/$lv_name"
+    run_or_echo "$dry_run" "lvcreate --size $snapshot_size --snapshot --name $snap_name /dev/$vg_name/$lv_name"
 }
 
 mount_snapshot() {
