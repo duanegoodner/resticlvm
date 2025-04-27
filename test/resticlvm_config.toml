@@ -1,7 +1,7 @@
 [standard_path.boot]
 backup_source_path = "/boot"
-restic_repo = "/backups/resticlvm/restic-boot"
-restic_password_file = "/home/duane/resticlvm/test/test_password.txt"
+restic_repo = "/backup/restic/restic-boot"
+restic_password_file = "/home/duane/resticlvm/secrets/repo_password.txt"
 exclude_paths = []
 remount_readonly = true
 
@@ -9,8 +9,8 @@ remount_readonly = true
 vg_name = "vg0"
 lv_name = "lv0"
 snapshot_size = "1G"
-restic_repo = "/backups/resticlvm/restic-root"
-restic_password_file = "/home/duane/resticlvm/test/test_password.txt"
+restic_repo = "/backup/restic/restic-root"
+restic_password_file = "/home/duane/resticlvm/secrets/repo_password.txt"
 backup_source_path = "/"
 exclude_paths = [
     "/dev",
@@ -27,7 +27,7 @@ exclude_paths = [
 vg_name = "vg_storage"
 lv_name = "lv_storage"
 snapshot_size = "500M"
-restic_repo = "/backups/resticlvm/restic-data"
-restic_password_file = "/home/duane/resticlvm/test/test_password.txt"
+restic_repo = "/backup/restic/restic-data"
+restic_password_file = "/home/duane/resticlvm/secrets/repo_password.txt"
 backup_source_path = "/data"
 exclude_paths = ["/data/data_to_ignore"]
