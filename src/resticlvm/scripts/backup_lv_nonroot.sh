@@ -1,5 +1,35 @@
 #!/bin/bash
 
+# Backup a logical volume that is mounted somewhere other than "/" using
+# Restic and LVM snapshots. Backs up directly from the mounted snapshot
+# without using a chroot environment.
+#
+# Note:
+#   - The path stored in the Restic repository will differ from the
+#     original source path (e.g., backing up /data will store under /srv/data).
+#
+# Arguments:
+#   -g  Volume group name.
+#   -l  Logical volume name.
+#   -z  Snapshot size (e.g., "5G").
+#   -r  Path to the Restic repository.
+#   -p  Path to the Restic password file.
+#   -s  Path to backup source directory inside LV (e.g., "/data").
+#   -e  (Optional) Comma-separated list of paths to exclude.
+#   --dry-run  (Optional) Show actions without executing them.
+#
+# Usage:
+#   This script is intended to be called internally by the ResticLVM tool.
+#
+# Requirements:
+#   - Must be run with root privileges (direct root or via sudo).
+#   - Restic must be installed and available in PATH.
+#   - LVM must be installed and functional.
+#
+# Exit codes:
+#   0  Success
+#   1  Any fatal error
+
 set -euo pipefail
 
 # shellcheck disable=SC1091

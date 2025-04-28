@@ -26,7 +26,7 @@ This approach ensures that backup operations are fast, safe, and do not interfer
 - A Linux system with Logical Volume Manager (LVM).
 - Python 3.11+.
 - Restic installed and available in your $PATH.
-- Root privileges required (scripts will request sudo if necessary).
+- Root privileges required (direct root user or via sudo).
 - Restic repositories must be manually created (using `restic init`) before using ResticLVM.
 
 
@@ -74,7 +74,7 @@ Where:
 
 ### Example `.toml` File
 
-The example below shows one job configuration for each of the three supported categories. All fields shown for each category of job are required (Note that the fields required for a `standard_path` backup job differ from those required for `logical_volume_root` and `logical_volume_nonroot` jobs.
+The example below shows one job configuration for each of the three supported categories. All fields shown for each category of job are required (Note that the fields required for a `standard_path` backup job differ from those required for `logical_volume_root` and `logical_volume_nonroot` jobs).
 
 
 
