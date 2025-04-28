@@ -1,3 +1,8 @@
+"""
+Defines classes and utilities for representing Restic repositories
+and managing prune operations based on backup configurations.
+"""
+
 import importlib.resources as pkg_resources
 import subprocess
 import sys
@@ -7,11 +12,10 @@ from pathlib import Path
 from resticlvm import scripts
 
 
-# ─── Data Classes ─────────────────────────────────────────────────
-
-
 @dataclass
 class ResticPruneKeepParams:
+    """Stores Restic prune retention parameters."""
+
     last: int
     daily: int
     weekly: int
@@ -21,11 +25,23 @@ class ResticPruneKeepParams:
 
 @dataclass
 class ResticRepo:
+    """Represents a Restic repository and associated pruning settings."""
+
     repo_path: Path
     password_file: Path
     prune_keep_params: ResticPruneKeepParams
 
     def prune(self, dry_run: bool = False):
+        """Prune snapshots in the Restic repository.
+
+        Args:
+            dry_run (bool, optional): If True, perform a dry-run without
+                actually deleting any snapshots. Defaults to False.
+
+        Raises:
+            subprocess.CalledProcessError: If the Restic prune command fails.
+            Exception: For unexpected errors during the prune operation.
+        """
         script_path = pkg_resources.files(scripts) / "prune_repo.sh"
 
         cmd = [
@@ -57,13 +73,18 @@ class ResticRepo:
             )
 
 
-# ─── Helpers ──────────────────────────────────────────────────────
-
-
 def confirm_unique_repos(config: dict) -> dict[tuple[str, str], ResticRepo]:
-    """
-    Ensure that all repos in the config are unique.
-    Returns a mapping of (category, job_name) -> ResticRepo.
+    """Ensure that all repositories in the config are unique.
+
+    Args:
+        config (dict): Parsed configuration dictionary.
+
+    Returns:
+        dict[tuple[str, str], ResticRepo]: Mapping of (category, job_name) to
+        ResticRepo instances.
+
+    Raises:
+        ValueError: If duplicate repository paths are detected.
     """
     seen_repos = {}
     repo_paths_seen = set()

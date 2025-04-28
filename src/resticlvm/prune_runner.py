@@ -1,4 +1,9 @@
-#!/usr/bin/env python
+"""
+CLI entry point for pruning Restic repositories with ResticLVM.
+
+Parses command-line arguments, loads the configured repositories,
+and prunes snapshots according to the configured retention policies.
+"""
 
 import argparse
 from pathlib import Path
@@ -7,32 +12,35 @@ from resticlvm.config_loader import load_config
 from resticlvm.privileges import ensure_running_as_root
 from resticlvm.restic_repo import confirm_unique_repos
 
-# ─── Main ─────────────────────────────────────────────────────────
-
 
 def main():
+    """Parse CLI arguments and execute prune operations for Restic repositories.
+
+    Raises:
+        PermissionError: If the user does not have root privileges.
+    """
     ensure_running_as_root()
 
-    parser = argparse.ArgumentParser(description="Prune restic repos.")
+    parser = argparse.ArgumentParser(description="Prune Restic repositories.")
     parser.add_argument(
         "--config",
         required=True,
-        help="Path to config file (.toml)",
+        help="Path to config file (.toml).",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Show what would be pruned without actually pruning",
+        help="Show what would be pruned without actually pruning.",
     )
     parser.add_argument(
         "--category",
         type=str,
-        help="Only prune repos in this backup category",
+        help="Only prune repos in this backup category.",
     )
     parser.add_argument(
         "--name",
         type=str,
-        help="Only prune repo matching this backup job name",
+        help="Only prune the repo matching this backup job name.",
     )
     args = parser.parse_args()
 

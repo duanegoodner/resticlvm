@@ -17,9 +17,9 @@ mount_snapshot() {
     local vg_name=$3
     local snap_name=$4
 
-    echo "📂 Mounting snapshot..."
-    run_or_echo "$dry_run" "mkdir -p $snapshot_mount_point"
-    run_or_echo "$dry_run" "mount /dev/$vg_name/$snap_name $snapshot_mount_point"
+    echo "📂 Mounting snapshot read-only..."
+    run_or_echo "$dry_run" "mkdir -p \"$snapshot_mount_point\""
+    run_or_echo "$dry_run" "mount /dev/$vg_name/$snap_name \"$snapshot_mount_point\" || { echo '❌ Failed to mount snapshot'; exit 1; }"
 }
 
 clean_up_snapshot() {
