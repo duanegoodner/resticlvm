@@ -14,7 +14,7 @@ Interaction with Restic and LVM is handled by Bash shell scripts, while a lightw
 
 - 📦 Creates a timestamped LVM snapshot of each logical volume to be backed up.
 
-- 🔒 Mounts the snapshot read-only to ensure consistent and safe backup data.
+- 🔒 Mounts the snapshot to a temporary mount point.
 
 - 📤 Runs Restic to back up the mounted snapshot to the configured repository.
 
