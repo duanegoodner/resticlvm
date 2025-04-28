@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Provides usage/help display functions for different ResticLVM backup modes.
+# Each function prints CLI usage instructions and exits with a non-zero code.
+#
+# Usage:
+#   Intended to be sourced by argument-parsing functions within backup scripts.
+#
+# Exit codes:
+#   1  Always exits with error after displaying usage help.
+
 usage_path() {
     echo "Usage:"
     echo "$0 -r REPO -p PASSFILE -s SRC [-e EXCLUDES] [-m] [-n]"

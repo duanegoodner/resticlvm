@@ -8,7 +8,8 @@ ResticLVM is a Linux command-line tool that combines the snapshot features of Lo
 
 ResticLVM uses a simple TOML configuration file format to define backup jobs, and provides CLI commands to run backups or prune old snapshots based on configuration settings.
 
-Interaction with Restic and LVM is handled by Bash shell scripts, while a lightweight Python wrapper provides the CLI and enables installation as a Python package.
+Interaction with Restic and LVM is handled by a set of [Bash shell scripts](src/resticlvm/scripts/README.md), while a lightweight Python wrapper orchestrates the backup flow, provides the CLI interface, and enables installation as a Python package.
+
 
 ## How It Works:
 
@@ -26,7 +27,7 @@ This approach ensures that backup operations are fast, safe, and do not interfer
 - A Linux system with Logical Volume Manager (LVM).
 - Python 3.11+.
 - Restic installed and available in your $PATH.
-- Root privileges required (scripts will request sudo if necessary).
+- Root privileges required (direct root user or via sudo).
 - Restic repositories must be manually created (using `restic init`) before using ResticLVM.
 
 
@@ -74,7 +75,7 @@ Where:
 
 ### Example `.toml` File
 
-The example below shows one job configuration for each of the three supported categories. All fields shown for each category of job are required (Note that the fields required for a `standard_path` backup job differ from those required for `logical_volume_root` and `logical_volume_nonroot` jobs.
+The example below shows one job configuration for each of the three supported categories. All fields shown for each category of job are required (Note that the fields required for a `standard_path` backup job differ from those required for `logical_volume_root` and `logical_volume_nonroot` jobs).
 
 
 
@@ -207,6 +208,57 @@ options:
   --category CATEGORY  Only prune repos in this backup category.
   --name NAME          Only prune repo matching this backup job name.
 ```
+
+## Project Layout
+
+```
+.
+├── LICENSE                            # Project license (MIT)
+├── pyproject.toml                     # Python package configuration
+├── README.md                          # Main project overview and usage
+└── src
+    └── resticlvm
+        ├── Python Modules
+        │   ├── backup_plan.py         # Backup plan creation from config
+        │   ├── backup_runner.py       # CLI entry point for running backups
+        │   ├── config_loader.py       # Load and parse TOML configs
+        │   ├── data_classes.py        # Core backup job and mapping structures
+        │   ├── dispatch.py            # Dispatch rules mapping to backup scripts
+        │   ├── privileges.py          # Root/sudo enforcement
+        │   ├── prune_runner.py        # CLI entry point for pruning Restic repos
+        │   ├── restic_repo.py         # Restic repository objects and pruning
+        │   └── __init__.py
+        └── Bash Scripts
+            ├── backup_helpers.sh       # Aggregates helper libraries
+            ├── backup_lv_nonroot.sh    # Backup non-root logical volumes
+            ├── backup_lv_root.sh       # Backup root logical volumes
+            ├── backup_path.sh          # Backup standard filesystem paths
+            ├── prune_repo.sh           # Prune Restic repos via shell
+            ├── lib/                    # Helper libraries
+            │   ├── arg_handlers.sh     # CLI argument parsing
+            │   ├── command_builders.sh # Build Restic command args
+            │   ├── command_runners.sh  # Execute or dry-run shell commands
+            │   ├── lv_snapshots.sh     # LVM snapshot operations
+            │   ├── message_display.sh  # Display configurations and dry-run notices
+            │   ├── mounts.sh           # Mount management and chroot setup
+            │   ├── pre_checks.sh       # Environment and device validations
+            │   └── usage_commands.sh   # Usage/help output for CLI scripts
+            └── README.md               # Scripts directory overview
+
+```
+
+## Contributing
+
+Contributions, suggestions, and improvements are welcome!
+
+If you find a bug, have a feature request, or want to submit a pull request,
+please open an issue or submit a PR on GitHub.
+
+This project aims to stay lightweight, reliable, and focused, so proposed
+changes should align with those goals.
+
+Thanks for helping improve ResticLVM!
+
 
 ## Links
 

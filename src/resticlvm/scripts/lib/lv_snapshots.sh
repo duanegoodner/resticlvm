@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Provides functions to create, mount, and clean up LVM snapshots
+# for use in ResticLVM backups.
+#
+# Usage:
+#   Intended to be sourced by backup scripts within the ResticLVM tool.
+#
+# Requirements:
+#   - Must be run with root privileges (direct root or via sudo).
+#   - LVM tools must be installed and available (lvcreate, lvremove, etc.).
+#
+# Exit codes:
+#   Non-zero if any snapshot operation fails (unless in dry-run mode).
+
+# Create an LVM snapshot for a given logical volume.
 create_snapshot() {
     echo "📸 Creating LVM snapshot..."
     local dry_run=$1
@@ -11,6 +25,7 @@ create_snapshot() {
     run_or_echo "$dry_run" "lvcreate --size $snapshot_size --snapshot --name $snap_name /dev/$vg_name/$lv_name"
 }
 
+# Mount an LVM snapshot read-only at a given mount point.
 mount_snapshot() {
     local dry_run=$1
     local snapshot_mount_point=$2
@@ -22,6 +37,7 @@ mount_snapshot() {
     run_or_echo "$dry_run" "mount /dev/$vg_name/$snap_name \"$snapshot_mount_point\" || { echo '❌ Failed to mount snapshot'; exit 1; }"
 }
 
+# Unmount and remove an LVM snapshot and its mount point.
 clean_up_snapshot() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
@@ -34,6 +50,7 @@ clean_up_snapshot() {
     run_or_echo "$dry_run" "rmdir \"$snapshot_mount_point\""
 }
 
+# Generate a timestamped name for an LVM snapshot.
 generate_snapshot_name() {
     local vg_name="$1"
     local lv_name="$2"

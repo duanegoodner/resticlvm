@@ -1,5 +1,27 @@
 #!/bin/bash
 
+# Backup a standard filesystem path using Restic.
+# Optionally remounts the source path as read-only during the backup.
+#
+# Arguments:
+#   -r  Path to the Restic repository.
+#   -p  Path to the Restic password file.
+#   -s  Path to the backup source directory.
+#   -e  (Optional) Comma-separated list of paths to exclude.
+#   -m  (Optional) Remount the backup source as read-only during backup (true/false).
+#   --dry-run  (Optional) Show actions without executing them.
+#
+# Usage:
+#   This script is intended to be called internally by the ResticLVM tool.
+#
+# Requirements:
+#   - Must be run with root privileges (direct root or via sudo).
+#   - Restic must be installed and available in PATH.
+#
+# Exit codes:
+#   0  Success
+#   1  Any fatal error
+
 set -euo pipefail
 
 # shellcheck disable=SC1091
