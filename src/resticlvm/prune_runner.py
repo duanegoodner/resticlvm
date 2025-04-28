@@ -27,12 +27,12 @@ def main():
     parser.add_argument(
         "--category",
         type=str,
-        help="Only prune repos in this backup category (e.g. logical_volume_root)",
+        help="Only prune repos in this backup category",
     )
     parser.add_argument(
         "--name",
         type=str,
-        help="Only prune repo matching this backup job name (e.g. lv_root)",
+        help="Only prune repo matching this backup job name",
     )
     args = parser.parse_args()
 
