@@ -1,34 +1,46 @@
 # ResticLVM
 
+> **A config-based tool for atomic, incremental backups — powered by [Restic](https://github.com/restic/restic) and [LVM2](https://sourceware.org/lvm2/).**
+
 ## Description
 
-ResticLVM is a command-line tool that coordinates the use of [Restic](https://github.com/restic/restic) and LVM snapshots for consistent, atomic backups.
-
-It automates the creation of temporary LVM snapshots to capture a point-in-time view of a filesystem, and then runs Restic to perform the backup. Backups can be local or remote and benefit from Restic's built-in encryption, deduplication, and compression.
+ResticLVM is a Linux command-line tool that combines the snapshot features of Logical Volume Manager (LVM) with the data deduplication and encryption features of the [Restic](https://github.com/restic/restic) backup tool to create consistent, efficient backups of active systems with minimal downtime.
 
 ResticLVM uses a simple TOML configuration file format to define backup jobs, and provides CLI commands to run backups or prune old snapshots based on configuration settings.
 
-Interaction with Restic and LVM is handled by bash shell scripts. A Python wrapper provides the CLI and enables installation as a Python package. 
+Interaction with Restic and LVM is handled by Bash shell scripts, while a lightweight Python wrapper provides the CLI and enables installation as a Python package.
 
+## How It Works:
+
+- 📦 Creates a timestamped LVM snapshot of each logical volume to be backed up.
+
+- 🔒 Mounts the snapshot read-only to ensure consistent and safe backup data.
+
+- 📤 Runs Restic to back up the mounted snapshot to the configured repository.
+
+- 🧹 Cleans up the snapshot automatically after backup completes.
+
+This approach ensures that backup operations are fast, safe, and do not interfere with the running system.
 
 ## Requirements
-- A Linux system with Logical Volume Manager (LVM) 
-- Python 3.11+
-- Restic installed and available in your $PATH
-- Root privileges required (scripts will request sudo if necessary)
-- Existing Restic repositories:  
-Repositories need to be manually created (using `restic init`) before using ResticLVM.
+- A Linux system with Logical Volume Manager (LVM).
+- Python 3.11+.
+- Restic installed and available in your $PATH.
+- Root privileges required (scripts will request sudo if necessary).
+- Restic repositories must be manually created (using `restic init`) before using ResticLVM.
+
 
 ## Installing
+
+Install ResticLVM using `pip`:
 ```
 pip install resticlvm
 ```
 After installation, the following CLI commands will be available:
 
-- `rlvm-backup` — Run configured backup jobs
+- `rlvm-backup` — Run backup jobs as defined in your configuration file.
 
-- `rlvm-prune` — Prune Restic snapshots according to your config
-
+- `rlvm-prune` —  Prune Restic snapshots according to the retention settings in your configuration.
 
 ## Config File Setup
 
@@ -118,7 +130,7 @@ prune_keep_yearly = 1
 
 - Each backup job must use a unique `restic_repo` path. Duplicate repositories across jobs are not allowed because Restic pruning operates at the repository level.
 
-- The Restic repositories must already exist. (Use restic init manually to create each repo before using this tool.)
+- The Restic repositories must already exist. (Use `restic init` manually to create each repo before using this tool.)
 
 
 ## CLI Usage
@@ -149,7 +161,7 @@ rlvm-prune --config /path/to/your/resticlvm_config.toml
 
 - Handles Restic's `forget` and `--prune` commands.
 
-We can also choost to prune only certain repos:
+We can also choose to prune only certain repos:
 ```
 # Prune by category
 sudo rlvm-prune --config /path/to/resticlvm_config.toml --category logical_volume_root
@@ -173,9 +185,9 @@ Run backup jobs.
 
 options:
   -h, --help           show this help message and exit
-  --dry-run            Dry run mode
-  --category CATEGORY  Only run specific category
-  --name NAME          Only run specific job name
+  --dry-run            Show what would be backed up without actually running
+  --category CATEGORY  Only run backups of this specific category
+  --name NAME          Only run backups with this specific job name
   --config CONFIG      Path to configuration TOML file
 ```
 And to see available `rlvm-prune` options:
@@ -190,9 +202,18 @@ Prune restic repos.
 
 options:
   -h, --help           show this help message and exit
-  --config CONFIG      Path to config file (.toml)
-  --dry-run            Show what would be pruned without actually pruning
-  --category CATEGORY  Only prune repos in this backup category 
+  --config CONFIG      Path to config file (.toml).
+  --dry-run            Show what would be pruned without actually pruning.
+  --category CATEGORY  Only prune repos in this backup category.
   --name NAME          Only prune repo matching this backup job name.
 ```
+
+## Links
+
+- [Submit Issues](https://github.com/yourusername/resticlvm/issues)
+- [License (MIT)](./LICENSE)
+- [Restic Project (GitHub)](https://github.com/restic/restic)
+- [LVM2 (Sourceware upstream)](https://sourceware.org/lvm2/)
+- [LVM Guide (Fedora/Red Hat Documentation)](https://docs.fedoraproject.org/en-US/fedora/latest/system-administrators-guide/storage/LVM/)
+
 
