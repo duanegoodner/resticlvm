@@ -1,29 +1,52 @@
+#!/usr/bin/env python
+
+import argparse
+import os
 import subprocess
+import sys
 from pathlib import Path
-from resticlvm.config_loader import load_config
+
+from resticlvm.backup_plan import BackupPlan
+from resticlvm.data_classes import BackupJob
+from resticlvm.privileges import ensure_running_as_root
 
 
-def backup_standard_path(config: dict):
-    cmd = [
-        "./src/backup_path.sh",
-        "-r",
-        config["restic_repo"],
-        "-p",
-        config["restic_password_file"],
-        "-s",
-        config["backup_source_path"],
-        "-e",
-        "".join(config["exclude_paths"]),
-        "-m",
-        str(config["remount_readonly"]).lower(),
-    ]
+class BackupJobRunner:
+    def __init__(self, jobs: list[BackupJob]):
+        self.jobs = jobs
 
-    subprocess.run(cmd, check=True)
+    def run_all(self, category: str = None, name: str = None):
+        for job in self.jobs:
+            if category and job.category != category:
+                continue
+            if name and job.name != name:
+                continue
+            job.run()
+
+
+def main():
+    ensure_running_as_root()
+
+    parser = argparse.ArgumentParser(description="Run backup jobs.")
+    parser.add_argument("--dry-run", action="store_true", help="Dry run mode")
+    parser.add_argument(
+        "--category", type=str, help="Only run specific category"
+    )
+    parser.add_argument("--name", type=str, help="Only run specific job name")
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Path to configuration TOML file",
+    )
+    args = parser.parse_args()
+
+    config_path = Path(args.config)
+
+    plan = BackupPlan(config_path=config_path, dry_run=args.dry_run)
+    runner = BackupJobRunner(plan.backup_jobs)
+    runner.run_all(category=args.category, name=args.name)
 
 
 if __name__ == "__main__":
-    config_path = Path("/home/duane/resticlvm/test/resticlvm_config.toml")
-    config = load_config(config_path)
-
-    backup_boot_config = config["standard_path"]["boot"]
-    backup_standard_path(config=backup_boot_config)
+    main()
