@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Provides functions to display configuration information, backup summaries,
+# and dry-run warnings for ResticLVM backup operations.
+#
+# Usage:
+#   Intended to be sourced by backup scripts within the ResticLVM tool.
+#
+# Exit codes:
+#   N/A (display functions only).
+
+# Display a list of variables and their values with a title.
 display_config() {
     local title="$1"
     shift
@@ -12,12 +22,14 @@ display_config() {
     done
 }
 
+# Display a preformatted standard LVM snapshot backup configuration.
 display_config_lvm() {
     display_config "LVM Snapshot Backup Configuration" \
         VG_NAME LV_NAME SNAPSHOT_SIZE SNAP_NAME SNAPSHOT_MOUNT_POINT \
         RESTIC_REPO RESTIC_PASSWORD_FILE EXCLUDE_PATHS BACKUP_SOURCE_PATH DRY_RUN
 }
 
+# Prettify variable names for display (underscores → dashes, capitalize).
 prettify_var_name() {
     local var_name="$1"
     var_name="${var_name//_/-}"                                 # Replace underscores with dashes
@@ -25,6 +37,7 @@ prettify_var_name() {
     echo "$var_name"
 }
 
+# Display a hardcoded snapshot backup configuration summary.
 display_snapshot_backup_config() {
     echo ""
     echo "🧾 LVM Snapshot Backup Configuration:"
@@ -40,6 +53,7 @@ display_snapshot_backup_config() {
     echo "  Dry run:               $DRY_RUN"
 }
 
+# Show a dry-run mode warning message if applicable.
 display_dry_run_message() {
     local dry_run="$1"
     if [ "$dry_run" = true ]; then

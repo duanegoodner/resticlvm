@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Provides functions for parsing and validating CLI arguments for backup scripts.
+# Populates global environment variables based on parsed arguments.
+#
+# Note:
+#   - Environment variables like VG_NAME, LV_NAME, etc., must exist
+#     in the caller's environment.
+#
+# Usage:
+#   Intended to be sourced by other scripts in the ResticLVM tool.
+#
+# Exit codes:
+#   Non-zero if validation fails.
+
+# Parse arguments based on a flexible allowed flags list.
 parse_arguments() {
     local usage_function="$1"
     shift
@@ -75,6 +89,7 @@ parse_arguments() {
     done
 }
 
+# Convenience function for parsing standard LVM backup arguments.
 parse_for_lv() {
     local usage_function="$1"
     shift # Shift to remove the usage function from "$@"
@@ -92,6 +107,7 @@ parse_for_lv() {
     parse_arguments "$usage_function" "$allowed_flags" "$@"
 }
 
+# Validate that all required environment variables are set.
 validate_args() {
     local usage_function="$1"
     shift

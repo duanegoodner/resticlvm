@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Provides functions for remounting volumes, binding Restic repositories,
+# and setting up minimal chroot environments for backup operations.
+#
+# Usage:
+#   Intended to be sourced by backup scripts within the ResticLVM tool.
+#
+# Requirements:
+#   - Must be run with root privileges (direct root or via sudo).
+#   - mount, findmnt utilities must be available in PATH.
+#
+# Exit codes:
+#   Non-zero if remounts or bind-mounts fail (unless in dry-run mode).
+
+# Remount a device as read-only.
 remount_as_read_only() {
     local dry_run="$1"
     local backup_source="$2"
@@ -15,6 +29,7 @@ remount_as_read_only() {
     fi
 }
 
+# Remount a device as read-write.
 remount_as_read_write() {
     local dry_run="$1"
     local backup_source="$2"
@@ -30,6 +45,7 @@ remount_as_read_write() {
     fi
 }
 
+# Bind-mount the Restic repository into the snapshot for chroot backup.
 bind_repo_to_mounted_snapshot() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
@@ -44,6 +60,7 @@ bind_repo_to_mounted_snapshot() {
     run_or_echo "$dry_run" "mount --bind $restic_repo $snapshot_mount_point/$chroot_repo_full"
 }
 
+# Bind /dev, /proc, and /sys into the snapshot to enable minimal chroot.
 bind_chroot_essentials_to_mounted_snapshot() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
@@ -54,6 +71,7 @@ bind_chroot_essentials_to_mounted_snapshot() {
     done
 }
 
+# Unmount Restic repo and chroot essentials from the snapshot.
 unmount_chroot_bindings() {
     local dry_run="$1"
     local snapshot_mount_point="$2"

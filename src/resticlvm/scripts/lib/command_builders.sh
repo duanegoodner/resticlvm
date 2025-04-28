@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Provides functions to build Restic command-line arguments for backups,
+# including exclusion rules and backup tags.
+#
+# Usage:
+#   Intended to be sourced by other scripts within the ResticLVM tool.
+#
+# Requirements:
+#   - Environment variables like SNAPSHOT_MOUNT_POINT must be available
+#     when working with LVM non-root backups.
+#
+# Exit codes:
+#   N/A (helper functions only).
+
+# Populate --exclude flags for a standard path backup.
 populate_exclude_paths() {
     declare -n exclude_args=$1
     local exclude_paths=$2
@@ -9,6 +23,7 @@ populate_exclude_paths() {
     done
 }
 
+# Populate --exclude flags for an LVM non-root snapshot backup.
 populate_exclude_paths_for_lv_nonroot() {
     declare -n exclude_args=$1
     local exclude_paths=$2
@@ -21,6 +36,7 @@ populate_exclude_paths_for_lv_nonroot() {
     done
 }
 
+# Populate --tag flags to label excluded paths in a backup.
 populate_restic_tags() {
     local -n restic_tags=$1
     local exclude_paths=$2
@@ -31,6 +47,7 @@ populate_restic_tags() {
     done
 }
 
+# Populate --tag flags for excluded paths in an LVM non-root backup.
 populate_restic_tags_for_lv_nonroot() {
     local -n restic_tags=$1
     local exclude_paths=$2
