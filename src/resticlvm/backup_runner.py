@@ -28,11 +28,19 @@ def main():
     ensure_running_as_root()
 
     parser = argparse.ArgumentParser(description="Run backup jobs.")
-    parser.add_argument("--dry-run", action="store_true", help="Dry run mode")
     parser.add_argument(
-        "--category", type=str, help="Only run specific category"
+        "--dry-run",
+        action="store_true",
+        help="Show what would be backed up without actually running",
     )
-    parser.add_argument("--name", type=str, help="Only run specific job name")
+    parser.add_argument(
+        "--category",
+        type=str,
+        help="Only run backups of this specific category",
+    )
+    parser.add_argument(
+        "--name", type=str, help="Only run backups with this specific job name"
+    )
     parser.add_argument(
         "--config",
         type=str,
