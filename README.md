@@ -33,11 +33,13 @@ This approach ensures that backup operations are fast, safe, and do not interfer
 
 ## Installing
 
-Install ResticLVM using `pip`:
+The recommended way to install ResticLVM is to download the .whl file from the [latest GitHub release](https://github.com/duanegoodner/resticlvm/releases/latest), then install it using pip:
+
 ```
-pip install resticlvm
+pip install /path/to/resticlvm-<latest_version>-py3-none-any.whl
 ```
-After installation, the following CLI commands will be available:
+
+This installs the CLI tools:
 
 - `rlvm-backup` — Run backup jobs as defined in your configuration file.
 
@@ -264,7 +266,30 @@ options:
     - 📄 `README.md` — Bash scripts overview
 
 
+## Alternate Installation Methods
 
+
+These methods are useful for development or direct-from-source usage.
+
+
+### 1️⃣ Install from GitHub tag (source)
+
+```
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.1.2
+```
+Builds the project from source at the specified Git tag (v0.1.2 in this example).
+
+
+### 2️⃣ Install from a cloned repo (local source)
+```
+git clone https://github.com/yourusername/resticlvm.git
+cd resticlvm
+pip install .
+```
+For development mode (auto-reflects source code changes):
+```
+pip install -e .
+```
 
 
 ## Contributing
