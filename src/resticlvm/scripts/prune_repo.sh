@@ -41,6 +41,7 @@ restic -r "$RESTIC_REPO" --password-file="$PASSWORD_FILE" forget --prune \
     --keep-daily="$KEEP_DAILY" \
     --keep-weekly="$KEEP_WEEKLY" \
     --keep-monthly="$KEEP_MONTHLY" \
-    --keep-yearly="$KEEP_YEARLY"
+    --keep-yearly="$KEEP_YEARLY" \
+    --keep-tag protected
 
 echo "✅ Prune completed for $RESTIC_REPO"

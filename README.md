@@ -134,7 +134,7 @@ prune_keep_yearly = 1
 - The Restic repositories must already exist. (Use `restic init` manually to create each repo before using this tool.)
 
 
-## CLI Usage
+## Running Backups
 
 ### 🔹 Run all backup jobs:
 ```
@@ -154,13 +154,18 @@ rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path
 rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path --name boot
 ```
 
-### 🔹 Prune Old Snapshots
+## Pruning Snapshots
+
+### 🔹Prune All Configured Repositories
+
 ```
 rlvm-prune --config /path/to/your/resticlvm_config.toml
 ```
 - Applies the configured prune_keep_* settings to each Restic repo.
 
 - Handles Restic's `forget` and `--prune` commands.
+
+### 🔹 Prune by Category or Job Name
 
 We can also choose to prune only certain repos:
 ```
@@ -169,11 +174,27 @@ sudo rlvm-prune --config /path/to/resticlvm_config.toml --category logical_volum
 
 # Prune by specific job name
 sudo rlvm-prune --config /path/to/resticlvm_config.toml --category logical_volume_root --name lv_root
-
 ```
 
+### 🔹Protecting Specific Snapshots from Deletion
 
-### 🔹 CLI Help
+By default, all snapshots are subject to pruning according to your configured retention policies.
+
+If you want to permanently protect a particular snapshot from being pruned:
+
+1. List your current snapshots to find the snapshot ID:
+
+   ```bash
+   restic -r /path/to/restic-repo --password-file /path/to/password/file snapshots
+   ```
+2. Tag the snapshot you want to protect:
+
+    ```
+    restic tag --add protected --snapshot <snapshot-ID>
+    ```
+Snapshots tagged protected will automatically be preserved during pruning, regardless of age or retention rules. ResticLVM's pruning logic uses --keep-tag protected to ensure these snapshots are not deleted.
+
+## CLI Help
 To see available options for `rlvm-backup`:
 ```
 rlvm-backup --help
@@ -211,41 +232,40 @@ options:
 
 ## Project Layout
 
-```
-.
-├── LICENSE                            # Project license (MIT)
-├── pyproject.toml                     # Python package configuration
-├── README.md                          # Main project overview and usage
-└── src
-    └── resticlvm
-        ├── Python Modules
-        │   ├── backup_plan.py         # Backup plan creation from config
-        │   ├── backup_runner.py       # CLI entry point for running backups
-        │   ├── config_loader.py       # Load and parse TOML configs
-        │   ├── data_classes.py        # Core backup job and mapping structures
-        │   ├── dispatch.py            # Dispatch rules mapping to backup scripts
-        │   ├── privileges.py          # Root/sudo enforcement
-        │   ├── prune_runner.py        # CLI entry point for pruning Restic repos
-        │   ├── restic_repo.py         # Restic repository objects and pruning
-        │   └── __init__.py
-        └── Bash Scripts
-            ├── backup_helpers.sh       # Aggregates helper libraries
-            ├── backup_lv_nonroot.sh    # Backup non-root logical volumes
-            ├── backup_lv_root.sh       # Backup root logical volumes
-            ├── backup_path.sh          # Backup standard filesystem paths
-            ├── prune_repo.sh           # Prune Restic repos via shell
-            ├── lib/                    # Helper libraries
-            │   ├── arg_handlers.sh     # CLI argument parsing
-            │   ├── command_builders.sh # Build Restic command args
-            │   ├── command_runners.sh  # Execute or dry-run shell commands
-            │   ├── lv_snapshots.sh     # LVM snapshot operations
-            │   ├── message_display.sh  # Display configurations and dry-run notices
-            │   ├── mounts.sh           # Mount management and chroot setup
-            │   ├── pre_checks.sh       # Environment and device validations
-            │   └── usage_commands.sh   # Usage/help output for CLI scripts
-            └── README.md               # Scripts directory overview
+- 📄 **LICENSE** — MIT license
+- 📄 **pyproject.toml** — Python package config
+- 📄 **README.md** — Project overview and usage
+- 📂 **src/resticlvm/**
+  - 📂 **Python Modules**
+    - 📄 `backup_plan.py` — Build backup jobs from config
+    - 📄 `backup_runner.py` — CLI entry for backups
+    - 📄 `config_loader.py` — Load TOML config
+    - 📄 `data_classes.py` — Backup job dataclasses
+    - 📄 `dispatch.py` — Maps config sections to scripts
+    - 📄 `privileges.py` — Ensure root/sudo execution
+    - 📄 `prune_runner.py` — CLI entry for pruning
+    - 📄 `restic_repo.py` — Repo objects and prune ops
+    - 📄 `__init__.py`
+  - 📂 **Bash Scripts**
+    - 📄 `backup_helpers.sh` — Import funnel for helpers
+    - 📄 `backup_lv_nonroot.sh` — Backup non-root volumes
+    - 📄 `backup_lv_root.sh` — Backup root volumes
+    - 📄 `backup_path.sh` — Backup standard paths
+    - 📄 `prune_repo.sh` — Prune repos with restic
+    - 📂 **lib/**
+      - 📄 `arg_handlers.sh` — Parse CLI args
+      - 📄 `command_builders.sh` — Build backup commands
+      - 📄 `command_runners.sh` — Run/dry-run shell commands
+      - 📄 `lv_snapshots.sh` — Create and clean up snapshots
+      - 📄 `message_display.sh` — Show configs/dry-run notices
+      - 📄 `mounts.sh` — Mount/bind operations
+      - 📄 `pre_checks.sh` — Validate environment and inputs
+      - 📄 `usage_commands.sh` — CLI help output
+    - 📄 `README.md` — Bash scripts overview
 
-```
+
+
+
 
 ## Contributing
 
