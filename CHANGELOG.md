@@ -8,15 +8,54 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [0.1.0] - 2025-04-28
 
-### Added
-- Initial public release.
-- Config-driven backup and prune tooling combining Restic and LVM.
+### 🚀 What's New
+- Initial public release
+- Config-driven backup and prune tooling combining Restic and LVM
 - Support for backing up:
   - Standard filesystem paths
   - Root logical volumes (with chroot snapshot backup)
   - Non-root logical volumes (direct snapshot backup)
-- Dry-run support for both backup and prune operations.
+- Dry-run support for both backup and prune operations
 - Lightweight, modular design:
   - Python CLI wrapper
   - Bash scripts for system interactions
-- Basic documentation and usage examples.
+- Basic documentation and usage examples
+
+### 🛠️ Changes and Improvements
+None
+
+### 🐛 Bug Fixes
+None
+
+### ⚙️ Upgrade Notes
+None
+
+### 📚 Documentation Updates
+None
+
+### 🔧 Internal / Maintenance
+None
+
+
+## [0.1.1] — 2025-04-29
+
+### 🚀 What's New
+- Snapshots tagged `protected` are now preserved automatically during pruning.
+
+### 🛠️ Changes and Improvements
+- Minor improvements to prune script behavior and dry-run handling.
+
+### 🐛 Bug Fixes
+None.
+
+### ⚙️ Upgrade Notes
+- No configuration changes are required.
+- Existing workflows continue to work normally.
+- Snapshots manually tagged `protected` will not be pruned.
+
+### 📚 Documentation Updates
+- Updated README with instructions for tagging protected snapshots.
+
+### 🔧 Internal / Maintenance
+None
+
