@@ -46,7 +46,7 @@ None
 - Minor improvements to prune script behavior and dry-run handling.
 
 ### 🐛 Bug Fixes
-None.
+None
 
 ### ⚙️ Upgrade Notes
 - No configuration changes are required.
@@ -58,4 +58,28 @@ None.
 
 ### 🔧 Internal / Maintenance
 None
+
+
+## [0.1.2] — 2025-04-29
+
+### 🚀 What's New
+- None
+
+### 🛠️ Changes and Improvements
+- Added `Makefile` to streamline build, install, and release workflows.
+
+### 🐛 Bug Fixes
+- Corrected Python version requirement in `pyproject.toml`.
+  - Now correctly specifies `requires-python = ">=3.11"`.
+  - Prevents accidental installation under unsupported Python versions (e.g., 3.10).
+
+### ⚙️ Upgrade Notes
+- No user-facing changes. Existing backups and configs continue to work.
+
+### 📚 Documentation Updates
+- Internal documentation improvements for contributors.
+
+### 🔧 Internal / Maintenance
+- Updated `.gitignore` to exclude `dist/`, `build/`, and `.egg-info` artifacts.
+
 
