@@ -5,9 +5,9 @@ and creates executable backup job instances based on it.
 
 from pathlib import Path
 
-from resticlvm.config_loader import load_config
-from resticlvm.data_classes import BackupJob, TokenConfigKeyPair
-from resticlvm.dispatch import RESOURCE_DISPATCH
+from resticlvm.orchestration.config_loader import load_config
+from resticlvm.orchestration.data_classes import BackupJob, TokenConfigKeyPair
+from resticlvm.orchestration.dispatch import RESOURCE_DISPATCH
 
 
 class BackupPlan:

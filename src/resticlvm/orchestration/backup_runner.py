@@ -8,9 +8,9 @@ and executes backup jobs based on the specified filters.
 import argparse
 from pathlib import Path
 
-from resticlvm.backup_plan import BackupPlan
-from resticlvm.data_classes import BackupJob
-from resticlvm.privileges import ensure_running_as_root
+from resticlvm.orchestration.backup_plan import BackupPlan
+from resticlvm.orchestration.data_classes import BackupJob
+from resticlvm.orchestration.privileges import ensure_running_as_root
 
 
 class BackupJobRunner:

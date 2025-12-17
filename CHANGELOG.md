@@ -9,6 +9,30 @@ This project follows [Semantic Versioning](https://semver.org/).
 ## [0.1.2] — 2025-04-29
 
 ### 🚀 What's New
+- Docs and maintenance
+
+### 🛠️ Changes and Improvements
+- Change recommended install method to use `pip install git+...`
+- Better (more idiomatic) build tooling
+
+### 🐛 Bug Fixes
+- None
+
+### ⚙️ Upgrade Notes
+- No user-facing changes. Existing backups and configs continue to work.
+
+### 📚 Documentation Updates
+- Changed recommended install method use `pip install git+...`
+- Added instructions for dev env setup & install
+
+### 🔧 Internal / Maintenance
+- add build helper `./tools/build-release.sh`
+- add `./tools/environment.yml` for creating dev env
+
+
+## [0.1.2] — 2025-04-29
+
+### 🚀 What's New
 - None
 
 ### 🛠️ Changes and Improvements
