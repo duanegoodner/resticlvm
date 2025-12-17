@@ -33,10 +33,17 @@ This approach ensures that backup operations are fast, safe, and do not interfer
 
 ## Installing
 
-The recommended way to install ResticLVM is to download the .whl file from the [latest GitHub release](https://github.com/duanegoodner/resticlvm/releases/latest), then install it using pip:
+Install ResticLVM directly from GitHub using pip:
 
+### Install a specific version (recommended)
+```bash
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.1.2
 ```
-pip install /path/to/resticlvm-<latest_version>-py3-none-any.whl
+Replace `v0.1.2` with the desired version tag from the [releases page](https://github.com/duanegoodner/resticlvm/releases).
+
+### Install from main branch (latest, but not guaranteed stable)
+```bash
+pip install git+https://github.com/duanegoodner/resticlvm.git@main
 ```
 
 This installs the CLI tools:
@@ -266,30 +273,28 @@ options:
     - 📄 `README.md` — Bash scripts overview
 
 
-## Alternate Installation Methods
+## Development Setup
 
+To set up a development environment:
 
-These methods are useful for development or direct-from-source usage.
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/duanegoodner/resticlvm.git
+   cd resticlvm
+   ```
 
+2. **Create and activate the conda environment:**
+   ```bash
+   conda env create -f tools/environment.yml
+   conda activate resticlvm-dev
+   ```
 
-### 1️⃣ Install from GitHub tag (source)
+3. **Install the package in editable mode:**
+   ```bash
+   pip install -e .
+   ```
 
-```
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.1.2
-```
-Builds the project from source at the specified Git tag (v0.1.2 in this example).
-
-
-### 2️⃣ Install from a cloned repo (local source)
-```
-git clone https://github.com/yourusername/resticlvm.git
-cd resticlvm
-pip install .
-```
-For development mode (auto-reflects source code changes):
-```
-pip install -e .
-```
+This setup allows you to make changes to the source code and see them reflected immediately without reinstalling.
 
 
 ## Contributing
