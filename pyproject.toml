@@ -12,8 +12,8 @@ authors = [{ name = "Duane Goodner", email = "dmgoodner@gmail.com" }]
 requires-python = ">=3.11"
 
 [project.scripts]
-rlvm-backup = "resticlvm.backup_runner:main"
-rlvm-prune = "resticlvm.prune_runner:main"
+rlvm-backup = "resticlvm.orchestration.backup_runner:main"
+rlvm-prune = "resticlvm.orchestration.prune_runner:main"
 
 [tool.black]
 line-length = 79

@@ -8,9 +8,9 @@ and prunes snapshots according to the configured retention policies.
 import argparse
 from pathlib import Path
 
-from resticlvm.config_loader import load_config
-from resticlvm.privileges import ensure_running_as_root
-from resticlvm.restic_repo import confirm_unique_repos
+from resticlvm.orchestration.config_loader import load_config
+from resticlvm.orchestration.privileges import ensure_running_as_root
+from resticlvm.orchestration.restic_repo import confirm_unique_repos
 
 
 def main():
