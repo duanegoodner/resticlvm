@@ -7,6 +7,7 @@ and executes backup jobs based on the specified filters.
 
 import argparse
 from pathlib import Path
+from typing import Optional
 
 from resticlvm.orchestration.backup_plan import BackupPlan
 from resticlvm.orchestration.data_classes import BackupJob
@@ -24,7 +25,9 @@ class BackupJobRunner:
         """
         self.jobs = jobs
 
-    def run_all(self, category: str = None, name: str = None):
+    def run_all(
+        self, category: Optional[str] = None, name: Optional[str] = None
+    ):
         """Run all backup jobs, optionally filtering by category and/or job name.
 
         Args:
