@@ -8,3 +8,6 @@ dist/
 secrets/
 
 .pytest_cache/
+
+test_plans/
+test-configs/
