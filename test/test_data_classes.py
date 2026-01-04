@@ -8,6 +8,7 @@ from resticlvm.orchestration.data_classes import (
     BackupJob,
     TokenConfigKeyPair,
 )
+from resticlvm.orchestration.restic_repo import ResticRepo, ResticPruneKeepParams
 
 
 def test_token_config_key_pair_creation():
@@ -51,12 +52,20 @@ def test_backup_job_creation():
         TokenConfigKeyPair(token="-s", config_key="backup_source_path"),
     ]
     
+    prune_params = ResticPruneKeepParams(last=10, daily=7, weekly=4, monthly=6, yearly=1)
+    repo = ResticRepo(
+        repo_path=Path("/srv/backup/test"),
+        password_file=Path("/tmp/password.txt"),
+        prune_keep_params=prune_params,
+    )
+    
     job = BackupJob(
         script_name="backup_path.sh",
         script_token_config_key_pairs=pairs,
         config=config,
         name="test_backup",
         category="standard_path",
+        repositories=[repo],
         dry_run=False,
     )
     
@@ -64,6 +73,8 @@ def test_backup_job_creation():
     assert job.name == "test_backup"
     assert job.category == "standard_path"
     assert job.dry_run is False
+    assert len(job.repositories) == 1
+    assert job.repositories[0] == repo
 
 
 def test_backup_job_get_arg_entry_string():
@@ -206,3 +217,92 @@ def test_backup_job_cmd():
     assert cmd[0] == "bash"
     assert "backup_path.sh" in cmd[1]
     assert cmd[2:] == ["-r", "/srv/backup/test", "-p", "/tmp/password.txt"]
+
+
+def test_backup_job_get_cmd_for_repo():
+    """Test generating command for a specific repository."""
+    config = {
+        "backup_source_path": "/boot",
+        "exclude_paths": ["/boot/grub"],
+    }
+    pairs = [
+        TokenConfigKeyPair(token="-s", config_key="backup_source_path"),
+        TokenConfigKeyPair(token="-e", config_key="exclude_paths"),
+        TokenConfigKeyPair(token="-r", config_key="restic_repo"),  # Will be skipped
+        TokenConfigKeyPair(token="-p", config_key="restic_password_file"),  # Will be skipped
+    ]
+    
+    prune_params = ResticPruneKeepParams(last=10, daily=7, weekly=4, monthly=6, yearly=1)
+    repo = ResticRepo(
+        repo_path=Path("/srv/backup/test"),
+        password_file=Path("/tmp/password.txt"),
+        prune_keep_params=prune_params,
+    )
+    
+    job = BackupJob(
+        script_name="backup_path.sh",
+        script_token_config_key_pairs=pairs,
+        config=config,
+        name="test",
+        category="standard_path",
+        repositories=[repo],
+    )
+    
+    cmd = job.get_cmd_for_repo(repo)
+    assert cmd[0] == "bash"
+    assert "backup_path.sh" in cmd[1]
+    # Should have source, excludes, then repo and password from ResticRepo
+    assert "-s" in cmd
+    assert "/boot" in cmd
+    assert "-e" in cmd
+    assert "/boot/grub" in cmd
+    assert "-r" in cmd
+    assert "/srv/backup/test" in cmd
+    assert "-p" in cmd
+    assert "/tmp/password.txt" in cmd
+
+
+def test_backup_job_multiple_repositories():
+    """Test BackupJob with multiple repositories."""
+    config = {
+        "backup_source_path": "/",
+        "exclude_paths": ["/dev", "/proc"],
+    }
+    pairs = [
+        TokenConfigKeyPair(token="-s", config_key="backup_source_path"),
+        TokenConfigKeyPair(token="-e", config_key="exclude_paths"),
+        TokenConfigKeyPair(token="-r", config_key="restic_repo"),
+        TokenConfigKeyPair(token="-p", config_key="restic_password_file"),
+    ]
+    
+    prune_params = ResticPruneKeepParams(last=10, daily=7, weekly=4, monthly=6, yearly=1)
+    repo1 = ResticRepo(
+        repo_path=Path("/srv/backup/repo1"),
+        password_file=Path("/tmp/pass1.txt"),
+        prune_keep_params=prune_params,
+    )
+    repo2 = ResticRepo(
+        repo_path=Path("/srv/backup/repo2"),
+        password_file=Path("/tmp/pass2.txt"),
+        prune_keep_params=prune_params,
+    )
+    
+    job = BackupJob(
+        script_name="backup_path.sh",
+        script_token_config_key_pairs=pairs,
+        config=config,
+        name="multi_repo_test",
+        category="standard_path",
+        repositories=[repo1, repo2],
+    )
+    
+    assert len(job.repositories) == 2
+    
+    # Test command generation for each repo
+    cmd1 = job.get_cmd_for_repo(repo1)
+    assert "/srv/backup/repo1" in cmd1
+    assert "/tmp/pass1.txt" in cmd1
+    
+    cmd2 = job.get_cmd_for_repo(repo2)
+    assert "/srv/backup/repo2" in cmd2
+    assert "/tmp/pass2.txt" in cmd2

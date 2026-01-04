@@ -49,13 +49,15 @@ def main():
 
     restic_repos = confirm_unique_repos(config=config)
 
-    for (category, name), repo in restic_repos.items():
+    for (category, name), repo_list in restic_repos.items():
         if args.category and category != args.category:
             continue
         if args.name and name != args.name:
             continue
 
-        repo.prune(dry_run=args.dry_run)
+        # Prune each repository in the job
+        for repo in repo_list:
+            repo.prune(dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

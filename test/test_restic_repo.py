@@ -70,40 +70,45 @@ def test_confirm_unique_repos_success():
     assert ("logical_volume_root", "root") in repos
     assert ("standard_path", "boot") in repos
     
-    root_repo = repos[("logical_volume_root", "root")]
-    assert root_repo.repo_path == Path("/srv/backup/root")
-    assert root_repo.password_file == Path("/tmp/pass1.txt")
-    assert root_repo.prune_keep_params.last == 10
+    # Each job should have a list of repos
+    root_repos = repos[("logical_volume_root", "root")]
+    assert isinstance(root_repos, list)
+    assert len(root_repos) == 1
+    assert root_repos[0].repo_path == Path("/srv/backup/root")
+    assert root_repos[0].password_file == Path("/tmp/pass1.txt")
+    assert root_repos[0].prune_keep_params.last == 10
 
 
 def test_confirm_unique_repos_duplicate_fails():
-    """Test that duplicate repository paths raise ValueError."""
+    """Test that duplicate repository paths within the same job raise ValueError."""
     config = {
         "logical_volume_root": {
             "root": {
-                "restic_repo": "/srv/backup/duplicate",
-                "restic_password_file": "/tmp/pass1.txt",
-                "prune_keep_last": 10,
-                "prune_keep_daily": 7,
-                "prune_keep_weekly": 4,
-                "prune_keep_monthly": 6,
-                "prune_keep_yearly": 1,
+                "repositories": [
+                    {
+                        "repo_path": "/srv/backup/duplicate",
+                        "password_file": "/tmp/pass1.txt",
+                        "prune_keep_last": 10,
+                        "prune_keep_daily": 7,
+                        "prune_keep_weekly": 4,
+                        "prune_keep_monthly": 6,
+                        "prune_keep_yearly": 1,
+                    },
+                    {
+                        "repo_path": "/srv/backup/duplicate",  # Duplicate within same job!
+                        "password_file": "/tmp/pass2.txt",
+                        "prune_keep_last": 5,
+                        "prune_keep_daily": 7,
+                        "prune_keep_weekly": 4,
+                        "prune_keep_monthly": 6,
+                        "prune_keep_yearly": 1,
+                    }
+                ]
             }
-        },
-        "standard_path": {
-            "boot": {
-                "restic_repo": "/srv/backup/duplicate",  # Duplicate!
-                "restic_password_file": "/tmp/pass2.txt",
-                "prune_keep_last": 5,
-                "prune_keep_daily": 7,
-                "prune_keep_weekly": 4,
-                "prune_keep_monthly": 6,
-                "prune_keep_yearly": 1,
-            }
-        },
+        }
     }
 
-    with pytest.raises(ValueError, match="Duplicate repo detected"):
+    with pytest.raises(ValueError, match="Duplicate repo within job"):
         confirm_unique_repos(config)
 
 
@@ -124,5 +129,75 @@ def test_confirm_unique_repos_single_job():
     }
 
     repos = confirm_unique_repos(config)
+    assert len(repos[("logical_volume_root", "root")]) == 1
+
+
+def test_confirm_unique_repos_new_format_multiple_repos():
+    """Test confirm_unique_repos with new format having multiple repos per job."""
+    config = {
+        "logical_volume_root": {
+            "root": {
+                "repositories": [
+                    {
+                        "repo_path": "/srv/backup/root-a",
+                        "password_file": "/tmp/pass1.txt",
+                        "prune_keep_last": 10,
+                        "prune_keep_daily": 7,
+                        "prune_keep_weekly": 4,
+                        "prune_keep_monthly": 6,
+                        "prune_keep_yearly": 1,
+                    },
+                    {
+                        "repo_path": "/srv/backup/root-b",
+                        "password_file": "/tmp/pass2.txt",
+                        "prune_keep_last": 5,
+                        "prune_keep_daily": 7,
+                        "prune_keep_weekly": 4,
+                        "prune_keep_monthly": 6,
+                        "prune_keep_yearly": 1,
+                    }
+                ]
+            }
+        }
+    }
+
+    repos = confirm_unique_repos(config)
     assert len(repos) == 1
+    root_repos = repos[("logical_volume_root", "root")]
+    assert len(root_repos) == 2
+    assert root_repos[0].repo_path == Path("/srv/backup/root-a")
+    assert root_repos[1].repo_path == Path("/srv/backup/root-b")
+
+
+def test_confirm_unique_repos_same_repo_different_jobs():
+    """Test that same repo path can be used in different jobs."""
+    config = {
+        "logical_volume_root": {
+            "root": {
+                "restic_repo": "/srv/backup/shared",
+                "restic_password_file": "/tmp/pass.txt",
+                "prune_keep_last": 10,
+                "prune_keep_daily": 7,
+                "prune_keep_weekly": 4,
+                "prune_keep_monthly": 6,
+                "prune_keep_yearly": 1,
+            }
+        },
+        "standard_path": {
+            "boot": {
+                "restic_repo": "/srv/backup/shared",  # Same repo, different job - OK
+                "restic_password_file": "/tmp/pass.txt",
+                "prune_keep_last": 5,
+                "prune_keep_daily": 7,
+                "prune_keep_weekly": 4,
+                "prune_keep_monthly": 6,
+                "prune_keep_yearly": 1,
+            }
+        },
+    }
+
+    # Should not raise - same repo across different jobs is allowed
+    repos = confirm_unique_repos(config)
+    assert len(repos) == 2
     assert ("logical_volume_root", "root") in repos
+    assert ("standard_path", "boot") in repos
