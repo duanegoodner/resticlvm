@@ -305,9 +305,11 @@ class BackupJob:
                         "backup", mount_point
                     ]
                     
-                    # Add excludes
+                    # Add excludes - adjust paths to be relative to mount_point
                     for exclude in exclude_paths:
-                        restic_cmd.extend(["--exclude", exclude])
+                        # Remove leading slash and prepend mount_point
+                        exclude_adjusted = os.path.join(mount_point, exclude.lstrip('/'))
+                        restic_cmd.extend(["--exclude", exclude_adjusted])
                     
                     # Run backup
                     subprocess.run(
