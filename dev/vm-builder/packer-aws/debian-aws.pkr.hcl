@@ -35,10 +35,13 @@ source "amazon-ebs" "debian_aws" {
   ssh_username  = var.ssh_username
   
   # EBS Volumes Configuration
-  # During build, we create three volumes:
+  # During build, we create volumes:
   #   /dev/xvda - Root volume (must be >= source AMI, will become /boot/efi after migration)
   #   /dev/xvdf - LVM volume (will become root filesystem)
   #   /dev/xvdg - Backup volume (will become /srv/backup)
+  # 
+  # Note: Additional data volumes (/srv/data_lv and /srv/data_standard_partition) can be added here
+  # if needed for testing. See packer-local for reference implementation.
   
   # Root volume (must be >= source AMI size, Debian 13 = 8GB)
   launch_block_device_mappings {

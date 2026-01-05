@@ -52,6 +52,18 @@ variable "backup_disk_size" {
   description = "Size of backup LVM disk for /srv/backup (both build and deployment should use same size)"
 }
 
+variable "data_lv_disk_size" {
+  type    = string
+  default = "5G"
+  description = "Size of additional LVM disk for /srv/data_lv (for testing non-root LVM backups)"
+}
+
+variable "data_standard_disk_size" {
+  type    = string
+  default = "5G"
+  description = "Size of standard partition disk for /srv/data_standard_partition (for testing standard path backups)"
+}
+
 # Debian cloud image source
 variable "debian_version" {
   type    = string

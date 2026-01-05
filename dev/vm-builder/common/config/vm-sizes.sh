@@ -36,6 +36,18 @@ export VM_LVM_LV_ROOT_SIZE="10G"
 #   - Should match deployment BACKUP_DISK_SIZE
 export VM_BACKUP_DISK_SIZE="10G"
 
+# Data LV disk: Additional LVM disk for /srv/data_lv
+#   - Created during Packer build as additional disk
+#   - Becomes separate LVM volume (vg2-lv_data) mounted at /srv/data_lv
+#   - For testing non-root LVM backups
+export VM_DATA_LV_DISK_SIZE="5G"
+
+# Data standard partition disk: Regular partition (no LVM) for /srv/data_standard_partition
+#   - Created during Packer build as additional disk
+#   - Becomes regular ext4 partition mounted at /srv/data_standard_partition
+#   - For testing standard path backups
+export VM_DATA_STANDARD_DISK_SIZE="5G"
+
 # Deployment Disk Sizes
 # ---------------------
 # EFI disk: Dedicated /boot/efi partition

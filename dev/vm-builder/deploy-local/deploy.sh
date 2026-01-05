@@ -18,6 +18,8 @@ VCPUS=${VM_DEPLOY_VCPUS}
 EFI_DISK_SIZE=${VM_EFI_DISK_SIZE%G}     # Remove G suffix for script processing
 LVM_DISK_SIZE=${VM_LVM_DISK_SIZE%G}     # Remove G suffix for script processing
 BACKUP_DISK_SIZE=${VM_BACKUP_DISK_SIZE%G} # Remove G suffix for script processing
+DATA_LV_DISK_SIZE=${VM_DATA_LV_DISK_SIZE%G} # Remove G suffix for script processing
+DATA_STANDARD_DISK_SIZE=${VM_DATA_STANDARD_DISK_SIZE%G} # Remove G suffix for script processing
 
 NETWORK="default"
 DISK_DIR="/var/lib/libvirt/images"
@@ -58,6 +60,14 @@ while [[ $# -gt 0 ]]; do
       BACKUP_DISK_SIZE="${2%G}"  # Remove G suffix if present
       shift 2
       ;;
+    --data-lv-disk-size)
+      DATA_LV_DISK_SIZE="${2%G}"  # Remove G suffix if present
+      shift 2
+      ;;
+    --data-standard-disk-size)
+      DATA_STANDARD_DISK_SIZE="${2%G}"  # Remove G suffix if present
+      shift 2
+      ;;
     --efi-disk-size)
       EFI_DISK_SIZE="${2%G}"  # Remove G suffix if present
       shift 2
@@ -95,6 +105,8 @@ if [ -z "$IMAGE_PATH" ]; then
   echo "  --efi-disk-size <size>   EFI disk size (default: 2G)"
   echo "  --lvm-disk-size <size>   LVM disk size (default: 10G)"
   echo "  --backup-disk-size <size> Backup disk size (default: 20G)"
+  echo "  --data-lv-disk-size <size> Data LV disk size (default: 5G)"
+  echo "  --data-standard-disk-size <size> Data standard partition disk size (default: 5G)"
   echo "  --ssh-key <path>         SSH public key file"
   echo "  --network <name>         Network (default: default)"
   exit 1
@@ -253,7 +265,23 @@ echo -e "${GREEN}✓ LVM disk ready (vdc - permanent)${NC}"
 # Create backup disk (will hold /srv/backup)
 echo -e "${YELLOW}Creating backup disk (${BACKUP_DISK_SIZE}GB)...${NC}"
 BACKUP_DISK="${DISK_DIR}/${VM_NAME}-backup.qcow2"
-sudo qemu-img create -f qcow2 "$BACKUP_DISK" "${BACKUP_DISK_SIZE}G"
+sudo qemu-img create -f qcow2 "$BACKUP_DISK" "${BACKUP_DISK_
+
+# Create data LV disk (will hold /srv/data_lv)
+echo -e "${YELLOW}Creating data LV disk (${DATA_LV_DISK_SIZE}GB)...${NC}"
+DATA_LV_DISK="${DISK_DIR}/${VM_NAME}-data-lv.qcow2"
+sudo qemu-img create -f qcow2 "$DATA_LV_DISK" "${DATA_LV_DISK_SIZE}G"
+sudo chown libvirt-qemu:kvm "$DATA_LV_DISK"
+echo -e "${GREEN}✓ Data LV disk ready (vde - permanent)${NC}"
+
+# Create data standard partition disk (will hold /srv/data_standard_partition)
+echo -e "${YELLOW}Creating data standard disk (${DATA_STANDARD_DISK_SIZE}GB)...${NC}"
+DATA_STANDARD_DISK="${DISK_DIR}/${VM_NAME}-data-standard.qcow2"
+sudo qemu-img create -f qcow2 "$DATA_STANDARD_DISK" "${DATA_STANDARD_DISK_SIZE}G"
+sudo chown libvirt-qemu:kvm "$DATA_STANDARD_DISK"
+echo -e "${GREENDATA_LV_DISK",format=qcow2,bus=virtio,boot_order=5 \
+  --disk path="$DATA_STANDARD_DISK",format=qcow2,bus=virtio,boot_order=6 \
+  --disk path="$}✓ Data standard disk ready (vdf - permanent)${NC}"SIZE}G"
 sudo chown libvirt-qemu:kvm "$BACKUP_DISK"
 echo -e "${GREEN}✓ Backup disk ready (vdd - permanent)${NC}"
 
@@ -276,15 +304,19 @@ sudo virt-install \
   --graphics spice,listen=127.0.0.1 \
   --video qxl \
   --console pty,target_type=serial \
-  --boot uefi \
-  --import \
-  --noautoconsole
-
+  --boot uefiCreates LVM on vde for data volume"
+echo "     - Creates standard partition on vdf"
+echo "     - Migrates root filesystem to vdc LVM"
+echo "     - Copies EFI files to vdb"
+echo "  4. VM reboots into new layout (vdb + vdc + vdd + vde + vdf)"
+echo "  5. vda can be manually deleted after successful boot"
 echo ""
-echo -e "${GREEN}=== Deployment Complete ===${NC}"
-echo ""
-echo "VM '$VM_NAME' is starting..."
-echo ""
+echo "Final disk layout:"
+echo "  vdb: EFI partition (/boot/efi)"
+echo "  vdc: LVM root (/) with /boot directory inside"
+echo "  vdd: LVM backup (/srv/backup)"
+echo "  vde: LVM data (/srv/data_lv)"
+echo "  vdf: Standard partition (/srv/data_standard_partition
 echo "What happens next:"
 echo "  1. VM boots from cloud image (vda - temporary)"
 echo "  2. Cloud-init configures hostname, SSH keys, users"

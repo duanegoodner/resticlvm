@@ -39,8 +39,10 @@ source "qemu" "debian_local" {
   # Additional disks for LVM and backup
   # First disk becomes the final root filesystem after LVM migration.
   # Second disk becomes the backup volume at /srv/backup.
+  # Third disk becomes an additional LVM volume at /srv/data_lv (for testing non-root LVM backups).
+  # Fourth disk becomes a standard partition at /srv/data_standard_partition (for testing standard path backups).
   # Sizes should match what deploy-local will use.
-  disk_additional_size = [var.lvm_disk_size, var.backup_disk_size]
+  disk_additional_size = [var.lvm_disk_size, var.backup_disk_size, var.data_lv_disk_size, var.data_standard_disk_size]
   
   # Network
   net_device       = "virtio-net"
