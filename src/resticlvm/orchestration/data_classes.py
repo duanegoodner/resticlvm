@@ -4,8 +4,10 @@ including token-to-config mappings and job execution logic.
 """
 
 import importlib.resources as pkg_resources
+import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -145,8 +147,9 @@ class BackupJob:
     def run(self):
         """Execute the backup job by running the script for each repository.
 
-        For jobs with multiple repositories, the backup is performed sequentially
-        for each repository. Continues attempting all repositories even if some fail.
+        Routes to category-specific backup methods:
+        - LVM jobs: Creates snapshot once, backs up to all repos, then cleans up
+        - Standard path jobs: Remounts readonly once (if configured), backs up to all repos
 
         Raises:
             subprocess.CalledProcessError: If the script exits with an error code.
@@ -159,34 +162,214 @@ class BackupJob:
         
         print(f"▶️  Running backup job: [{self.category}.{self.name}] -> {len(self.repositories)} repo(s)")
         
+        # Route to appropriate backup method based on category
+        if self.category in ["logical_volume_root", "logical_volume_nonroot"]:
+            self._run_lvm_backup()
+        else:
+            self._run_standard_backup()
+    
+    def _run_standard_backup(self):
+        """Execute standard path backup with remount optimization.
+        
+        For backups with remount_readonly=true, remounts the filesystem readonly once,
+        backs up to all repositories, then remounts read-write.
+        """
+        backup_source_path = self.config["backup_source_path"]
+        exclude_paths = self.config.get("exclude_paths", [])
+        remount_readonly = self.config.get("remount_readonly", False)
+        
         failed_repos = []
         successful_repos = []
         
-        for i, repo in enumerate(self.repositories, 1):
-            repo_label = f"[{self.category}.{self.name}] repo {i}/{len(self.repositories)}: {repo.repo_path}"
-            print(f"\n▶️  Backing up to {repo_label}")
-            
-            try:
-                cmd = self.get_cmd_for_repo(repo)
+        try:
+            # Remount readonly if needed (ONCE)
+            if remount_readonly:
+                print(f"🔒 Remounting {backup_source_path} as read-only...")
                 subprocess.run(
-                    args=cmd,
+                    ["mount", "-o", "remount,ro", backup_source_path],
                     check=True,
                     stdout=sys.stdout,
                     stderr=sys.stderr,
                 )
-                print(f"✅ Backup to {repo.repo_path} completed.")
-                successful_repos.append(repo.repo_path)
-            except subprocess.CalledProcessError as e:
-                print(f"❌ Command failed for {repo.repo_path}: {e}")
-                failed_repos.append(repo.repo_path)
-            except FileNotFoundError as e:
-                print(f"❌ Script not found for {repo.repo_path}: {e}")
-                failed_repos.append(repo.repo_path)
-            except Exception as e:
-                print(f"❌ Unexpected error for {repo.repo_path}: {e}")
-                failed_repos.append(repo.repo_path)
+            
+            # Backup to each repository
+            for i, repo in enumerate(self.repositories, 1):
+                repo_label = f"[{self.category}.{self.name}] repo {i}/{len(self.repositories)}: {repo.repo_path}"
+                print(f"\n▶️  Backing up {backup_source_path} to {repo_label}")
+                
+                try:
+                    # Build restic command
+                    restic_cmd = [
+                        "restic", "-r", str(repo.repo_path),
+                        "--password-file", str(repo.password_file),
+                        "backup", backup_source_path
+                    ]
+                    
+                    # Add excludes
+                    for exclude in exclude_paths:
+                        restic_cmd.extend(["--exclude", exclude])
+                    
+                    # Run backup
+                    subprocess.run(
+                        restic_cmd,
+                        check=True,
+                        stdout=sys.stdout,
+                        stderr=sys.stderr,
+                    )
+                    print(f"✅ Backup to {repo.repo_path} completed.")
+                    successful_repos.append(repo.repo_path)
+                except subprocess.CalledProcessError as e:
+                    print(f"❌ Backup failed for {repo.repo_path}: {e}")
+                    failed_repos.append(repo.repo_path)
+                except Exception as e:
+                    print(f"❌ Unexpected error for {repo.repo_path}: {e}")
+                    failed_repos.append(repo.repo_path)
+        
+        finally:
+            # Remount read-write if we remounted readonly (ONCE)
+            if remount_readonly:
+                print(f"\n🔓 Remounting {backup_source_path} as read-write...")
+                subprocess.run(
+                    ["mount", "-o", "remount,rw", backup_source_path],
+                    check=False,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                )
         
         # Print summary
+        self._print_backup_summary(successful_repos, failed_repos)
+    
+    def _run_lvm_backup(self):
+        """Execute LVM backup with snapshot optimization.
+        
+        Creates LVM snapshot once, mounts it, backs up to all repositories,
+        then unmounts and removes the snapshot.
+        """
+        # Extract LVM configuration
+        vg_name = self.config["vg_name"]
+        lv_name = self.config["lv_name"]
+        snapshot_size = self.config["snapshot_size"]
+        backup_source_path = self.config["backup_source_path"]
+        exclude_paths = self.config.get("exclude_paths", [])
+        
+        # Create unique snapshot name
+        snapshot_name = f"{lv_name}_snapshot_{int(time.time())}"
+        mount_point = f"/mnt/resticlvm_{snapshot_name}"
+        
+        failed_repos = []
+        successful_repos = []
+        snapshot_created = False
+        snapshot_mounted = False
+        
+        try:
+            # Create LVM snapshot (ONCE)
+            print(f"📸 Creating LVM snapshot: {vg_name}/{snapshot_name} (size: {snapshot_size})")
+            subprocess.run(
+                [
+                    "lvcreate", "--snapshot",
+                    f"--size={snapshot_size}",
+                    f"--name={snapshot_name}",
+                    f"{vg_name}/{lv_name}"
+                ],
+                check=True,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            )
+            snapshot_created = True
+            print(f"✅ Snapshot created: /dev/{vg_name}/{snapshot_name}")
+            
+            # Create mount point
+            os.makedirs(mount_point, exist_ok=True)
+            
+            # Mount snapshot (ONCE)
+            print(f"📂 Mounting snapshot at {mount_point}...")
+            subprocess.run(
+                ["mount", f"/dev/{vg_name}/{snapshot_name}", mount_point],
+                check=True,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            )
+            snapshot_mounted = True
+            print(f"✅ Snapshot mounted")
+            
+            # Backup to each repository from the mounted snapshot
+            for i, repo in enumerate(self.repositories, 1):
+                repo_label = f"[{self.category}.{self.name}] repo {i}/{len(self.repositories)}: {repo.repo_path}"
+                print(f"\n▶️  Backing up snapshot to {repo_label}")
+                
+                try:
+                    # Build restic command - backup from mounted snapshot
+                    restic_cmd = [
+                        "restic", "-r", str(repo.repo_path),
+                        "--password-file", str(repo.password_file),
+                        "backup", mount_point
+                    ]
+                    
+                    # Add excludes
+                    for exclude in exclude_paths:
+                        restic_cmd.extend(["--exclude", exclude])
+                    
+                    # Run backup
+                    subprocess.run(
+                        restic_cmd,
+                        check=True,
+                        stdout=sys.stdout,
+                        stderr=sys.stderr,
+                    )
+                    print(f"✅ Backup to {repo.repo_path} completed.")
+                    successful_repos.append(repo.repo_path)
+                except subprocess.CalledProcessError as e:
+                    print(f"❌ Backup failed for {repo.repo_path}: {e}")
+                    failed_repos.append(repo.repo_path)
+                except Exception as e:
+                    print(f"❌ Unexpected error for {repo.repo_path}: {e}")
+                    failed_repos.append(repo.repo_path)
+        
+        finally:
+            # Cleanup snapshot (ONCE) - always attempt even if backup failed
+            if snapshot_mounted:
+                print(f"\n🗑️  Unmounting snapshot from {mount_point}...")
+                result = subprocess.run(
+                    ["umount", mount_point],
+                    check=False,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                )
+                if result.returncode == 0:
+                    print(f"✅ Snapshot unmounted")
+                else:
+                    print(f"⚠️  Warning: Failed to unmount {mount_point}")
+            
+            if snapshot_created:
+                print(f"🗑️  Removing LVM snapshot: {vg_name}/{snapshot_name}...")
+                result = subprocess.run(
+                    ["lvremove", "-f", f"{vg_name}/{snapshot_name}"],
+                    check=False,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                )
+                if result.returncode == 0:
+                    print(f"✅ Snapshot removed")
+                else:
+                    print(f"⚠️  Warning: Failed to remove snapshot {vg_name}/{snapshot_name}")
+            
+            # Remove mount point directory
+            try:
+                if os.path.exists(mount_point):
+                    os.rmdir(mount_point)
+            except Exception as e:
+                print(f"⚠️  Warning: Could not remove mount point {mount_point}: {e}")
+        
+        # Print summary
+        self._print_backup_summary(successful_repos, failed_repos)
+    
+    def _print_backup_summary(self, successful_repos: list, failed_repos: list):
+        """Print a summary of the backup operation.
+        
+        Args:
+            successful_repos (list): List of successfully backed up repository paths.
+            failed_repos (list): List of failed repository paths.
+        """
         print(f"\n{'='*70}")
         print(f"Backup job [{self.category}.{self.name}] summary:")
         print(f"  ✅ Successful: {len(successful_repos)}/{len(self.repositories)}")
