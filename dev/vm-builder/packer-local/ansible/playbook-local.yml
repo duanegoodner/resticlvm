@@ -1,0 +1,16 @@
+---
+# Local-specific Ansible playbook
+# Runs AFTER common provisioning to add local-specific features
+
+- name: Configure Local-Specific Features
+  hosts: all
+  become: yes
+  
+  vars:
+    enable_lvm_migration: "{{ enable_lvm_migration | default(true) }}"
+  
+  roles:
+    # Local-only: LVM migration service
+    - role: lvm-migration
+      when: enable_lvm_migration | bool
+      tags: ['lvm', 'lvm-migration']
