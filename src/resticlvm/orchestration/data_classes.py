@@ -298,23 +298,26 @@ class BackupJob:
                 print(f"\n▶️  Backing up snapshot to {repo_label}")
                 
                 try:
-                    # Build restic command - backup from mounted snapshot
+                    # Build restic command - backup from inside mounted snapshot
+                    # Use '.' as backup path so restic stores paths relative to mount point
+                    # (e.g., "/" instead of "/mnt/resticlvm_lv_root_snapshot_*")
                     restic_cmd = [
                         "restic", "-r", str(repo.repo_path),
                         "--password-file", str(repo.password_file),
-                        "backup", mount_point
+                        "backup", "."
                     ]
                     
-                    # Add excludes - adjust paths to be relative to mount_point
+                    # Add excludes - make them relative (strip leading slash)
+                    # When backing up "." from inside mount point, excludes must be relative
                     for exclude in exclude_paths:
-                        # Remove leading slash and prepend mount_point
-                        exclude_adjusted = os.path.join(mount_point, exclude.lstrip('/'))
-                        restic_cmd.extend(["--exclude", exclude_adjusted])
+                        exclude_relative = exclude.lstrip('/')
+                        restic_cmd.extend(["--exclude", exclude_relative])
                     
-                    # Run backup
+                    # Run backup from inside the mount point directory
                     subprocess.run(
                         restic_cmd,
                         check=True,
+                        cwd=mount_point,  # Change to mount point directory
                         stdout=sys.stdout,
                         stderr=sys.stderr,
                     )
