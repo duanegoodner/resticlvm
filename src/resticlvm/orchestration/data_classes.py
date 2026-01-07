@@ -80,8 +80,17 @@ class BackupJob:
             list[str]: List of script argument strings.
         """
         args = []
+        
+        # Add non-repo arguments first (those not -r or -p)
         for pair in self.script_token_config_key_pairs:
-            args += self.get_arg_entry(pair)
+            if pair.token not in ["-r", "-p"]:
+                args += self.get_arg_entry(pair)
+        
+        # Add all repositories (multiple -r and -p pairs)
+        for repo in self.repositories:
+            args += ["-r", str(repo.repo_path)]
+            args += ["-p", str(repo.password_file)]
+        
         return args
 
     @property
@@ -110,7 +119,8 @@ class BackupJob:
             FileNotFoundError: If the script file is missing.
             Exception: For any other unexpected errors during execution.
         """
-        print(f"▶️ Running backup job: [{self.category}.{self.name}]")
+        repo_count = len(self.repositories)
+        print(f"▶️  Running backup job: [{self.category}.{self.name}] → {repo_count} repo(s)")
         try:
             subprocess.run(
                 args=self.cmd,
