@@ -11,6 +11,11 @@
 #
 # Setup for SFTP:
 #   - See EXAMPLE_SSH_SETUP.md for SSH key configuration
+#
+# Setup for B2:
+#   - Create bucket with "Keep only the last version" lifecycle rule
+#   - Create S3-compatible application key
+#   - Export AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
 
 [logical_volume_root.root]
 vg_name = "vg0"

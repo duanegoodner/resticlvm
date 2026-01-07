@@ -1,15 +1,23 @@
-# Direct Remote Backup Example (B2)
+# Direct Remote Backup Example (B2 - S3-Compatible API)
 #
-# Backs up directly to Backblaze B2 cloud storage.
+# Backs up directly to Backblaze B2 cloud storage using S3-compatible API.
 # Good for: Cloud backups, offsite storage, cost-effective long-term retention
 #
+# IMPORTANT: Use S3-compatible API (recommended by restic for better error handling)
+#
 # Setup required:
-#   1. Create B2 bucket and application key at backblaze.com
-#   2. Export environment variables before running backup:
-#      export B2_ACCOUNT_ID="your-account-id"
-#      export B2_ACCOUNT_KEY="your-application-key"
+#   1. Create B2 account at backblaze.com
+#   2. Create bucket with "Keep only the last version of file" lifecycle rule (CRITICAL!)
+#   3. Create S3-COMPATIBLE application key (check "S3 Compatible" box in B2 UI)
+#   4. Note your bucket region (e.g., us-west-004, eu-central-003)
+#   5. Export environment variables before running backup:
+#      export AWS_ACCESS_KEY_ID="your-key-id"
+#      export AWS_SECRET_ACCESS_KEY="your-application-key"
 #
 # Alternative: Set environment variables in systemd service or cron wrapper
+#
+# Note: Native B2 API (b2:bucket:prefix) is also supported but not recommended
+#       due to error handling issues in the underlying library.
 
 [logical_volume_root.root]
 vg_name = "vg0"
@@ -25,9 +33,9 @@ exclude_paths = [
     "/run",
 ]
 
-# Direct B2 backup
+# Direct B2 backup using S3-compatible API
 [[logical_volume_root.root.repositories]]
-repo_path = "b2:my-bucket-name:root-backups"
+repo_path = "s3:s3.us-west-004.backblazeb2.com/my-bucket-name/root-backups"
 password_file = "/etc/resticlvm/restic-password.txt"
 prune_keep_last = 60
 prune_keep_daily = 60
