@@ -44,6 +44,7 @@ class BackupJob:
     config: dict
     name: str
     category: str
+    repositories: list
     dry_run: bool = False
 
     def get_arg_entry(self, pair: TokenConfigKeyPair) -> list[str]:

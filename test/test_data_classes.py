@@ -57,6 +57,7 @@ def test_backup_job_creation():
         config=config,
         name="test_backup",
         category="standard_path",
+        repositories=[],
         dry_run=False,
     )
     
@@ -77,6 +78,7 @@ def test_backup_job_get_arg_entry_string():
         config=config,
         name="test",
         category="standard_path",
+        repositories=[],
     )
     
     arg_entry = job.get_arg_entry(pair)
@@ -94,6 +96,7 @@ def test_backup_job_get_arg_entry_list():
         config=config,
         name="test",
         category="standard_path",
+        repositories=[],
     )
     
     arg_entry = job.get_arg_entry(pair)
@@ -111,6 +114,7 @@ def test_backup_job_get_arg_entry_bool():
         config=config,
         name="test",
         category="standard_path",
+        repositories=[],
     )
     
     arg_entry = job.get_arg_entry(pair)
@@ -128,6 +132,7 @@ def test_backup_job_get_arg_entry_int():
         config=config,
         name="test",
         category="logical_volume_root",
+        repositories=[],
     )
     
     arg_entry = job.get_arg_entry(pair)
@@ -145,6 +150,7 @@ def test_backup_job_get_arg_entry_unsupported_type():
         config=config,
         name="test",
         category="standard_path",
+        repositories=[],
     )
     
     with pytest.raises(TypeError, match="Unsupported type"):
@@ -172,6 +178,7 @@ def test_backup_job_args_list():
         config=config,
         name="boot",
         category="standard_path",
+        repositories=[],
     )
     
     args = job.args_list
@@ -200,6 +207,7 @@ def test_backup_job_cmd():
         config=config,
         name="test",
         category="standard_path",
+        repositories=[],
     )
     
     cmd = job.cmd
