@@ -112,15 +112,24 @@ for i in "${!RESTIC_REPOS[@]}"; do
     echo ""
     echo "▶️  Repository $((i+1))/${#RESTIC_REPOS[@]}: $RESTIC_REPO"
     
-    # Bind this repo to chroot
+    # Bind this repo to chroot (skip for remote repos)
     CHROOT_REPO_FULL="$CHROOT_REPO_PATH/$(basename "$RESTIC_REPO")"
     bind_repo_to_mounted_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_REPO" "$CHROOT_REPO_FULL"
+    
+    # Determine which repo path to use in restic command
+    if is_remote_repo "$RESTIC_REPO"; then
+        # Remote repo - use the URL directly
+        EFFECTIVE_REPO="$RESTIC_REPO"
+    else
+        # Local repo - use the chroot-bound path
+        EFFECTIVE_REPO="$CHROOT_REPO_FULL"
+    fi
     
     # Build Restic command for this repo
     RESTIC_CMD="export RESTIC_PASSWORD_FILE=$RESTIC_PASSWORD_FILE && restic"
     RESTIC_CMD+=" ${EXCLUDE_ARGS[*]}"
     RESTIC_CMD+=" ${RESTIC_TAGS[*]}"
-    RESTIC_CMD+=" -r $CHROOT_REPO_FULL"
+    RESTIC_CMD+=" -r $EFFECTIVE_REPO"
     RESTIC_CMD+=" backup $BACKUP_SOURCE_PATH"
     RESTIC_CMD+=" --verbose"
     
@@ -128,7 +137,7 @@ for i in "${!RESTIC_REPOS[@]}"; do
     run_in_chroot_or_echo "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_CMD"
     
     # Unbind just this repo from chroot (keep /dev, /proc, /sys for next repo)
-    unmount_repo_binding "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$CHROOT_REPO_FULL"
+    unmount_repo_binding "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$CHROOT_REPO_FULL" "$RESTIC_REPO"
 done
 
 # ─── Cleanup ──────────────────────────────────────────────────────

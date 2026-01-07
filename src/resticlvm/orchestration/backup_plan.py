@@ -57,10 +57,10 @@ class BackupPlan:
         if "repositories" in config:
             # New format: array of repositories
             for repo_config in config["repositories"]:
-                # Parse copy_to destinations if present
+                # Parse copy_to destinations for this specific repository
                 copy_destinations = []
-                if "copy_to" in config:
-                    for copy_config in config["copy_to"]:
+                if "copy_to" in repo_config:
+                    for copy_config in repo_config["copy_to"]:
                         copy_destinations.append(CopyDestination(
                             repo_path=copy_config["repo"],
                             password_file=Path(copy_config["password_file"]),
