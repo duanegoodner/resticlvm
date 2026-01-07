@@ -8,6 +8,11 @@ from pathlib import Path
 from resticlvm.orchestration.config_loader import load_config
 from resticlvm.orchestration.data_classes import BackupJob, TokenConfigKeyPair
 from resticlvm.orchestration.dispatch import RESOURCE_DISPATCH
+from resticlvm.orchestration.restic_repo import (
+    ResticRepo,
+    ResticPruneKeepParams,
+    CopyDestination,
+)
 
 
 class BackupPlan:
@@ -47,6 +52,53 @@ class BackupPlan:
 
         config = self.full_config[category][name]
 
+        # Build list of ResticRepo instances
+        repositories = []
+        if "repositories" in config:
+            # New format: array of repositories
+            for repo_config in config["repositories"]:
+                # Parse copy_to destinations if present
+                copy_destinations = []
+                if "copy_to" in config:
+                    for copy_config in config["copy_to"]:
+                        copy_destinations.append(CopyDestination(
+                            repo_path=copy_config["repo"],
+                            password_file=Path(copy_config["password_file"]),
+                            prune_keep_params=ResticPruneKeepParams(
+                                last=int(copy_config["prune_keep_last"]),
+                                daily=int(copy_config["prune_keep_daily"]),
+                                weekly=int(copy_config["prune_keep_weekly"]),
+                                monthly=int(copy_config["prune_keep_monthly"]),
+                                yearly=int(copy_config["prune_keep_yearly"]),
+                            ),
+                        ))
+                
+                repositories.append(ResticRepo(
+                    repo_path=Path(repo_config["repo_path"]),
+                    password_file=Path(repo_config["password_file"]),
+                    prune_keep_params=ResticPruneKeepParams(
+                        last=int(repo_config["prune_keep_last"]),
+                        daily=int(repo_config["prune_keep_daily"]),
+                        weekly=int(repo_config["prune_keep_weekly"]),
+                        monthly=int(repo_config["prune_keep_monthly"]),
+                        yearly=int(repo_config["prune_keep_yearly"]),
+                    ),
+                    copy_destinations=copy_destinations,
+                ))
+        else:
+            # Old format: single repo (backward compatibility)
+            repositories.append(ResticRepo(
+                repo_path=Path(config["restic_repo"]),
+                password_file=Path(config["restic_password_file"]),
+                prune_keep_params=ResticPruneKeepParams(
+                    last=int(config["prune_keep_last"]),
+                    daily=int(config["prune_keep_daily"]),
+                    weekly=int(config["prune_keep_weekly"]),
+                    monthly=int(config["prune_keep_monthly"]),
+                    yearly=int(config["prune_keep_yearly"]),
+                ),
+            ))
+
         return BackupJob(
             script_name=script_name,
             script_token_config_key_pairs=TokenConfigKeyPair.from_token_key_map(
@@ -55,6 +107,7 @@ class BackupPlan:
             config=config,
             name=name,
             category=category,
+            repositories=repositories,
             dry_run=self.dry_run,
         )
 

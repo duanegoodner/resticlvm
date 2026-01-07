@@ -1,0 +1,19 @@
+#cloud-config
+# Minimal cloud-init for Packer build-time provisioning
+# This only runs DURING the build, not on deployment
+
+users:
+  - name: debian
+    plain_text_passwd: debian
+    lock_passwd: false
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+
+chpasswd:
+  expire: false
+
+ssh_pwauth: true
+
+# Disable automatic updates during build
+package_update: false
+package_upgrade: false

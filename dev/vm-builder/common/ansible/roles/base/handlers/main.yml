@@ -1,0 +1,5 @@
+---
+# Handlers for base role
+
+- name: Update tzdata
+  command: dpkg-reconfigure -f noninteractive tzdata

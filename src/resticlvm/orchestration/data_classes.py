@@ -4,6 +4,7 @@ including token-to-config mappings and job execution logic.
 """
 
 import importlib.resources as pkg_resources
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -44,6 +45,7 @@ class BackupJob:
     config: dict
     name: str
     category: str
+    repositories: list
     dry_run: bool = False
 
     def get_arg_entry(self, pair: TokenConfigKeyPair) -> list[str]:
@@ -79,8 +81,17 @@ class BackupJob:
             list[str]: List of script argument strings.
         """
         args = []
+        
+        # Add non-repo arguments first (those not -r or -p)
         for pair in self.script_token_config_key_pairs:
-            args += self.get_arg_entry(pair)
+            if pair.token not in ["-r", "-p"]:
+                args += self.get_arg_entry(pair)
+        
+        # Add all repositories (multiple -r and -p pairs)
+        for repo in self.repositories:
+            args += ["-r", str(repo.repo_path)]
+            args += ["-p", str(repo.password_file)]
+        
         return args
 
     @property
@@ -109,18 +120,63 @@ class BackupJob:
             FileNotFoundError: If the script file is missing.
             Exception: For any other unexpected errors during execution.
         """
-        print(f"▶️ Running backup job: [{self.category}.{self.name}]")
+        repo_count = len(self.repositories)
+        print(f"▶️  Running backup job: [{self.category}.{self.name}] → {repo_count} repo(s)")
+        
+        # Prepare environment with SSH agent socket for SFTP repositories
+        env = os.environ.copy()
+        env['SSH_AUTH_SOCK'] = '/root/.ssh/ssh-agent.sock'
+        
         try:
             subprocess.run(
                 args=self.cmd,
                 check=True,
                 stdout=sys.stdout,
                 stderr=sys.stderr,
+                env=env,
             )
             print(f"✅ Backup [{self.category}.{self.name}] completed.\n")
+            
+            # After successful backup, copy to remote destinations
+            self._run_copy_operations(env)
+            
         except subprocess.CalledProcessError as e:
             print(f"❌ Command failed [{self.category}.{self.name}]: {e}")
         except FileNotFoundError as e:
             print(f"❌ Script not found [{self.category}.{self.name}]: {e}")
-        except Exception as e:
-            print(f"❌ Unexpected error [{self.category}.{self.name}]: {e}")
+
+    def _run_copy_operations(self, env: dict):
+        """Execute copy operations for repositories with copy_to destinations.
+        
+        Args:
+            env (dict): Environment variables to pass to subprocess.
+        """
+        for repo in self.repositories:
+            if not repo.copy_destinations:
+                continue
+            
+            for copy_dest in repo.copy_destinations:
+                print(f"🔄 Copying from {repo.repo_path} to {copy_dest.repo_path}...")
+                
+                copy_script = pkg_resources.files(scripts) / "copy_repo.sh"
+                
+                cmd = [
+                    "bash",
+                    str(copy_script),
+                    "-s", str(repo.repo_path),
+                    "-p", str(repo.password_file),
+                    "-d", str(copy_dest.repo_path),
+                    "-q", str(copy_dest.password_file),
+                ]
+                
+                try:
+                    subprocess.run(
+                        args=cmd,
+                        check=True,
+                        stdout=sys.stdout,
+                        stderr=sys.stderr,
+                        env=env,
+                    )
+                    print(f"✅ Copy to {copy_dest.repo_path} completed.\n")
+                except subprocess.CalledProcessError as e:
+                    print(f"❌ Copy to {copy_dest.repo_path} failed: {e}\n")

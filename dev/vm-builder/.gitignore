@@ -1,0 +1,48 @@
+# Packer build artifacts
+packer-local/output/
+packer-local/.packer.d/
+packer-local/packer_cache/
+packer-aws/output/
+packer-aws/.packer.d/
+packer-aws/packer_cache/
+
+# Terraform
+deploy-cloud/.terraform/
+deploy-cloud/.terraform.lock.hcl
+deploy-cloud/terraform.tfstate*
+deploy-cloud/*.tfvars
+!deploy-cloud/*.tfvars.example
+
+deploy-aws/.terraform/
+deploy-aws/.terraform.lock.hcl
+deploy-aws/terraform.tfstate*
+deploy-aws/*.tfvars
+!deploy-aws/*.tfvars.example
+
+# Cloud-init temporary files
+*.iso
+
+# Build artifacts
+*.qcow2
+*.img
+*.vmdk
+manifest.json
+
+# Ansible
+*.retry
+.ansible/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
