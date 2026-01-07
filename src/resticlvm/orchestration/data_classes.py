@@ -136,9 +136,47 @@ class BackupJob:
                 env=env,
             )
             print(f"✅ Backup [{self.category}.{self.name}] completed.\n")
+            
+            # After successful backup, copy to remote destinations
+            self._run_copy_operations(env)
+            
         except subprocess.CalledProcessError as e:
             print(f"❌ Command failed [{self.category}.{self.name}]: {e}")
         except FileNotFoundError as e:
             print(f"❌ Script not found [{self.category}.{self.name}]: {e}")
-        except Exception as e:
-            print(f"❌ Unexpected error [{self.category}.{self.name}]: {e}")
+
+    def _run_copy_operations(self, env: dict):
+        """Execute copy operations for repositories with copy_to destinations.
+        
+        Args:
+            env (dict): Environment variables to pass to subprocess.
+        """
+        for repo in self.repositories:
+            if not repo.copy_destinations:
+                continue
+            
+            for copy_dest in repo.copy_destinations:
+                print(f"🔄 Copying from {repo.repo_path} to {copy_dest.repo_path}...")
+                
+                copy_script = pkg_resources.files(scripts) / "copy_repo.sh"
+                
+                cmd = [
+                    "bash",
+                    str(copy_script),
+                    "-s", str(repo.repo_path),
+                    "-p", str(repo.password_file),
+                    "-d", str(copy_dest.repo_path),
+                    "-q", str(copy_dest.password_file),
+                ]
+                
+                try:
+                    subprocess.run(
+                        args=cmd,
+                        check=True,
+                        stdout=sys.stdout,
+                        stderr=sys.stderr,
+                        env=env,
+                    )
+                    print(f"✅ Copy to {copy_dest.repo_path} completed.\n")
+                except subprocess.CalledProcessError as e:
+                    print(f"❌ Copy to {copy_dest.repo_path} failed: {e}\n")

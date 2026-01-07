@@ -25,12 +25,27 @@ class ResticPruneKeepParams:
 
 
 @dataclass
+class CopyDestination:
+    """Represents a destination repository for restic copy operations."""
+
+    repo_path: str
+    password_file: Path
+    prune_keep_params: ResticPruneKeepParams
+
+
+@dataclass
 class ResticRepo:
     """Represents a Restic repository and associated pruning settings."""
 
     repo_path: Path
     password_file: Path
     prune_keep_params: ResticPruneKeepParams
+    copy_destinations: list['CopyDestination'] = None
+
+    def __post_init__(self):
+        """Initialize copy_destinations as empty list if None."""
+        if self.copy_destinations is None:
+            self.copy_destinations = []
 
     def prune(self, dry_run: bool = False):
         """Prune snapshots in the Restic repository.
