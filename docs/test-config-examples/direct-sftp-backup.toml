@@ -1,0 +1,34 @@
+# Direct Remote Backup Example (SFTP)
+#
+# Backs up directly to a remote server via SFTP.
+# Requires SSH key authentication (use ssh-agent to avoid passphrase prompts).
+# Good for: Simple remote backups, offsite storage
+#
+# Setup required:
+#   1. Configure SSH key authentication to remote server
+#   2. Start ssh-agent and load key: sudo /usr/local/bin/backup-agent-start
+#   3. See EXAMPLE_SSH_SETUP.md for complete setup instructions
+
+[logical_volume_root.root]
+vg_name = "vg0"
+lv_name = "lv_root"
+snapshot_size = "2G"
+backup_source_path = "/"
+exclude_paths = [
+    "/dev",
+    "/proc",
+    "/sys",
+    "/tmp",
+    "/var/tmp",
+    "/run",
+]
+
+# Direct SFTP backup
+[[logical_volume_root.root.repositories]]
+repo_path = "sftp:backup-user@backup-server.example.com:/srv/backups/myhost/root"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 30
+prune_keep_daily = 30
+prune_keep_weekly = 12
+prune_keep_monthly = 24
+prune_keep_yearly = 5

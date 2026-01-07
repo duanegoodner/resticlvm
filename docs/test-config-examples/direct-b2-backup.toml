@@ -1,0 +1,36 @@
+# Direct Remote Backup Example (B2)
+#
+# Backs up directly to Backblaze B2 cloud storage.
+# Good for: Cloud backups, offsite storage, cost-effective long-term retention
+#
+# Setup required:
+#   1. Create B2 bucket and application key at backblaze.com
+#   2. Export environment variables before running backup:
+#      export B2_ACCOUNT_ID="your-account-id"
+#      export B2_ACCOUNT_KEY="your-application-key"
+#
+# Alternative: Set environment variables in systemd service or cron wrapper
+
+[logical_volume_root.root]
+vg_name = "vg0"
+lv_name = "lv_root"
+snapshot_size = "2G"
+backup_source_path = "/"
+exclude_paths = [
+    "/dev",
+    "/proc",
+    "/sys",
+    "/tmp",
+    "/var/tmp",
+    "/run",
+]
+
+# Direct B2 backup
+[[logical_volume_root.root.repositories]]
+repo_path = "b2:my-bucket-name:root-backups"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 60
+prune_keep_daily = 60
+prune_keep_weekly = 24
+prune_keep_monthly = 36
+prune_keep_yearly = 10

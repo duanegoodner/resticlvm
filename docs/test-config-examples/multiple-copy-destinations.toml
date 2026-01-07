@@ -1,0 +1,58 @@
+# Multiple Copy Destinations Example
+#
+# Shows how one local repository can copy to multiple remote destinations.
+# Good for: Multi-cloud strategy, multiple offsite locations
+
+[logical_volume_root.root]
+vg_name = "vg0"
+lv_name = "lv_root"
+snapshot_size = "2G"
+backup_source_path = "/"
+exclude_paths = [
+    "/dev",
+    "/proc",
+    "/sys",
+    "/tmp",
+    "/var/tmp",
+    "/run",
+]
+
+# Local backup with multiple remote copies
+[[logical_volume_root.root.repositories]]
+repo_path = "/backups/root-local"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 7
+prune_keep_daily = 7
+prune_keep_weekly = 4
+prune_keep_monthly = 3
+prune_keep_yearly = 1
+
+  # Copy to SFTP server
+  [[logical_volume_root.root.repositories.copy_to]]
+  repo = "sftp:backup-user@backup-server1.example.com:/backups/root"
+  password_file = "/etc/resticlvm/restic-password.txt"
+  prune_keep_last = 30
+  prune_keep_daily = 30
+  prune_keep_weekly = 12
+  prune_keep_monthly = 24
+  prune_keep_yearly = 5
+
+  # Copy to Backblaze B2
+  [[logical_volume_root.root.repositories.copy_to]]
+  repo = "b2:my-bucket:root-backups"
+  password_file = "/etc/resticlvm/restic-password.txt"
+  prune_keep_last = 60
+  prune_keep_daily = 60
+  prune_keep_weekly = 24
+  prune_keep_monthly = 36
+  prune_keep_yearly = 10
+
+  # Copy to AWS S3
+  [[logical_volume_root.root.repositories.copy_to]]
+  repo = "s3:s3.amazonaws.com/my-backup-bucket/root"
+  password_file = "/etc/resticlvm/restic-password.txt"
+  prune_keep_last = 60
+  prune_keep_daily = 60
+  prune_keep_weekly = 24
+  prune_keep_monthly = 36
+  prune_keep_yearly = 10

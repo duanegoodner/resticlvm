@@ -43,7 +43,8 @@ check_device_path() {
 check_mount_point() {
     local device_path="$1"
     local mount_point
-    mount_point=$(findmnt -n -o TARGET --source "$device_path")
+    # Use -f (first) to get only the first mount point if device is mounted multiple times
+    mount_point=$(findmnt -n -o TARGET --source "$device_path" -f)
 
     if [ -n "$mount_point" ]; then
         echo "$mount_point" # Output only the mount point

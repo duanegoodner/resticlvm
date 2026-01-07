@@ -89,115 +89,51 @@ ResticLVM supports sending a single snapshot to **multiple repositories** simult
 - ☁️ **Remote replication** — Copy to remote locations (SFTP, B2, S3, Azure, etc.)
 - 📦 **Flexible retention** — Different prune policies per repository
 
-#### Configuration Format
+#### Configuration Examples
 
-Each backup job uses a `[[repositories]]` array for direct backup destinations, and an optional `[[copy_to]]` array for remote replication:
+See **[docs/test-config-examples/](docs/test-config-examples/)** for complete configuration examples covering:
 
-```toml
-[logical_volume_root.lv_root]
-vg_name = "vg0"
-lv_name = "lv0"
-snapshot_size = "5G"
-backup_source_path = "/"
-exclude_paths = ["/dev", "/proc", "/sys", "/tmp", "/var/tmp", "/run", "/media", "/mnt"]
-
-# Primary local repository (required - at least one)
-[[logical_volume_root.lv_root.repositories]]
-repo_path = "/backups/restic-root"
-password_file = "/path/to/local-password.txt"
-prune_keep_last = 5
-prune_keep_daily = 7
-prune_keep_weekly = 4
-prune_keep_monthly = 6
-prune_keep_yearly = 1
-
-# Optional: Copy to remote destination after backup
-[[logical_volume_root.lv_root.copy_to]]
-repo = "b2:my-bucket:root-backups"
-password_file = "/path/to/b2-password.txt"
-prune_keep_last = 50
-prune_keep_daily = 30
-prune_keep_weekly = 8
-prune_keep_monthly = 12
-prune_keep_yearly = 3
-```
+- **[Single local repository](docs/test-config-examples/single-local-repo.toml)** - Simplest setup
+- **[Local with remote copy](docs/test-config-examples/local-with-remote-copy.toml)** - Recommended approach
+- **[Direct SFTP backup](docs/test-config-examples/direct-sftp-backup.toml)** - Direct remote backup
+- **[Multiple copy destinations](docs/test-config-examples/multiple-copy-destinations.toml)** - Multi-cloud strategy
+- **[And more...](docs/test-config-examples/README.md)** - See full list with descriptions
 
 #### How `copy_to` Works
 
-The `copy_to` feature uses `restic copy` to replicate snapshots from local repositories to remote destinations:
+The `copy_to` feature uses `restic copy` to replicate snapshots from a source repository to remote destinations:
 
-1. **Backup phase** — Creates LVM snapshot and backs up to all `[[repositories]]` (local)
+1. **Backup phase** — Creates LVM snapshot and backs up to all `[[repositories]]`
 2. **Cleanup phase** — Removes LVM snapshot immediately (minimizes disk usage)
-3. **Copy phase** — Copies new snapshots from local repos to each `[[copy_to]]` destination
+3. **Copy phase** — For each repository with `[[repositories.copy_to]]` destinations, copies new snapshots to those destinations
 4. **Independent pruning** — Each destination can have its own retention policy
 
 **Why use `copy_to` instead of direct remote backups?**
-- ✅ **Preserves chroot integrity** for root LV backups (remote URLs can't be bind-mounted)
+- ✅ **Explicit source control** — Each repository specifies its own copy destinations
 - ✅ **Fast local backups** — No network delays during snapshot lifetime
 - ✅ **Flexible retention** — Aggressive local pruning, conservative remote retention
 - ✅ **Works with any backend** — SFTP, B2, S3, Azure, GCS, rclone, etc.
 - ✅ **Fully independent repos** — Each destination is a complete, standalone restic repository
 
-#### Example: Multiple Local Repos
+#### Configuration Structure
+
+Each repository can have optional `[[repositories.copy_to]]` destinations:
+
 ```toml
-[standard_path.boot]
-backup_source_path = "/boot"
-exclude_paths = []
-remount_readonly = true
-
-[[standard_path.boot.repositories]]
-repo_path = "/backups/boot-primary"
+[[logical_volume_root.root.repositories]]
+repo_path = "/backups/root-local"
 password_file = "/path/to/password.txt"
-prune_keep_last = 10
-prune_keep_daily = 7
-prune_keep_weekly = 4
-prune_keep_monthly = 6
-prune_keep_yearly = 1
+prune_keep_last = 7
+# ... other prune settings ...
 
-[[standard_path.boot.repositories]]
-repo_path = "/backups/boot-secondary"
-password_file = "/path/to/password.txt"
-prune_keep_last = 10
-prune_keep_daily = 7
-prune_keep_weekly = 4
-prune_keep_monthly = 6
-prune_keep_yearly = 1
+  [[logical_volume_root.root.repositories.copy_to]]
+  repo = "sftp:backup@server.example.com:/backups/root"
+  password_file = "/path/to/password.txt"
+  prune_keep_last = 60
+  # ... independent prune settings ...
 ```
 
-#### Example: Local + Multiple Remote Destinations
-```toml
-[logical_volume_nonroot.data]
-vg_name = "vg_data"
-lv_name = "lv_data"
-snapshot_size = "5G"
-backup_source_path = "/data"
-exclude_paths = []
-
-[[logical_volume_nonroot.data.repositories]]
-repo_path = "/backups/data-local"
-password_file = "/path/to/local-pass.txt"
-prune_keep_last = 7
-prune_keep_daily = 7
-prune_keep_weekly = 4
-prune_keep_monthly = 6
-prune_keep_yearly = 1
-
-[[logical_volume_nonroot.data.copy_to]]
-repo = "sftp:backup@server1.example.com:/backups/data"
-password_file = "/path/to/sftp-pass.txt"
-prune_keep_last = 30
-prune_keep_daily = 30
-prune_keep_weekly = 12
-prune_keep_monthly = 24
-prune_keep_yearly = 5
-
-[[logical_volume_nonroot.data.copy_to]]
-repo = "b2:my-bucket:data-backups"
-password_file = "/path/to/b2-pass.txt"
-prune_keep_last = 100
-prune_keep_daily = 60
-prune_keep_weekly = 52
-prune_keep_monthly = 36
+See the **[configuration examples directory](docs/test-config-examples/)** for complete working examples.
 prune_keep_yearly = 10
 ```
 

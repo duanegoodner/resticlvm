@@ -13,6 +13,17 @@
 # Exit codes:
 #   Non-zero if remounts or bind-mounts fail (unless in dry-run mode).
 
+# Check if a repository path is a remote URL (not a local filesystem path)
+is_remote_repo() {
+    local repo="$1"
+    # Remote repos start with protocol: sftp:, b2:, s3:, rest:, rclone:, azure:, gs:, swift:
+    if [[ "$repo" =~ ^(sftp|b2|s3|rest|rclone|azure|gs|swift): ]]; then
+        return 0  # true - it's remote
+    else
+        return 1  # false - it's local
+    fi
+}
+
 # Remount a device as read-only.
 remount_as_read_only() {
     local dry_run="$1"
@@ -46,13 +57,22 @@ remount_as_read_write() {
 }
 
 # Bind-mount the Restic repository into the snapshot for chroot backup.
+# For remote repositories (sftp:, b2:, etc.), skips bind mount - they'll be used directly.
 bind_repo_to_mounted_snapshot() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
     local restic_repo="$3"
     local chroot_repo_full="$4"
 
-    echo "🪝 Binding Restic repo into chroot..."
+    # Check if this is a remote repo
+    if is_remote_repo "$restic_repo"; then
+        echo "🌐 Remote repository detected: $restic_repo"
+        echo "   Skipping bind mount (will use URL directly)"
+        return 0
+    fi
+
+    # Local repo - do bind mount
+    echo "🪝 Binding local Restic repo into chroot..."
     echo "  Snapshot mount point: $snapshot_mount_point"
     echo "  Restic repo: $restic_repo"
     echo "  Chroot repo path: $chroot_repo_full"
@@ -61,6 +81,7 @@ bind_repo_to_mounted_snapshot() {
 }
 
 # Bind /dev, /proc, and /sys into the snapshot to enable minimal chroot.
+# Also bind SSH agent socket directory if it exists (needed for SFTP repos).
 bind_chroot_essentials_to_mounted_snapshot() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
@@ -69,6 +90,21 @@ bind_chroot_essentials_to_mounted_snapshot() {
     for path in /dev /proc /sys; do
         run_or_echo "$dry_run" "mount --bind $path $snapshot_mount_point$path"
     done
+    
+    # Bind SSH agent socket directory if it exists (for remote SFTP repos)
+    if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
+        echo "🔑 Binding SSH agent socket for remote repos..."
+        local socket_dir=$(dirname "$SSH_AUTH_SOCK")
+        local chroot_socket_dir="$snapshot_mount_point$socket_dir"
+        
+        # Create the directory in chroot if it doesn't exist
+        run_or_echo "$dry_run" "mkdir -p \"$chroot_socket_dir\""
+        
+        # Bind mount the socket directory only if not already mounted
+        if ! mountpoint -q "$chroot_socket_dir" 2>/dev/null; then
+            run_or_echo "$dry_run" "mount --bind \"$socket_dir\" \"$chroot_socket_dir\""
+        fi
+    fi
 }
 
 # Unmount Restic repo and chroot essentials from the snapshot.
@@ -84,20 +120,39 @@ unmount_chroot_bindings() {
 }
 
 # Unmount just the repo binding (for use in multi-repo loops)
+# For remote repos, nothing to unmount.
 unmount_repo_binding() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
     local chroot_repo_full="$3"
+    local restic_repo="$4"  # Optional: original repo path to check if remote
 
+    # If we have the original repo path, check if it's remote
+    if [ -n "$restic_repo" ] && is_remote_repo "$restic_repo"; then
+        # Remote repo - nothing was bound, nothing to unmount
+        return 0
+    fi
+
+    # Local repo - unmount it
     run_or_echo "$dry_run" "umount \"$snapshot_mount_point/$chroot_repo_full\""
 }
 
-# Unmount only the chroot essentials (/dev, /proc, /sys)
+# Unmount only the chroot essentials (/dev, /proc, /sys, and SSH socket if bound)
+# Unmount in reverse order: SSH socket first, then /sys, /proc, /dev
 unmount_chroot_essentials() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
 
-    for path in /dev /proc /sys; do
+    # Unmount SSH agent socket directory first if it was bound
+    if [ -n "$SSH_AUTH_SOCK" ]; then
+        local socket_dir=$(dirname "$SSH_AUTH_SOCK")
+        if mountpoint -q "$snapshot_mount_point$socket_dir" 2>/dev/null; then
+            run_or_echo "$dry_run" "umount \"$snapshot_mount_point$socket_dir\""
+        fi
+    fi
+    
+    # Then unmount /sys, /proc, /dev in reverse order
+    for path in /sys /proc /dev; do
         run_or_echo "$dry_run" "umount \"$snapshot_mount_point$path\""
     done
 }

@@ -22,6 +22,7 @@ run_or_echo() {
 }
 
 # Run a command inside a chroot environment or echo it if in dry-run mode.
+# Preserves SSH_AUTH_SOCK environment variable for remote repos.
 DRY_RUN_PREFIX="\033[1;33m[DRY RUN]\033[0m"
 run_in_chroot_or_echo() {
     local dry_run="$1"
@@ -31,6 +32,11 @@ run_in_chroot_or_echo() {
     if [ "$dry_run" = true ]; then
         echo -e "${DRY_RUN_PREFIX} chroot $*"
     else
-        chroot "$mount_point" /bin/bash -c "$cmd"
+        # Pass SSH_AUTH_SOCK to chroot if it's set (needed for SFTP repos)
+        if [ -n "$SSH_AUTH_SOCK" ]; then
+            chroot "$mount_point" /bin/bash -c "export SSH_AUTH_SOCK='$SSH_AUTH_SOCK' && $cmd"
+        else
+            chroot "$mount_point" /bin/bash -c "$cmd"
+        fi
     fi
 }
