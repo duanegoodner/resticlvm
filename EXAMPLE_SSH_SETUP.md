@@ -13,18 +13,18 @@ ResticLVM runs as root to create LVM snapshots and read all system files. For SF
 
 ```
 ┌─────────────────────────────────┐          ┌──────────────────────────────┐
-│  Client (debian13-vm)           │          │  Remote Backup Server        │
-│                                 │          │  (192.168.50.210)           │
+│  Client (clienthost)            │          │  Remote Backup Server        │
+│                                 │          │  (backup-server.example.com) │
 │  ┌──────────────────┐          │          │                              │
 │  │ Root user        │          │   SSH    │  ┌────────────────────────┐  │
-│  │ - Runs backups   │──────────┼─────────▶│  │ backup-debian13vm      │  │
+│  │ - Runs backups   │──────────┼─────────▶│  │ backup-clienthost      │  │
 │  │ - Has SSH key    │          │   SFTP   │  │ - Owns backup dirs     │  │
 │  │ - Uses agent     │          │          │  │ - Shell: /bin/bash     │  │
 │  └──────────────────┘          │          │  │ - No sudo access       │  │
 │                                 │          │  └────────────────────────┘  │
 │  ┌──────────────────┐          │          │                              │
 │  │ SSH Agent        │          │          │  /srv/client_backups/        │
-│  │ - Holds key      │          │          │  └── debian13-vm/            │
+│  │ - Holds key      │          │          │  └── clienthost/             │
 │  │ - In memory      │          │          │      ├── root/               │
 │  │ - No passphrase  │          │          │      ├── data-lv/            │
 │  │   prompts        │          │          │      └── data-partition/     │
@@ -34,13 +34,13 @@ ResticLVM runs as root to create LVM snapshots and read all system files. For SF
 
 ## Setup Steps
 
-### 1. Client Setup (debian13-vm)
+### 1. Client Setup (clienthost)
 
 #### 1.1 Create SSH Key with Passphrase
 
 ```bash
 # Generate SSH key as root with a passphrase
-sudo ssh-keygen -t ed25519 -f /root/.ssh/id_backup -C "root@debian13-vm"
+sudo ssh-keygen -t ed25519 -f /root/.ssh/id_restic_backup -C "root@clienthost"
 # Enter a strong passphrase when prompted
 ```
 
@@ -50,8 +50,8 @@ Create SSH config to use the correct key:
 
 ```bash
 sudo tee /root/.ssh/config > /dev/null << 'EOF'
-Host 192.168.50.210
-    IdentityFile /root/.ssh/id_backup
+Host backup-server.example.com
+    IdentityFile /root/.ssh/id_restic_backup
     IdentitiesOnly yes
 EOF
 
@@ -88,7 +88,7 @@ ssh-agent -a "$AGENT_SOCK" > /dev/null
 
 # Add key
 echo "📝 Adding SSH key (you'll be prompted for passphrase)..."
-SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add /root/.ssh/id_backup
+SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add /root/.ssh/id_restic_backup
 
 # Show loaded keys
 echo ""
@@ -132,7 +132,7 @@ EOF
 sudo chmod +x /usr/local/bin/backup-ssh-status
 ```
 
-### 2. Remote Server Setup (192.168.50.210)
+### 2. Remote Server Setup
 
 #### 2.1 Create Dedicated Backup User
 
@@ -140,7 +140,7 @@ Create a user specifically for this client machine:
 
 ```bash
 # On remote server
-sudo useradd -r -m -s /bin/bash backup-debian13vm
+sudo useradd -r -m -s /bin/bash backup-clienthost
 ```
 
 **Security note:** Using `-s /bin/bash` allows shell access for easier management. For maximum security, use `-s /usr/sbin/nologin`, though this requires creating all directories before use.
@@ -149,22 +149,22 @@ sudo useradd -r -m -s /bin/bash backup-debian13vm
 
 ```bash
 # Create directory for this client's backups
-sudo mkdir -p /srv/client_backups/debian13-vm/{root,data-lv,data-partition}
+sudo mkdir -p /srv/client_backups/clienthost/{root,data-lv,data-partition}
 
 # Set ownership
-sudo chown -R backup-debian13vm:backup-debian13vm /srv/client_backups/debian13-vm
+sudo chown -R backup-clienthost:backup-clienthost /srv/client_backups/clienthost
 
 # Restrict permissions (only this user can access)
-sudo chmod 700 /srv/client_backups/debian13-vm
+sudo chmod 700 /srv/client_backups/clienthost
 ```
 
 #### 2.3 Set Up SSH Key Authentication
 
-From the **client machine** (debian13-vm), copy the public key to the remote:
+From the **client machine** (clienthost), copy the public key to the remote:
 
 ```bash
 # Copy SSH key to remote server
-sudo ssh-copy-id -i /root/.ssh/id_backup backup-debian13vm@192.168.50.210
+sudo ssh-copy-id -i /root/.ssh/id_restic_backup backup-clienthost@backup-server.example.com
 # Enter passphrase when prompted
 ```
 
@@ -172,16 +172,16 @@ Alternatively, manually add the key on the remote server:
 
 ```bash
 # On remote server
-sudo mkdir -p /home/backup-debian13vm/.ssh
-sudo chmod 700 /home/backup-debian13vm/.ssh
+sudo mkdir -p /home/backup-clienthost/.ssh
+sudo chmod 700 /home/backup-clienthost/.ssh
 
 # Copy the public key content here
-sudo tee /home/backup-debian13vm/.ssh/authorized_keys << 'EOF'
-ssh-ed25519 AAAAC3Nza... root@debian13-vm
+sudo tee /home/backup-clienthost/.ssh/authorized_keys << 'EOF'
+ssh-ed25519 AAAAC3Nza... root@clienthost
 EOF
 
-sudo chmod 600 /home/backup-debian13vm/.ssh/authorized_keys
-sudo chown -R backup-debian13vm:backup-debian13vm /home/backup-debian13vm/.ssh
+sudo chmod 600 /home/backup-clienthost/.ssh/authorized_keys
+sudo chown -R backup-clienthost:backup-clienthost /home/backup-clienthost/.ssh
 ```
 
 ### 3. Initialize Restic Repositories
@@ -195,15 +195,15 @@ sudo /usr/local/bin/backup-agent-start
 
 # Initialize repositories
 sudo SSH_AUTH_SOCK=/root/.ssh/ssh-agent.sock \
-  restic -r sftp:backup-debian13vm@192.168.50.210:/srv/client_backups/debian13-vm/root \
+  restic -r sftp:backup-clienthost@backup-server.example.com:/srv/client_backups/clienthost/root \
   init --password-file /path/to/restic-password.txt
 
 sudo SSH_AUTH_SOCK=/root/.ssh/ssh-agent.sock \
-  restic -r sftp:backup-debian13vm@192.168.50.210:/srv/client_backups/debian13-vm/data-lv \
+  restic -r sftp:backup-clienthost@backup-server.example.com:/srv/client_backups/clienthost/data-lv \
   init --password-file /path/to/restic-password.txt
 
 sudo SSH_AUTH_SOCK=/root/.ssh/ssh-agent.sock \
-  restic -r sftp:backup-debian13vm@192.168.50.210:/srv/client_backups/debian13-vm/data-partition \
+  restic -r sftp:backup-clienthost@backup-server.example.com:/srv/client_backups/clienthost/data-partition \
   init --password-file /path/to/restic-password.txt
 ```
 
@@ -292,7 +292,7 @@ If you're backing up multiple machines to the same remote server:
 
 ```
 Remote Server
-├── backup-debian13vm  (UID 999)  → /srv/client_backups/debian13-vm/
+├── backup-client1     (UID 999)  → /srv/client_backups/client1/
 ├── backup-laptop      (UID 998)  → /srv/client_backups/laptop/
 └── backup-webserver   (UID 997)  → /srv/client_backups/webserver/
 ```
@@ -332,7 +332,7 @@ sudo /usr/local/bin/backup-agent-start
 
 # Test SSH connection
 sudo SSH_AUTH_SOCK=/root/.ssh/ssh-agent.sock \
-  ssh backup-debian13vm@192.168.50.210 echo "Success"
+  ssh backup-clienthost@backup-server.example.com echo "Success"
 ```
 
 ### "Packet too long" or "Connection closed"
@@ -341,7 +341,7 @@ This usually means shell startup files are producing output. On the remote:
 
 ```bash
 # Ensure .bashrc doesn't output for non-interactive sessions
-sudo nano /home/backup-debian13vm/.bashrc
+sudo nano /home/backup-clienthost/.bashrc
 
 # Wrap any output in:
 if [[ $- == *i* ]]; then
@@ -376,7 +376,7 @@ password_file = "/etc/resticlvm/restic-password.txt"
 
 # Remote SFTP repository (dedicated user)
 [[logical_volume_root.root.repositories]]
-repo_path = "sftp:backup-debian13vm@192.168.50.210:/srv/client_backups/debian13-vm/root"
+repo_path = "sftp:backup-clienthost@backup-server.example.com:/srv/client_backups/clienthost/root"
 password_file = "/etc/resticlvm/restic-password.txt"
 ```
 
