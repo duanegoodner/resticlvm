@@ -50,11 +50,11 @@ parse_arguments() {
             fi
             ;;
         -r | --restic-repo)
-            RESTIC_REPO="$2"
+            RESTIC_REPOS+=("$2")
             shift 2
             ;;
         -p | --password-file)
-            RESTIC_PASSWORD_FILE="$2"
+            RESTIC_PASSWORD_FILES+=("$2")
             shift 2
             ;;
         -s | --backup-source)

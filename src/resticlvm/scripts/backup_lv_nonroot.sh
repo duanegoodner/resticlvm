@@ -42,15 +42,28 @@ root_check
 VG_NAME=""
 LV_NAME=""
 SNAPSHOT_SIZE=""
-RESTIC_REPO=""
-RESTIC_PASSWORD_FILE=""
+RESTIC_REPOS=()
+RESTIC_PASSWORD_FILES=()
 BACKUP_SOURCE_PATH=""
 EXCLUDE_PATHS=""
 DRY_RUN=false
 
 # ─── Parse and Validate Arguments ─────────────────────────────────
 parse_arguments usage_lv_nonroot "vg-name lv-name snap-size restic-repo password-file backup-source exclude-paths dry-run" "$@"
-validate_args usage_lv_nonroot VG_NAME LV_NAME SNAPSHOT_SIZE RESTIC_REPO RESTIC_PASSWORD_FILE
+
+# Validate basic LVM args
+validate_args usage_lv_nonroot VG_NAME LV_NAME SNAPSHOT_SIZE
+
+# Validate repository arrays
+if [ ${#RESTIC_REPOS[@]} -eq 0 ]; then
+    echo "❌ Error: At least one --restic-repo is required"
+    usage_lv_nonroot
+fi
+
+if [ ${#RESTIC_REPOS[@]} -ne ${#RESTIC_PASSWORD_FILES[@]} ]; then
+    echo "❌ Error: Number of repos (${#RESTIC_REPOS[@]}) must match number of password files (${#RESTIC_PASSWORD_FILES[@]})"
+    usage_lv_nonroot
+fi
 
 # ─── Derived Variables ───────────────────────────────────────────
 SNAP_NAME=$(generate_snapshot_name "$VG_NAME" "$LV_NAME")
@@ -73,7 +86,12 @@ confirm_not_yet_exist_snapshot_mount_point "$SNAPSHOT_MOUNT_POINT"
 # ─── Display Configuration ───────────────────────────────────────
 display_config "LVM Snapshot Backup Configuration" \
     VG_NAME LV_NAME SNAPSHOT_SIZE SNAP_NAME SNAPSHOT_MOUNT_POINT \
-    RESTIC_REPO RESTIC_PASSWORD_FILE EXCLUDE_PATHS BACKUP_SOURCE_PATH DRY_RUN
+    EXCLUDE_PATHS BACKUP_SOURCE_PATH DRY_RUN
+
+echo "Repositories: ${#RESTIC_REPOS[@]}"
+for i in "${!RESTIC_REPOS[@]}"; do
+    echo "  $((i+1)). ${RESTIC_REPOS[$i]}"
+done
 
 display_dry_run_message "$DRY_RUN"
 
@@ -81,25 +99,37 @@ display_dry_run_message "$DRY_RUN"
 create_snapshot "$DRY_RUN" "$SNAPSHOT_SIZE" "$SNAP_NAME" "$VG_NAME" "$LV_NAME"
 mount_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
-# ─── Build Restic Backup Command ──────────────────────────────────
+# ─── Build Exclude Arguments (Once) ───────────────────────────────
 EXCLUDE_ARGS=()
 populate_exclude_paths_for_lv_nonroot EXCLUDE_ARGS "$EXCLUDE_PATHS" "$SNAPSHOT_MOUNT_POINT"
 
 RESTIC_TAGS=()
 populate_restic_tags_for_lv_nonroot RESTIC_TAGS "$EXCLUDE_PATHS" "$SNAPSHOT_MOUNT_POINT"
 
-RESTIC_CMD="restic -r $RESTIC_REPO"
-RESTIC_CMD+=" --password-file=$RESTIC_PASSWORD_FILE"
-RESTIC_CMD+=" backup $SNAPSHOT_BACKUP_PATH"
-RESTIC_CMD+=" ${EXCLUDE_ARGS[*]}"
-RESTIC_CMD+=" ${RESTIC_TAGS[*]}"
-RESTIC_CMD+=" --verbose"
+# ─── Loop Over Repositories ───────────────────────────────────────
+echo "🚀 Backing up to ${#RESTIC_REPOS[@]} repository(ies)..."
 
-# ─── Execute Backup ───────────────────────────────────────────────
-echo "🚀 Running Restic backup..."
-run_or_echo "$DRY_RUN" "$RESTIC_CMD"
+for i in "${!RESTIC_REPOS[@]}"; do
+    RESTIC_REPO="${RESTIC_REPOS[$i]}"
+    RESTIC_PASSWORD_FILE="${RESTIC_PASSWORD_FILES[$i]}"
+    
+    echo ""
+    echo "▶️  Repository $((i+1))/${#RESTIC_REPOS[@]}: $RESTIC_REPO"
+    
+    # Build Restic command for this repo
+    RESTIC_CMD="restic -r $RESTIC_REPO"
+    RESTIC_CMD+=" --password-file=$RESTIC_PASSWORD_FILE"
+    RESTIC_CMD+=" backup $SNAPSHOT_BACKUP_PATH"
+    RESTIC_CMD+=" ${EXCLUDE_ARGS[*]}"
+    RESTIC_CMD+=" ${RESTIC_TAGS[*]}"
+    RESTIC_CMD+=" --verbose"
+    
+    # Execute backup for this repo
+    run_or_echo "$DRY_RUN" "$RESTIC_CMD"
+done
 
 # ─── Cleanup ──────────────────────────────────────────────────────
 clean_up_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
-echo "✅ Backup completed (or would have, in dry-run mode)."
+echo ""
+echo "✅ Backup completed for ${#RESTIC_REPOS[@]} repository(ies) (or would have, in dry-run mode)."
