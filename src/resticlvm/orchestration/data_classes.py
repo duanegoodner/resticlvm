@@ -4,6 +4,7 @@ including token-to-config mappings and job execution logic.
 """
 
 import importlib.resources as pkg_resources
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -121,12 +122,18 @@ class BackupJob:
         """
         repo_count = len(self.repositories)
         print(f"▶️  Running backup job: [{self.category}.{self.name}] → {repo_count} repo(s)")
+        
+        # Prepare environment with SSH agent socket for SFTP repositories
+        env = os.environ.copy()
+        env['SSH_AUTH_SOCK'] = '/root/.ssh/ssh-agent.sock'
+        
         try:
             subprocess.run(
                 args=self.cmd,
                 check=True,
                 stdout=sys.stdout,
                 stderr=sys.stderr,
+                env=env,
             )
             print(f"✅ Backup [{self.category}.{self.name}] completed.\n")
         except subprocess.CalledProcessError as e:

@@ -4,6 +4,7 @@ and managing prune operations based on backup configurations.
 """
 
 import importlib.resources as pkg_resources
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -60,9 +61,13 @@ class ResticRepo:
 
         print(f"▶️ Pruning repo {self.repo_path} (dry-run={dry_run})")
 
+        # Prepare environment with SSH agent socket for SFTP repositories
+        env = os.environ.copy()
+        env['SSH_AUTH_SOCK'] = '/root/.ssh/ssh-agent.sock'
+
         try:
             subprocess.run(
-                cmd, check=True, stdout=sys.stdout, stderr=sys.stderr
+                cmd, check=True, stdout=sys.stdout, stderr=sys.stderr, env=env
             )
             print(f"✅ Prune completed for {self.repo_path}\n")
         except subprocess.CalledProcessError as e:
