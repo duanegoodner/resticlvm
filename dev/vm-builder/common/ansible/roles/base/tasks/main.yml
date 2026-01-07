@@ -1,0 +1,115 @@
+---
+# Base system configuration
+# Cloud-agnostic base setup for both local and cloud deployments
+
+- name: Install base system packages
+  apt:
+    name:
+      - lvm2
+      - rsync
+      - vim
+      - curl
+      - wget
+      - net-tools
+      - dnsutils
+      - htop
+      - less
+      - sudo
+      - openssh-server
+      - parted
+    state: present
+    update_cache: yes
+    cache_valid_time: 86400
+  tags:
+    - base
+    - packages
+
+- name: Ensure SSH server is enabled
+  systemd:
+    name: ssh
+    enabled: yes
+    state: started
+  tags:
+    - base
+    - ssh
+
+- name: Set timezone
+  timezone:
+    name: UTC
+  tags:
+    - base
+    - timezone
+
+- name: Fix GRUB console output for serial console
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX='
+    line: 'GRUB_CMDLINE_LINUX="console=ttyS0,115200 console=tty0"'
+    backup: yes
+  register: grub_config
+  tags:
+    - base
+    - grub
+    - boot
+
+- name: Update GRUB if configuration changed
+  command: update-grub
+  when: grub_config.changed
+  tags:
+    - base
+    - grub
+    - boot
+
+- name: Create systemd-networkd config for DHCP (fallback if cloud-init disabled)
+  copy:
+    content: |
+      [Match]
+      Name=en*
+
+      [Network]
+      DHCP=yes
+
+      [DHCPv4]
+      UseHostname=true
+    dest: /etc/systemd/network/20-dhcp.network
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - base
+    - network
+
+- name: Create network fallback warning script
+  copy:
+    content: |
+      #!/bin/bash
+      # Check if cloud-init failed to configure networking
+      
+      CLOUD_INIT_STATUS=$(cloud-init status 2>/dev/null | awk '{print $2}')
+      
+      if [ "$CLOUD_INIT_STATUS" = "disabled" ] || [ "$CLOUD_INIT_STATUS" = "error" ]; then
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "⚠️  CLOUD-INIT WARNING"
+        echo ""
+        echo "   cloud-init status shows '$CLOUD_INIT_STATUS'"
+        echo ""
+        echo "   If you see this during FIRST BOOT: This is expected/normal."
+        echo "   The system will automatically migrate to LVM and reboot."
+        echo ""
+        echo "   👉 If you see this AFTER reboot, investigate:"
+        echo "      • Check status: cloud-init status --long"
+        echo "      • View logs: journalctl -u cloud-init"
+        echo "      • Fallback option: Enable systemd-networkd for networking"
+        echo "        sudo systemctl enable --now systemd-networkd"
+        echo "        (Config: /etc/systemd/network/20-dhcp.network)"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+      fi
+    dest: /etc/update-motd.d/99-network-fallback-warning
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - base
+    - network

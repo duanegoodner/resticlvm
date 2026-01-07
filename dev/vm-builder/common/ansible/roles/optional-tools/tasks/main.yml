@@ -1,0 +1,70 @@
+---
+# Optional tools installation
+# Controlled by environment variables: INSTALL_MINICONDA, INSTALL_RESTIC
+
+- name: Install restic backup tool
+  when: lookup('env', 'INSTALL_RESTIC') == 'true'
+  block:
+    - name: Install restic from Debian repository
+      apt:
+        name: restic
+        state: present
+        update_cache: yes
+
+    - name: Verify restic installation
+      command: restic version
+      register: restic_version
+      changed_when: false
+
+    - name: Display restic version
+      debug:
+        msg: "Installed {{ restic_version.stdout }}"
+
+- name: Install Miniconda
+  when: lookup('env', 'INSTALL_MINICONDA') == 'true'
+  block:
+    - name: Check if Miniconda is already installed
+      stat:
+        path: /home/debian/miniconda3
+      register: miniconda_installed
+
+    - name: Create miniconda directory
+      when: not miniconda_installed.stat.exists
+      file:
+        path: /home/debian/miniconda3
+        state: directory
+        owner: debian
+        group: debian
+        mode: '0755'
+
+    - name: Download Miniconda installer
+      when: not miniconda_installed.stat.exists
+      get_url:
+        url: https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+        dest: /home/debian/miniconda3/miniconda.sh
+        owner: debian
+        group: debian
+        mode: '0755'
+
+    - name: Install Miniconda
+      when: not miniconda_installed.stat.exists
+      become_user: debian
+      shell: |
+        bash /home/debian/miniconda3/miniconda.sh -b -u -p /home/debian/miniconda3
+        rm -f /home/debian/miniconda3/miniconda.sh
+      args:
+        creates: /home/debian/miniconda3/bin/conda
+
+    - name: Initialize conda for debian user
+      when: not miniconda_installed.stat.exists
+      become_user: debian
+      shell: |
+        source /home/debian/miniconda3/bin/activate
+        conda init --all
+      args:
+        executable: /bin/bash
+
+    - name: Display Miniconda info
+      when: not miniconda_installed.stat.exists
+      debug:
+        msg: "Miniconda installed at /home/debian/miniconda3 for user debian"

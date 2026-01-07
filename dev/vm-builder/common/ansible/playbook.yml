@@ -1,0 +1,31 @@
+---
+# Common Ansible playbook for VM provisioning
+# Used by both local and cloud deployments
+#
+# Variables:
+#   platform: 'local', 'aws', 'gcp', 'azure' (default: 'local')
+#   enable_lvm_migration: true/false (default: false)
+#   enable_development: true/false (default: true)
+
+- name: Configure Debian VM for Local/Cloud Deployment
+  hosts: all
+  become: yes
+  
+  vars:
+    platform: "{{ platform | default('local') }}"
+    enable_lvm_migration: "{{ enable_lvm_migration | default(false) }}"
+    enable_development: "{{ enable_development | default(true) }}"
+  
+  roles:
+    # Always run: Base system configuration (cloud-agnostic)
+    - role: base
+      tags: ['base']
+    
+    # Optional: Development tools (cloud-agnostic)
+    - role: development
+      when: enable_development | bool
+      tags: ['development']
+    
+    # Optional: Extra tools (controlled by environment variables)
+    - role: optional-tools
+      tags: ['optional-tools']

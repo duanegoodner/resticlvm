@@ -1,0 +1,52 @@
+---
+# Development tools - headless only, no GUI
+# Cloud-agnostic development environment
+
+- name: Install build essentials
+  apt:
+    name:
+      - build-essential
+      - gcc
+      - make
+      - automake
+      - autoconf
+      - pkg-config
+    state: present
+  tags:
+    - development
+    - build-tools
+
+- name: Install version control
+  apt:
+    name:
+      - git
+      - git-lfs
+    state: present
+  tags:
+    - development
+    - vcs
+
+- name: Install Python development
+  apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-venv
+      - python3-dev
+    state: present
+  tags:
+    - development
+    - python
+
+- name: Install useful development utilities
+  apt:
+    name:
+      - tmux
+      - screen
+      - jq
+      - tree
+      - strace
+    state: present
+  tags:
+    - development
+    - devtools
