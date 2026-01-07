@@ -1,4 +1,4 @@
-# Multi-Repository Implementation Notes
+# Multi-Repository Implementation Notes & Lessons Learned
 
 **Branch:** `multiple-repos-per-snapshot`  
 **Status:** Reference Implementation (Architectural Deviation - Do Not Merge)  
