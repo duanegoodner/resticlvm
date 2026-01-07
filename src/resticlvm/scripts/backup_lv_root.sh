@@ -75,7 +75,15 @@ confirm_source_in_lv "$LV_MOUNT_POINT" "$BACKUP_SOURCE_PATH"
 confirm_not_yet_exist_snapshot_mount_point "$SNAPSHOT_MOUNT_POINT"
 
 # ─── Display Configuration ───────────────────────────────────────
-display_config_lvm
+display_config "LVM Snapshot Backup Configuration" \
+    VG_NAME LV_NAME SNAPSHOT_SIZE SNAP_NAME SNAPSHOT_MOUNT_POINT \
+    EXCLUDE_PATHS BACKUP_SOURCE_PATH DRY_RUN
+
+echo "Repositories: ${#RESTIC_REPOS[@]}"
+for i in "${!RESTIC_REPOS[@]}"; do
+    echo "  $((i+1)). ${RESTIC_REPOS[$i]}"
+done
+
 display_dry_run_message "$DRY_RUN"
 
 # ─── Create Snapshot and Mount ────────────────────────────────────
