@@ -16,8 +16,8 @@ exclude_paths = [
 ]
 
 [[logical_volume_root.root.repositories]]
-repo_path = "/srv/backup/root-a"
-password_file = "/home/debian/test-passwords/restic.txt"
+repo_path = "/path/to/backups/root-primary"
+password_file = "/path/to/restic-password.txt"
 prune_keep_last = 10
 prune_keep_daily = 7
 prune_keep_weekly = 4
@@ -25,22 +25,22 @@ prune_keep_monthly = 6
 prune_keep_yearly = 1
 
 [[logical_volume_root.root.repositories]]
-repo_path = "/srv/backup/root-b"
-password_file = "/home/debian/test-passwords/restic.txt"
+repo_path = "/path/to/backups/root-secondary"
+password_file = "/path/to/restic-password.txt"
 prune_keep_last = 10
 prune_keep_daily = 7
 prune_keep_weekly = 4
 prune_keep_monthly = 6
 prune_keep_yearly = 1
 
-# [[logical_volume_root.root.repositories]]
-# repo_path = "sftp:backup-debian13vm@192.168.50.210:/srv/client_backups/debian13-vm/root"
-# password_file = "/home/debian/test-passwords/restic.txt"
-# prune_keep_last = 10
-# prune_keep_daily = 7
-# prune_keep_weekly = 4
-# prune_keep_monthly = 6
-# prune_keep_yearly = 1
+[[logical_volume_root.root.copy_to]]
+repo = "sftp:backup-user@backup-server.example.com:/path/to/backups/root"
+password_file = "/path/to/restic-password.txt"
+prune_keep_last = 50
+prune_keep_daily = 30
+prune_keep_weekly = 8
+prune_keep_monthly = 12
+prune_keep_yearly = 3
 
 
 [logical_volume_nonroot.data-lv]
@@ -51,8 +51,8 @@ backup_source_path = "/srv/data_lv"
 exclude_paths = []
 
 [[logical_volume_nonroot.data-lv.repositories]]
-repo_path = "/srv/backup/data-lv-a"
-password_file = "/home/debian/test-passwords/restic.txt"
+repo_path = "/path/to/backups/data-lv-primary"
+password_file = "/path/to/restic-password.txt"
 prune_keep_last = 10
 prune_keep_daily = 7
 prune_keep_weekly = 4
@@ -60,22 +60,13 @@ prune_keep_monthly = 6
 prune_keep_yearly = 1   
 
 [[logical_volume_nonroot.data-lv.repositories]]
-repo_path = "/srv/backup/data-lv-b"
-password_file = "/home/debian/test-passwords/restic.txt"
+repo_path = "/path/to/backups/data-lv-secondary"
+password_file = "/path/to/restic-password.txt"
 prune_keep_last = 10
 prune_keep_daily = 7
 prune_keep_weekly = 4
 prune_keep_monthly = 6
 prune_keep_yearly = 1
-
-# [[logical_volume_nonroot.data-lv.repositories]]
-# repo_path = "sftp:backup-debian13vm@192.168.50.210:/srv/client_backups/debian13-vm/data-lv"
-# password_file = "/home/debian/test-passwords/restic.txt"
-# prune_keep_last = 10
-# prune_keep_daily = 7
-# prune_keep_weekly = 4
-# prune_keep_monthly = 6
-# prune_keep_yearly = 1
 
 
 [standard_path.data-partition]
@@ -84,8 +75,8 @@ exclude_paths = []
 remount_readonly = true
 
 [[standard_path.data-partition.repositories]]
-repo_path = "/srv/backup/data-partition-a"
-password_file = "/home/debian/test-passwords/restic.txt"
+repo_path = "/path/to/backups/data-partition-primary"
+password_file = "/path/to/restic-password.txt"
 prune_keep_last = 10
 prune_keep_daily = 7
 prune_keep_weekly = 4
@@ -93,19 +84,10 @@ prune_keep_monthly = 6
 prune_keep_yearly = 1
 
 [[standard_path.data-partition.repositories]]
-repo_path = "/srv/backup/data-partition-b"
-password_file = "/home/debian/test-passwords/restic.txt"
+repo_path = "/path/to/backups/data-partition-secondary"
+password_file = "/path/to/restic-password.txt"
 prune_keep_last = 10
 prune_keep_daily = 7
 prune_keep_weekly = 4
 prune_keep_monthly = 6
 prune_keep_yearly = 1
-
-# [[standard_path.data-partition.repositories]]
-# repo_path = "sftp:backup-debian13vm@192.168.50.210:/srv/client_backups/debian13-vm/data-partition"
-# password_file = "/home/debian/test-passwords/restic.txt"
-# prune_keep_last = 10
-# prune_keep_daily = 7
-# prune_keep_weekly = 4
-# prune_keep_monthly = 6
-# prune_keep_yearly = 1
