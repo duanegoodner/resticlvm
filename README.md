@@ -82,65 +82,155 @@ Where:
 - `<job_name>` is a user-chosen identifier for that backup job (any valid name without spaces).
 
 
-### Example `.toml` File
+### Multi-Repository Support
 
-The example below shows one job configuration for each of the three supported categories. All fields shown for each category of job are required (Note that the fields required for a `standard_path` backup job differ from those required for `logical_volume_root` and `logical_volume_nonroot` jobs).
+ResticLVM supports sending a single snapshot to **multiple repositories** simultaneously. This enables:
+- 🔄 **Redundancy** — Back up to multiple local destinations
+- ☁️ **Remote replication** — Copy to remote locations (SFTP, B2, S3, Azure, etc.)
+- 📦 **Flexible retention** — Different prune policies per repository
 
+#### Configuration Format
 
+Each backup job uses a `[[repositories]]` array for direct backup destinations, and an optional `[[copy_to]]` array for remote replication:
 
 ```toml
-[standard_path.boot]
-backup_source_path = "/boot"
-restic_repo = "/backups/restic-boot"
-restic_password_file = "/path/to/repopassword.txt"
-exclude_paths = []
-remount_readonly = true
-prune_keep_last = 10
-prune_keep_daily = 7
-prune_keep_weekly = 4
-prune_keep_monthly = 6
-prune_keep_yearly = 1
-
 [logical_volume_root.lv_root]
 vg_name = "vg0"
 lv_name = "lv0"
 snapshot_size = "5G"
-restic_repo = "/backups/restic-root"
-restic_password_file = "/path/to/repopassword.txt"
 backup_source_path = "/"
-exclude_paths = [
-  "/dev", "/proc", "/sys", "/tmp", "/var/tmp", "/run", "/media", "/mnt"
-]
+exclude_paths = ["/dev", "/proc", "/sys", "/tmp", "/var/tmp", "/run", "/media", "/mnt"]
+
+# Primary local repository (required - at least one)
+[[logical_volume_root.lv_root.repositories]]
+repo_path = "/backups/restic-root"
+password_file = "/path/to/local-password.txt"
+prune_keep_last = 5
+prune_keep_daily = 7
+prune_keep_weekly = 4
+prune_keep_monthly = 6
+prune_keep_yearly = 1
+
+# Optional: Copy to remote destination after backup
+[[logical_volume_root.lv_root.copy_to]]
+repo = "b2:my-bucket:root-backups"
+password_file = "/path/to/b2-password.txt"
+prune_keep_last = 50
+prune_keep_daily = 30
+prune_keep_weekly = 8
+prune_keep_monthly = 12
+prune_keep_yearly = 3
+```
+
+#### How `copy_to` Works
+
+The `copy_to` feature uses `restic copy` to replicate snapshots from local repositories to remote destinations:
+
+1. **Backup phase** — Creates LVM snapshot and backs up to all `[[repositories]]` (local)
+2. **Cleanup phase** — Removes LVM snapshot immediately (minimizes disk usage)
+3. **Copy phase** — Copies new snapshots from local repos to each `[[copy_to]]` destination
+4. **Independent pruning** — Each destination can have its own retention policy
+
+**Why use `copy_to` instead of direct remote backups?**
+- ✅ **Preserves chroot integrity** for root LV backups (remote URLs can't be bind-mounted)
+- ✅ **Fast local backups** — No network delays during snapshot lifetime
+- ✅ **Flexible retention** — Aggressive local pruning, conservative remote retention
+- ✅ **Works with any backend** — SFTP, B2, S3, Azure, GCS, rclone, etc.
+- ✅ **Fully independent repos** — Each destination is a complete, standalone restic repository
+
+#### Example: Multiple Local Repos
+```toml
+[standard_path.boot]
+backup_source_path = "/boot"
+exclude_paths = []
+remount_readonly = true
+
+[[standard_path.boot.repositories]]
+repo_path = "/backups/boot-primary"
+password_file = "/path/to/password.txt"
 prune_keep_last = 10
 prune_keep_daily = 7
 prune_keep_weekly = 4
 prune_keep_monthly = 6
 prune_keep_yearly = 1
 
-[logical_volume_nonroot.data]
-vg_name = "vg_data"
-lv_name = "lv_data"
-snapshot_size = "5G"
-restic_repo = "/backups/restic-data"
-restic_password_file = "/path/to/repopassword.txt"
-backup_source_path = "/data"
-exclude_paths = ["/data/temp", "/data/cache"]
+[[standard_path.boot.repositories]]
+repo_path = "/backups/boot-secondary"
+password_file = "/path/to/password.txt"
 prune_keep_last = 10
 prune_keep_daily = 7
 prune_keep_weekly = 4
 prune_keep_monthly = 6
 prune_keep_yearly = 1
 ```
-### Notes:
-- `snapshot_size` must be large enough to capture any changes that occur to the original logical volume during the backup. A small snapshot size can lead to backup failure if the snapshot overflows.
 
-- `exclude_paths` is a space-separated list (within the TOML array) of paths that will be excluded from the backup.
+#### Example: Local + Multiple Remote Destinations
+```toml
+[logical_volume_nonroot.data]
+vg_name = "vg_data"
+lv_name = "lv_data"
+snapshot_size = "5G"
+backup_source_path = "/data"
+exclude_paths = []
 
-- `remount_readonly` applies only to standard_path backups; if true, the backup source will be temporarily remounted read-only during the backup.
+[[logical_volume_nonroot.data.repositories]]
+repo_path = "/backups/data-local"
+password_file = "/path/to/local-pass.txt"
+prune_keep_last = 7
+prune_keep_daily = 7
+prune_keep_weekly = 4
+prune_keep_monthly = 6
+prune_keep_yearly = 1
 
-- Each backup job must use a unique `restic_repo` path. Duplicate repositories across jobs are not allowed because Restic pruning operates at the repository level.
+[[logical_volume_nonroot.data.copy_to]]
+repo = "sftp:backup@server1.example.com:/backups/data"
+password_file = "/path/to/sftp-pass.txt"
+prune_keep_last = 30
+prune_keep_daily = 30
+prune_keep_weekly = 12
+prune_keep_monthly = 24
+prune_keep_yearly = 5
 
-- The Restic repositories must already exist. (Use `restic init` manually to create each repo before using this tool.)
+[[logical_volume_nonroot.data.copy_to]]
+repo = "b2:my-bucket:data-backups"
+password_file = "/path/to/b2-pass.txt"
+prune_keep_last = 100
+prune_keep_daily = 60
+prune_keep_weekly = 52
+prune_keep_monthly = 36
+prune_keep_yearly = 10
+```
+
+### Remote Repository Setup
+
+For remote destinations, you'll need to configure credentials according to the backend type:
+
+**SFTP:** See [EXAMPLE_SSH_SETUP.md](EXAMPLE_SSH_SETUP.md) for SSH key setup with passwordless authentication.
+
+**Backblaze B2:**
+```bash
+export B2_ACCOUNT_ID=<your_account_id>
+export B2_ACCOUNT_KEY=<your_account_key>
+restic -r b2:bucket-name:path/to/repo init
+```
+
+**Amazon S3:**
+```bash
+export AWS_ACCESS_KEY_ID=<your_key_id>
+export AWS_SECRET_ACCESS_KEY=<your_secret_key>
+restic -r s3:s3.amazonaws.com/bucket-name init
+```
+
+See [Restic documentation](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html) for other backends.
+
+### Configuration Notes
+
+- **`snapshot_size`** must be large enough to capture changes during backup. Overflow causes backup failure.
+- **`exclude_paths`** is a TOML array of paths to exclude from backup.
+- **`remount_readonly`** (standard_path only) temporarily remounts the source read-only during backup.
+- **Multiple repos per job** — All `[[repositories]]` receive the same snapshot data.
+- **`copy_to` destinations** — Receive copies after local backup completes.
+- **All repositories must exist** — Use `restic init` to create each repo before first use.
 
 
 ## Running Backups
@@ -238,39 +328,6 @@ options:
   --category CATEGORY  Only prune repos in this backup category.
   --name NAME          Only prune repo matching this backup job name.
 ```
-
-## Project Layout
-
-- 📄 **LICENSE** — MIT license
-- 📄 **pyproject.toml** — Python package config
-- 📄 **README.md** — Project overview and usage
-- 📂 **src/resticlvm/**
-  - 📂 **Python Modules**
-    - 📄 `backup_plan.py` — Build backup jobs from config
-    - 📄 `backup_runner.py` — CLI entry for backups
-    - 📄 `config_loader.py` — Load TOML config
-    - 📄 `data_classes.py` — Backup job dataclasses
-    - 📄 `dispatch.py` — Maps config sections to scripts
-    - 📄 `privileges.py` — Ensure root/sudo execution
-    - 📄 `prune_runner.py` — CLI entry for pruning
-    - 📄 `restic_repo.py` — Repo objects and prune ops
-    - 📄 `__init__.py`
-  - 📂 **Bash Scripts**
-    - 📄 `backup_helpers.sh` — Import funnel for helpers
-    - 📄 `backup_lv_nonroot.sh` — Backup non-root volumes
-    - 📄 `backup_lv_root.sh` — Backup root volumes
-    - 📄 `backup_path.sh` — Backup standard paths
-    - 📄 `prune_repo.sh` — Prune repos with restic
-    - 📂 **lib/**
-      - 📄 `arg_handlers.sh` — Parse CLI args
-      - 📄 `command_builders.sh` — Build backup commands
-      - 📄 `command_runners.sh` — Run/dry-run shell commands
-      - 📄 `lv_snapshots.sh` — Create and clean up snapshots
-      - 📄 `message_display.sh` — Show configs/dry-run notices
-      - 📄 `mounts.sh` — Mount/bind operations
-      - 📄 `pre_checks.sh` — Validate environment and inputs
-      - 📄 `usage_commands.sh` — CLI help output
-    - 📄 `README.md` — Bash scripts overview
 
 
 ## Development Setup
