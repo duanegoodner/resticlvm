@@ -82,3 +82,22 @@ unmount_chroot_bindings() {
         run_or_echo "$dry_run" "umount \"$snapshot_mount_point$path\""
     done
 }
+
+# Unmount just the repo binding (for use in multi-repo loops)
+unmount_repo_binding() {
+    local dry_run="$1"
+    local snapshot_mount_point="$2"
+    local chroot_repo_full="$3"
+
+    run_or_echo "$dry_run" "umount \"$snapshot_mount_point/$chroot_repo_full\""
+}
+
+# Unmount only the chroot essentials (/dev, /proc, /sys)
+unmount_chroot_essentials() {
+    local dry_run="$1"
+    local snapshot_mount_point="$2"
+
+    for path in /dev /proc /sys; do
+        run_or_echo "$dry_run" "umount \"$snapshot_mount_point$path\""
+    done
+}

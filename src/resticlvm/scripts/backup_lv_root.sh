@@ -127,11 +127,13 @@ for i in "${!RESTIC_REPOS[@]}"; do
     # Execute backup for this repo
     run_in_chroot_or_echo "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_CMD"
     
-    # Unbind this repo from chroot
-    unmount_chroot_bindings "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$CHROOT_REPO_FULL"
+    # Unbind just this repo from chroot (keep /dev, /proc, /sys for next repo)
+    unmount_repo_binding "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$CHROOT_REPO_FULL"
 done
 
 # ─── Cleanup ──────────────────────────────────────────────────────
+# Unmount chroot essentials once after all repos are done
+unmount_chroot_essentials "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT"
 clean_up_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
 echo ""
