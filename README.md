@@ -28,20 +28,23 @@ This approach ensures that backup operations are fast, safe, and do not interfer
 - Python 3.11+.
 - Restic installed and available in your $PATH.
 - Root privileges required (direct root user or via sudo).
-- Restic repositories must be manually created (using `restic init`) before using ResticLVM.
+- Restic repositories must be created (following procedures in [restic docs](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html#)) before using ResticLVM.
+- For remote repositories: Authentication must be configured for automated access (e.g., SSH keys for SFTP, environment variables for cloud storage). See [Remote Repository Setup](#remote-repository-setup) for details.
 
 
-## Installing
+## Getting Started
+
+### Installing
 
 Install ResticLVM directly from GitHub using pip:
 
-### Install a specific version (recommended)
+#### Install a specific version (recommended)
 ```bash
 pip install git+https://github.com/duanegoodner/resticlvm.git@v0.1.2
 ```
 Replace `v0.1.2` with the desired version tag from the [releases page](https://github.com/duanegoodner/resticlvm/releases).
 
-### Install from main branch (latest, but not guaranteed stable)
+#### Install from main branch (latest, but not guaranteed stable)
 ```bash
 pip install git+https://github.com/duanegoodner/resticlvm.git@main
 ```
@@ -52,7 +55,7 @@ This installs the CLI tools:
 
 - `rlvm-prune` —  Prune Restic snapshots according to the retention settings in your configuration.
 
-## Config File Setup
+### Config File Setup
 
 ResticLVM is configured through a simple `.toml` file and supports three types of backup jobs:
 
@@ -60,82 +63,284 @@ ResticLVM is configured through a simple `.toml` file and supports three types o
 |:----------------------------|:-------------------------------------|:------------|
 | Standard filesystem path    | `[standard_path.boot]`               | Back up a normal directory (e.g., `/boot`) |
 | LVM volume (mounted at `/`)  | `[logical_volume_root.lv_root]`      | Back up an LVM logical volume that is mounted at root |
-| LVM volume (mounted elsewhere) | `[logical_volume_nonroot.data]`    | Back up an LVM volume mounted at another location (e.g., `/data`) |
+| LVM volume (mounted elsewhere) | `[logical_volume_nonroot.data]`    | Back up an LVM volume mounted at another location (e.g., `/home`) |
 
+#### Example Configuration
 
-### Backup Job Category and Name Hierarchy
+Consider a common UEFI system layout with one disk and LVM:
 
-Each section must be named according to this pattern:
 ```
-<backup_category>.<job_name>
+/dev/vda
+├── vda1  →  /boot/efi (EFI System Partition)
+├── vda2  →  /boot (standard partition)
+└── vda3  →  Physical Volume in vg0
+    └── vg0 (Volume Group)
+        ├── lv_root  →  / (root filesystem)
+        └── lv_home  →  /home (user data)
 ```
-Where:
 
-- `<backup_category>` must be one of:
+This example demonstrates **four backup destinations** per volume using a combination of strategies:
 
-    - `standard_path` — for regular file or directory paths.
-
-    - `logical_volume_root` — for full logical volumes mounted at /.
-
-    - `logical_volume_nonroot` — for logical volumes mounted elsewhere.
-
-- `<job_name>` is a user-chosen identifier for that backup job (any valid name without spaces).
-
-
-### Multi-Repository Support
-
-ResticLVM supports sending a single snapshot to **multiple repositories** simultaneously. This enables:
-- 🔄 **Redundancy** — Back up to multiple local destinations
-- ☁️ **Remote replication** — Copy to remote locations (SFTP, B2, S3, Azure, etc.)
-- 📦 **Flexible retention** — Different prune policies per repository
-
-#### Configuration Examples
-
-See **[docs/test-config-examples/](docs/test-config-examples/)** for complete configuration examples covering:
-
-- **[Single local repository](docs/test-config-examples/single-local-repo.toml)** - Simplest setup
-- **[Local with remote copy](docs/test-config-examples/local-with-remote-copy.toml)** - Recommended approach
-- **[Direct SFTP backup](docs/test-config-examples/direct-sftp-backup.toml)** - Direct remote backup
-- **[Multiple copy destinations](docs/test-config-examples/multiple-copy-destinations.toml)** - Multi-cloud strategy
-- **[And more...](docs/test-config-examples/README.md)** - See full list with descriptions
-
-#### How `copy_to` Works
-
-The `copy_to` feature uses `restic copy` to replicate snapshots from a source repository to remote destinations:
-
-1. **Backup phase** — Creates LVM snapshot and backs up to all `[[repositories]]`
-2. **Cleanup phase** — Removes LVM snapshot immediately (minimizes disk usage)
-3. **Copy phase** — For each repository with `[[repositories.copy_to]]` destinations, copies new snapshots to those destinations
-4. **Independent pruning** — Each destination can have its own retention policy
-
-**Why use `copy_to` instead of direct remote backups?**
-- ✅ **Explicit source control** — Each repository specifies its own copy destinations
-- ✅ **Fast local backups** — No network delays during snapshot lifetime
-- ✅ **Flexible retention** — Aggressive local pruning, conservative remote retention
-- ✅ **Works with any backend** — SFTP, B2, S3, Azure, GCS, rclone, etc.
-- ✅ **Fully independent repos** — Each destination is a complete, standalone restic repository
-
-#### Configuration Structure
-
-Each repository can have optional `[[repositories.copy_to]]` destinations:
+1. **Local repository** — Fast backups and quick recovery
+2. **Copy to SFTP** — Local repo copied to remote ([see below](#data-transfer-methods) for details on `copy_to`)
+3. **Direct SFTP** — Direct backup to different remote path
+4. **Direct B2 cloud** — Direct backup to offsite cloud storage
 
 ```toml
-[[logical_volume_root.root.repositories]]
-repo_path = "/backups/root-local"
-password_file = "/path/to/password.txt"
-prune_keep_last = 7
-# ... other prune settings ...
+# /boot/efi partition (EFI System Partition)
+[standard_path.boot-efi]
+backup_source_path = "/boot/efi"
+exclude_paths = []
+remount_readonly = false
 
-  [[logical_volume_root.root.repositories.copy_to]]
-  repo = "sftp:backup@server.example.com:/backups/root"
+  [[standard_path.boot-efi.repositories]]
+  repo_path = "/path/to/boot-efi-repo"
+  password_file = "/path/to/boot-efi-repo-password.txt"
+  prune_keep_last = 7
+  prune_keep_daily = 7
+  prune_keep_weekly = 4
+  prune_keep_monthly = 3
+  prune_keep_yearly = 1
+
+    # Optional: Copy to another repo after local backup completes
+    [[standard_path.boot-efi.repositories.copy_to]]
+    repo = "sftp:backupuser@backup.example.com:/backups/hostname/boot-efi-copy"
+    password_file = "/path/to/boot-efi-repo-password.txt"
+    prune_keep_last = 30
+    prune_keep_daily = 30
+    prune_keep_weekly = 12
+    prune_keep_monthly = 12
+    prune_keep_yearly = 3
+
+  [[standard_path.boot-efi.repositories]]
+  repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/boot-efi"
+  password_file = "/path/to/boot-efi-repo-password.txt"
+  prune_keep_last = 30
+  prune_keep_daily = 30
+  prune_keep_weekly = 12
+  prune_keep_monthly = 12
+  prune_keep_yearly = 3
+
+  [[standard_path.boot-efi.repositories]]
+  repo_path = "s3:s3.us-west-004.backblazeb2.com/bucket-name/hostname/boot-efi"
+  password_file = "/path/to/boot-efi-repo-password.txt"
+  prune_keep_last = 14
+  prune_keep_daily = 14
+  prune_keep_weekly = 8
+  prune_keep_monthly = 6
+  prune_keep_yearly = 2
+
+# /boot partition (kernel and initramfs)
+[standard_path.boot]
+backup_source_path = "/boot"
+exclude_paths = []
+remount_readonly = false
+
+  [[standard_path.boot.repositories]]
+  repo_path = "/path/to/boot-repo"
+  password_file = "/path/to/boot-repo-password.txt"
+  prune_keep_last = 7
+  prune_keep_daily = 7
+  prune_keep_weekly = 4
+  prune_keep_monthly = 3
+  prune_keep_yearly = 1
+
+    # Optional: Copy to another repo after local backup completes
+    [[standard_path.boot.repositories.copy_to]]
+    repo = "sftp:backupuser@backup.example.com:/backups/hostname/boot-copy"
+    password_file = "/path/to/boot-repo-password.txt"
+    prune_keep_last = 30
+    prune_keep_daily = 30
+    prune_keep_weekly = 12
+    prune_keep_monthly = 12
+    prune_keep_yearly = 3
+
+  [[standard_path.boot.repositories]]
+  repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/boot"
+  password_file = "/path/to/boot-repo-password.txt"
+  prune_keep_last = 30
+  prune_keep_daily = 30
+  prune_keep_weekly = 12
+  prune_keep_monthly = 12
+  prune_keep_yearly = 3
+
+  [[standard_path.boot.repositories]]
+  repo_path = "s3:s3.us-west-004.backblazeb2.com/bucket-name/hostname/boot"
+  password_file = "/path/to/boot-repo-password.txt"
+  prune_keep_last = 14
+  prune_keep_daily = 14
+  prune_keep_weekly = 8
+  prune_keep_monthly = 6
+  prune_keep_yearly = 2
+
+# Root filesystem (LVM logical volume mounted at /)
+[logical_volume_root.root]
+vg_name = "vg0"
+lv_name = "lv_root"
+snapshot_size = "2G"
+backup_source_path = "/"
+exclude_paths = ["/dev", "/proc", "/sys", "/tmp", "/var/tmp", "/run"]
+
+  [[logical_volume_root.root.repositories]]
+  repo_path = "/path/to/root-repo"
+  password_file = "/path/to/root-repo-password.txt"
+  prune_keep_last = 7
+  prune_keep_daily = 7
+  prune_keep_weekly = 4
+  prune_keep_monthly = 3
+  prune_keep_yearly = 1
+
+    # Optional: Copy to another repo after local backup completes
+    [[logical_volume_root.root.repositories.copy_to]]
+    repo = "sftp:backupuser@backup.example.com:/backups/hostname/root-copy"
+    password_file = "/path/to/root-repo-password.txt"
+    prune_keep_last = 30
+    prune_keep_daily = 30
+    prune_keep_weekly = 12
+    prune_keep_monthly = 12
+    prune_keep_yearly = 3
+
+  [[logical_volume_root.root.repositories]]
+  repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/root"
+  password_file = "/path/to/root-repo-password.txt"
+  prune_keep_last = 30
+  prune_keep_daily = 30
+  prune_keep_weekly = 12
+  prune_keep_monthly = 12
+  prune_keep_yearly = 3
+
+  [[logical_volume_root.root.repositories]]
+  repo_path = "s3:s3.us-west-004.backblazeb2.com/bucket-name/hostname/root"
+  password_file = "/path/to/root-repo-password.txt"
+  prune_keep_last = 14
+  prune_keep_daily = 14
+  prune_keep_weekly = 8
+  prune_keep_monthly = 6
+  prune_keep_yearly = 2
+
+# /home filesystem (LVM logical volume mounted elsewhere)
+[logical_volume_nonroot.home]
+vg_name = "vg0"
+lv_name = "lv_home"
+snapshot_size = "2G"
+backup_source_path = "/home"
+exclude_paths = []
+
+  [[logical_volume_nonroot.home.repositories]]
+  repo_path = "/path/to/home-repo"
+  password_file = "/path/to/home-repo-password.txt"
+  prune_keep_last = 7
+  prune_keep_daily = 7
+  prune_keep_weekly = 4
+  prune_keep_monthly = 3
+  prune_keep_yearly = 1
+
+    # Optional: Copy to another repo after local backup completes
+    [[logical_volume_nonroot.home.repositories.copy_to]]
+    repo = "sftp:backupuser@backup.example.com:/backups/hostname/home-copy"
+    password_file = "/path/to/home-repo-password.txt"
+    prune_keep_last = 30
+    prune_keep_daily = 30
+    prune_keep_weekly = 12
+    prune_keep_monthly = 12
+    prune_keep_yearly = 3
+
+  [[logical_volume_nonroot.home.repositories]]
+  repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/home"
+  password_file = "/path/to/home-repo-password.txt"
+  prune_keep_last = 30
+  prune_keep_daily = 30
+  prune_keep_weekly = 12
+  prune_keep_monthly = 12
+  prune_keep_yearly = 3
+
+  [[logical_volume_nonroot.home.repositories]]
+  repo_path = "s3:s3.us-west-004.backblazeb2.com/bucket-name/hostname/home"
+  password_file = "/path/to/home-repo-password.txt"
+  prune_keep_last = 14
+  prune_keep_daily = 14
+  prune_keep_weekly = 8
+  prune_keep_monthly = 6
+  prune_keep_yearly = 2
+```
+
+### Running
+
+To execute all backup jobs specified in a .toml run:
+
+```
+rlvm-backup --config /path/to/your/backup-config.toml
+```
+See [below](#running-specific-jobs-from-config-file) for instructions on how to run specific (i.e. not all) jobs shown in a config file.
+
+## Additional Details
+
+### Config File Structure
+
+ResticLVM configuration files use TOML format with the following hierarchical structure:
+
+```toml
+[<volume_type>.<volume_id>]
+backup_source_path = "/path/to/source"
+# ... other volume-specific settings ...
+
+  [[<volume_type>.<volume_id>.repositories]]
+  repo_path = "/path/to/local-repo"
   password_file = "/path/to/password.txt"
-  prune_keep_last = 60
-  # ... independent prune settings ...
+  # ... prune settings ...
+
+    [[<volume_type>.<volume_id>.repositories.copy_to]]
+    repo = "sftp:user@host:/remote/repo"
+    password_file = "/path/to/password.txt"
+    # ... independent prune settings ...
 ```
 
-See the **[configuration examples directory](docs/test-config-examples/)** for complete working examples.
-prune_keep_yearly = 10
+**Structure components:**
+
+- **`[<volume_type>.<volume_id>]`** — Top-level section defining the volume to back up
+  - `<volume_type>` specifies the type of volume:
+    - `standard_path` — Standard filesystem path (e.g., `/boot`, `/boot/efi`)
+    - `logical_volume_root` — LVM logical volume mounted at `/`
+    - `logical_volume_nonroot` — LVM logical volume mounted elsewhere (e.g., `/home`, `/data`)
+  - `<volume_id>` is your chosen identifier for that specific volume (any valid name without spaces)
+
+- **`[[<volume_type>.<volume_id>.repositories]]`** — Direct backup destination (can have multiple)
+  - Defines where to send backups directly from the source
+
+- **`[[<volume_type>.<volume_id>.repositories.copy_to]]`** — Copy destination (can have multiple per repository)
+  - Copies snapshots from the parent repository after backup completes
+
+**⚠️ CRITICAL WARNING:** If backing up a standard partition mounted at `/` using `standard_path`, you **MUST** set `remount_readonly = false`. Attempting to remount the root filesystem read-only will cause system instability or failure.
+
+
+### Running Specific Jobs from Config File
+
+The `--category` and/or `--name` options can be used if we only want to run some (not all) of the backup jobs specified in a .toml file.
+
 ```
+# Run all jobs in a category
+rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path
+
+# Run a single specific job
+rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path --name boot
+```
+
+### Data Transfer Methods
+
+ResticLVM supports two methods for transferring data to backup repositories:
+
+1. **Direct backup from source** — Restic reads directly from the backup source (mounted LVM snapshot or filesystem) and sends data to the repository. In the example above, this is used for the local repos and the direct SFTP and B2 destinations.
+
+2. **Copy from existing repository** — Restic copies snapshots from one repository to another using `restic copy`. In the example above, this is used for the `boot-efi-copy`, `boot-copy`, `root-copy`, and `home-copy` destinations (configured via `[[repositories.copy_to]]` blocks).
+
+**Pros and cons of each approach:**
+
+- **Direct backups** provide detailed real-time output during the backup process, making troubleshooting easier. However, the LVM snapshot must remain mounted for the entire duration of the backup, which can be lengthy for large volumes or slow network connections.
+
+- **`copy_to`** releases LVM snapshots faster since copying happens *after* snapshot cleanup. This minimizes snapshot lifetime, which matters for systems with high write activity or when backing up large volumes over slow connections. The tradeoff is less detailed output during the copy phase.
+
+You can add `copy_to` destinations under *any* repository entry (local or remote). Each `copy_to` destination is a fully independent restic repository with its own retention policy — it does not need to match the pruning settings of the source repository. For simplicity, choose **either** direct backup **or** `copy_to` for each specific destination — using both to the same location is redundant.
+
 
 ### Remote Repository Setup
 
@@ -182,29 +387,9 @@ See [Restic documentation](https://restic.readthedocs.io/en/stable/030_preparing
 - **All repositories must exist** — Use `restic init` to create each repo before first use.
 
 
-## Running Backups
+### Pruning Snapshots
 
-### 🔹 Run all backup jobs:
-```
-rlvm-backup --config /path/to/your/resticlvm_config.toml
-```
-- Runs **all** backup jobs defined in the config.
-
-- Automatically handles snapshots, bindings, Restic commands, and cleanup.
-
-### 🔹 Run a Specific Backup Job
-The `--category` and/or `--name` options can be used if we only want to run certain backup jobs.
-```
-# Run all jobs in a category
-rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path
-
-# Run a single specific job
-rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path --name boot
-```
-
-## Pruning Snapshots
-
-### 🔹Prune All Configured Repositories
+#### Prune All Configured Repositories
 
 ```
 rlvm-prune --config /path/to/your/resticlvm_config.toml
@@ -213,7 +398,7 @@ rlvm-prune --config /path/to/your/resticlvm_config.toml
 
 - Handles Restic's `forget` and `--prune` commands.
 
-### 🔹 Prune by Category or Job Name
+#### Prune by Category or Job Name
 
 We can also choose to prune only certain repos:
 ```
@@ -224,7 +409,7 @@ sudo rlvm-prune --config /path/to/resticlvm_config.toml --category logical_volum
 sudo rlvm-prune --config /path/to/resticlvm_config.toml --category logical_volume_root --name lv_root
 ```
 
-### 🔹Protecting Specific Snapshots from Deletion
+#### Protecting Specific Snapshots from Deletion
 
 By default, all snapshots are subject to pruning according to your configured retention policies.
 
@@ -247,36 +432,12 @@ To see available options for `rlvm-backup`:
 ```
 rlvm-backup --help
 ```
-Output:
-```
-usage: rlvm-backup [-h] [--dry-run] [--category CATEGORY] [--name NAME] --config CONFIG
 
-Run backup jobs.
-
-options:
-  -h, --help           show this help message and exit
-  --dry-run            Show what would be backed up without actually running
-  --category CATEGORY  Only run backups of this specific category
-  --name NAME          Only run backups with this specific job name
-  --config CONFIG      Path to configuration TOML file
-```
 And to see available `rlvm-prune` options:
 ```
 rlvm-prune --help
 ```
-Output:
-```
-usage: rlvm-prune [-h] --config CONFIG [--dry-run] [--category CATEGORY] [--name NAME]
 
-Prune restic repos.
-
-options:
-  -h, --help           show this help message and exit
-  --config CONFIG      Path to config file (.toml).
-  --dry-run            Show what would be pruned without actually pruning.
-  --category CATEGORY  Only prune repos in this backup category.
-  --name NAME          Only prune repo matching this backup job name.
-```
 
 
 ## Development Setup
