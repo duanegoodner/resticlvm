@@ -1,0 +1,219 @@
+# ═══════════════════════════════════════════════════════════════════
+# RECOMMENDED FULL MACHINE BACKUP CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════
+#
+# This configuration demonstrates a robust 3-2-1 backup strategy:
+# - 3 copies of data (local + remote server + cloud)
+# - 2 different storage types (local disk + remote)
+# - 1 offsite copy (Backblaze B2)
+#
+# Backup targets:
+# 1. Root filesystem (LVM logical volume)
+# 2. Data logical volume (LVM)
+# 3. Additional data partition (standard filesystem)
+#
+# Each backup goes to THREE locations:
+# - Local disk (fast recovery)
+# - Remote SFTP server (network backup)
+# - Backblaze B2 cloud (offsite protection)
+#
+
+# ═══════════════════════════════════════════════════════════════════
+# ROOT LV BACKUPS (logical_volume_root)
+# ═══════════════════════════════════════════════════════════════════
+
+[logical_volume_root.root]
+vg_name = "vg0"              # Your root volume group
+lv_name = "lv_root"          # Your root logical volume
+snapshot_size = "2G"         # Adjust based on your system's write activity
+backup_source_path = "/"     # Root filesystem
+
+# Common system directories to exclude
+exclude_paths = [
+    "/dev",
+    "/proc",
+    "/sys",
+    "/tmp",
+    "/var/tmp",
+    "/run",
+    "/media",
+    "/mnt",
+    "/var/lib/libvirt/images",  # VM images (backup separately if needed)
+]
+
+# Local repository (fastest recovery)
+[[logical_volume_root.root.repositories]]
+repo_path = "/srv/backup/root"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 7          # Keep last 7 snapshots
+prune_keep_daily = 7         # Keep daily snapshots for 1 week
+prune_keep_weekly = 4        # Keep weekly snapshots for 1 month
+prune_keep_monthly = 3       # Keep monthly snapshots for 3 months
+prune_keep_yearly = 1        # Keep yearly snapshots for 1 year
+
+# Remote SFTP server (network backup)
+[[logical_volume_root.root.repositories]]
+repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/root"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 30         # Keep last 30 snapshots
+prune_keep_daily = 30        # Keep daily snapshots for 1 month
+prune_keep_weekly = 12       # Keep weekly snapshots for 3 months
+prune_keep_monthly = 12      # Keep monthly snapshots for 1 year
+prune_keep_yearly = 3        # Keep yearly snapshots for 3 years
+
+# Backblaze B2 cloud storage (offsite protection)
+# Requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in environment
+# See docs/EXAMPLE_B2_SETUP.md for setup instructions
+[[logical_volume_root.root.repositories]]
+repo_path = "s3:s3.us-west-004.backblazeb2.com/your-bucket-name/hostname/root"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 14         # Keep last 14 snapshots
+prune_keep_daily = 14        # Keep daily snapshots for 2 weeks
+prune_keep_weekly = 8        # Keep weekly snapshots for 2 months
+prune_keep_monthly = 6       # Keep monthly snapshots for 6 months
+prune_keep_yearly = 2        # Keep yearly snapshots for 2 years
+
+
+# ═══════════════════════════════════════════════════════════════════
+# DATA LV BACKUPS (logical_volume_nonroot)
+# ═══════════════════════════════════════════════════════════════════
+
+[logical_volume_nonroot.data]
+vg_name = "vg_data"          # Your data volume group
+lv_name = "lv_data"          # Your data logical volume
+snapshot_size = "2G"         # Adjust based on write activity
+backup_source_path = "/data" # Mount point of the data LV
+exclude_paths = []           # Add any subdirectories to exclude
+
+# Local repository
+[[logical_volume_nonroot.data.repositories]]
+repo_path = "/srv/backup/data"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 7
+prune_keep_daily = 7
+prune_keep_weekly = 4
+prune_keep_monthly = 3
+prune_keep_yearly = 1
+
+# Remote SFTP server
+[[logical_volume_nonroot.data.repositories]]
+repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/data"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 30
+prune_keep_daily = 30
+prune_keep_weekly = 12
+prune_keep_monthly = 12
+prune_keep_yearly = 3
+
+# Backblaze B2 cloud storage
+[[logical_volume_nonroot.data.repositories]]
+repo_path = "s3:s3.us-west-004.backblazeb2.com/your-bucket-name/hostname/data"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 14
+prune_keep_daily = 14
+prune_keep_weekly = 8
+prune_keep_monthly = 6
+prune_keep_yearly = 2
+
+
+# ═══════════════════════════════════════════════════════════════════
+# STANDARD PARTITION BACKUPS (standard_path)
+# ═══════════════════════════════════════════════════════════════════
+
+[standard_path.additional-data]
+backup_source_path = "/srv/additional-data"  # Your additional data partition
+exclude_paths = []                            # Add any subdirectories to exclude
+remount_readonly = false                      # Set to true if partition should be remounted read-only
+
+# Local repository
+[[standard_path.additional-data.repositories]]
+repo_path = "/srv/backup/additional-data"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 7
+prune_keep_daily = 7
+prune_keep_weekly = 4
+prune_keep_monthly = 3
+prune_keep_yearly = 1
+
+# Remote SFTP server
+[[standard_path.additional-data.repositories]]
+repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/additional-data"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 30
+prune_keep_daily = 30
+prune_keep_weekly = 12
+prune_keep_monthly = 12
+prune_keep_yearly = 3
+
+# Backblaze B2 cloud storage
+[[standard_path.additional-data.repositories]]
+repo_path = "s3:s3.us-west-004.backblazeb2.com/your-bucket-name/hostname/additional-data"
+password_file = "/etc/resticlvm/restic-password.txt"
+prune_keep_last = 14
+prune_keep_daily = 14
+prune_keep_weekly = 8
+prune_keep_monthly = 6
+prune_keep_yearly = 2
+
+
+# ═══════════════════════════════════════════════════════════════════
+# USAGE NOTES
+# ═══════════════════════════════════════════════════════════════════
+#
+# 1. CUSTOMIZE FOR YOUR SYSTEM:
+#    - Update volume group and logical volume names (vg_name, lv_name)
+#    - Adjust snapshot sizes based on system write activity
+#    - Update backup source paths to match your mount points
+#    - Replace "hostname" in remote paths with your actual hostname
+#
+# 2. INITIALIZE REPOSITORIES:
+#    Before first backup, initialize each repository:
+#
+#    # Local
+#    restic -r /srv/backup/root init --password-file /etc/resticlvm/restic-password.txt
+#
+#    # SFTP (requires SSH key setup, see docs/EXAMPLE_SSH_SETUP.md)
+#    restic -r sftp:backupuser@backup.example.com:/backups/hostname/root \
+#      init --password-file /etc/resticlvm/restic-password.txt
+#
+#    # B2 (requires credentials in environment, see docs/EXAMPLE_B2_SETUP.md)
+#    source /root/.config/restic/b2-env
+#    restic -r s3:s3.us-west-004.backblazeb2.com/your-bucket-name/hostname/root \
+#      init --password-file /etc/resticlvm/restic-password.txt
+#
+# 3. ADJUST RETENTION POLICIES:
+#    The pruning settings provide different retention for each destination:
+#    - Local: Shorter retention (saves disk space)
+#    - Remote: Medium retention (balanced protection)
+#    - B2: Moderate retention (cost-effective cloud backup)
+#
+#    Adjust based on your:
+#    - Recovery time objective (RTO)
+#    - Recovery point objective (RPO)
+#    - Storage costs
+#    - Compliance requirements
+#
+# 4. BACKUP EXECUTION:
+#    Run manually or via cron/systemd:
+#
+#    # Manual (with B2 credentials)
+#    sudo bash -c 'source /root/.config/restic/b2-env && \
+#      rlvm-backup --config /etc/resticlvm/backup.toml'
+#
+#    # Systemd service (see docs for service file examples)
+#    systemctl start resticlvm-backup
+#
+# 5. MONITORING:
+#    - Check backup logs in systemd journal or log files
+#    - Verify snapshots periodically with: restic snapshots
+#    - Test restores regularly to ensure backups are working
+#    - Monitor B2 usage and costs in Backblaze console
+#
+# 6. ALTERNATIVE STRATEGIES:
+#    - If you prefer local-first with copy:
+#      See docs/test-config-examples/local-with-remote-copy.toml
+#    - For simpler single-repo backups:
+#      See docs/test-config-examples/single-local-repo.toml
+#    - For more examples:
+#      See docs/test-config-examples/README.md
+#

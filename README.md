@@ -141,7 +141,7 @@ prune_keep_yearly = 10
 
 For remote destinations, you'll need to configure credentials according to the backend type:
 
-**SFTP:** See [EXAMPLE_SSH_SETUP.md](EXAMPLE_SSH_SETUP.md) for SSH key setup with passwordless authentication.
+**SFTP:** See [docs/EXAMPLE_SSH_SETUP.md](docs/EXAMPLE_SSH_SETUP.md) for SSH key setup with passwordless authentication.
 
 **Backblaze B2:**
 ```bash
@@ -153,7 +153,7 @@ export AWS_ACCESS_KEY_ID=<your_key_id>
 export AWS_SECRET_ACCESS_KEY=<your_secret_key>
 restic -r s3:s3.us-west-004.backblazeb2.com/bucket-name/path init
 ```
-See [EXAMPLE_B2_SETUP.md](EXAMPLE_B2_SETUP.md) for detailed B2 configuration.
+See [docs/EXAMPLE_B2_SETUP.md](docs/EXAMPLE_B2_SETUP.md) for detailed B2 configuration.
 
 **Backblaze B2 (Native - Not Recommended):**
 ```bash

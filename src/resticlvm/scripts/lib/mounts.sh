@@ -91,6 +91,12 @@ bind_chroot_essentials_to_mounted_snapshot() {
         run_or_echo "$dry_run" "mount --bind $path $snapshot_mount_point$path"
     done
     
+    # Bind /etc/resolv.conf for DNS resolution (needed for remote repos like B2/S3)
+    if [ -f /etc/resolv.conf ]; then
+        echo "🌐 Binding /etc/resolv.conf for DNS resolution..."
+        run_or_echo "$dry_run" "mount --bind /etc/resolv.conf $snapshot_mount_point/etc/resolv.conf"
+    fi
+    
     # Bind SSH agent socket directory if it exists (for remote SFTP repos)
     if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
         echo "🔑 Binding SSH agent socket for remote repos..."
@@ -137,8 +143,8 @@ unmount_repo_binding() {
     run_or_echo "$dry_run" "umount \"$snapshot_mount_point/$chroot_repo_full\""
 }
 
-# Unmount only the chroot essentials (/dev, /proc, /sys, and SSH socket if bound)
-# Unmount in reverse order: SSH socket first, then /sys, /proc, /dev
+# Unmount only the chroot essentials (/dev, /proc, /sys, resolv.conf, and SSH socket if bound)
+# Unmount in reverse order: SSH socket first, resolv.conf, then /sys, /proc, /dev
 unmount_chroot_essentials() {
     local dry_run="$1"
     local snapshot_mount_point="$2"
@@ -149,6 +155,11 @@ unmount_chroot_essentials() {
         if mountpoint -q "$snapshot_mount_point$socket_dir" 2>/dev/null; then
             run_or_echo "$dry_run" "umount \"$snapshot_mount_point$socket_dir\""
         fi
+    fi
+    
+    # Unmount /etc/resolv.conf if it was bound
+    if mountpoint -q "$snapshot_mount_point/etc/resolv.conf" 2>/dev/null; then
+        run_or_echo "$dry_run" "umount \"$snapshot_mount_point/etc/resolv.conf\""
     fi
     
     # Then unmount /sys, /proc, /dev in reverse order
