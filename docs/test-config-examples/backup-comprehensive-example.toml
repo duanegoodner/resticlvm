@@ -86,9 +86,9 @@ prune_keep_weekly = 2
 prune_keep_monthly = 1
 prune_keep_yearly = 1
 
-  # Example: Copy to B2 backend
+  # Example: Copy to B2 backend (S3-compatible API)
   [[logical_volume_nonroot.data-lv.repositories.copy_to]]
-  repo = "b2:my-bucket:data-lv-copied"
+  repo = "s3:s3.us-west-004.backblazeb2.com/my-bucket/data-lv-copied"
   password_file = "/path/to/b2-password.txt"
   prune_keep_last = 50
   prune_keep_daily = 30
