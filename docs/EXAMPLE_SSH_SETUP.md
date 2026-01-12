@@ -60,77 +60,20 @@ sudo chmod 600 /root/.ssh/config
 
 #### 1.3 Install Helper Scripts
 
-Create `backup-agent-start` to manage the SSH agent:
+The ResticLVM repository includes SSH agent management scripts in `tools/ssh_setup/`. Copy them to your system:
 
 ```bash
-sudo tee /usr/local/bin/backup-agent-start << 'EOF'
-#!/bin/bash
-# Start ssh-agent for root backups if not already running
+# Copy helper scripts to system location
+sudo cp tools/ssh_setup/backup-agent-start.sh /usr/local/bin/backup-agent-start
+sudo cp tools/ssh_setup/backup-agent-stop.sh /usr/local/bin/backup-agent-stop
+sudo cp tools/ssh_setup/backup-ssh-status.sh /usr/local/bin/backup-ssh-status
 
-AGENT_SOCK="/root/.ssh/ssh-agent.sock"
-
-# Check if agent is already running and responsive
-if [ -S "$AGENT_SOCK" ] && SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l &>/dev/null; then
-    echo "✅ SSH agent already running and has keys loaded"
-    SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l
-    exit 0
-fi
-
-# Kill old agent if socket exists but not responsive
-if [ -S "$AGENT_SOCK" ]; then
-    echo "⚠️  Removing stale agent socket"
-    rm -f "$AGENT_SOCK"
-fi
-
-# Start new agent
-echo "🔑 Starting SSH agent..."
-ssh-agent -a "$AGENT_SOCK" > /dev/null
-
-# Add key
-echo "📝 Adding SSH key (you'll be prompted for passphrase)..."
-SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add /root/.ssh/id_restic_backup
-
-# Show loaded keys
-echo ""
-echo "✅ Agent started. Loaded keys:"
-SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l
-EOF
-
-sudo chmod +x /usr/local/bin/backup-agent-start
-```
-
-Create `backup-ssh-status` to check agent status:
-
-```bash
-sudo tee /usr/local/bin/backup-ssh-status << 'EOF'
-#!/bin/bash
-AGENT_SOCK="/root/.ssh/ssh-agent.sock"
-
-echo "SSH Agent Status for Root:"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-if [ ! -S "$AGENT_SOCK" ]; then
-    echo "❌ Agent not running (socket not found)"
-    echo ""
-    echo "To start agent, run:"
-    echo "  sudo /usr/local/bin/backup-agent-start"
-    exit 1
-fi
-
-if SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l &>/dev/null; then
-    echo "✅ Agent running with loaded keys:"
-    SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l
-else
-    echo "⚠️  Agent running but no keys loaded"
-    echo ""
-    echo "To add keys, run:"
-    echo "  sudo /usr/local/bin/backup-agent-start"
-    exit 1
-fi
-EOF
-
+# Make sure they're executable
+sudo chmod +x /usr/local/bin/backup-agent-*
 sudo chmod +x /usr/local/bin/backup-ssh-status
 ```
+
+These scripts manage a persistent SSH agent that holds your SSH key in memory, avoiding passphrase prompts during automated backups.
 
 ### 2. Remote Server Setup
 
