@@ -91,7 +91,6 @@ This example demonstrates **four backup destinations** per volume using a combin
 [standard_path.boot-efi]
 backup_source_path = "/boot/efi"
 exclude_paths = []
-remount_readonly = false
 
   [[standard_path.boot-efi.repositories]]
   repo_path = "/path/to/boot-efi-repo"
@@ -134,7 +133,6 @@ remount_readonly = false
 [standard_path.boot]
 backup_source_path = "/boot"
 exclude_paths = []
-remount_readonly = false
 
   [[standard_path.boot.repositories]]
   repo_path = "/path/to/boot-repo"
@@ -310,8 +308,6 @@ backup_source_path = "/path/to/source"
 - **`[[<volume_type>.<volume_id>.repositories.copy_to]]`** — Copy destination (can have multiple per repository)
   - Copies snapshots from the parent repository after backup completes
 
-**⚠️ CRITICAL WARNING:** If backing up a standard partition mounted at `/` using `standard_path`, you **MUST** set `remount_readonly = false`. Attempting to remount the root filesystem read-only will cause system instability or failure.
-
 
 ### Running Specific Jobs from Config File
 
@@ -381,7 +377,6 @@ See [Restic documentation](https://restic.readthedocs.io/en/stable/030_preparing
 
 - **`snapshot_size`** must be large enough to capture changes during backup. Overflow causes backup failure.
 - **`exclude_paths`** is a TOML array of paths to exclude from backup.
-- **`remount_readonly`** (standard_path only) temporarily remounts the source read-only during backup.
 - **Multiple repos per job** — All `[[repositories]]` receive the same snapshot data.
 - **`copy_to` destinations** — Receive copies after local backup completes.
 - **All repositories must exist** — Use `restic init` to create each repo before first use.

@@ -65,15 +65,6 @@ parse_arguments() {
             EXCLUDE_PATHS="$2"
             shift 2
             ;;
-        -m | --remount-as-ro)
-            if [[ "$allowed_flags" == *"remount-as-ro"* ]]; then
-                REMOUNT_AS_RO="$2"
-                shift 2
-            else
-                echo "❌ Unexpected option: $1"
-                "$usage_function"
-            fi
-            ;;
         -n | --dry-run)
             DRY_RUN=true
             shift

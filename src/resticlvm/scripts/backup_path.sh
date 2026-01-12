@@ -1,14 +1,12 @@
 #!/bin/bash
 
 # Backup a standard filesystem path using Restic.
-# Optionally remounts the source path as read-only during the backup.
 #
 # Arguments:
 #   -r  Path to the Restic repository.
 #   -p  Path to the Restic password file.
 #   -s  Path to the backup source directory.
 #   -e  (Optional) Comma-separated list of paths to exclude.
-#   -m  (Optional) Remount the backup source as read-only during backup (true/false).
 #   --dry-run  (Optional) Show actions without executing them.
 #
 # Usage:
@@ -35,11 +33,10 @@ BACKUP_SOURCE_PATH=""
 RESTIC_REPOS=()
 RESTIC_PASSWORD_FILES=()
 EXCLUDE_PATHS=""
-REMOUNT_AS_RO="false"
 DRY_RUN=false
 
 # ─── Parse and Validate Arguments ─────────────────────────────────
-parse_arguments usage_path "restic-repo password-file backup-source exclude-paths remount-as-ro dry-run" "$@"
+parse_arguments usage_path "restic-repo password-file backup-source exclude-paths dry-run" "$@"
 
 # Validate basic args
 validate_args usage_path_backup BACKUP_SOURCE_PATH
@@ -60,7 +57,7 @@ check_if_path_exists "$BACKUP_SOURCE_PATH"
 
 # ─── Display Configuration ───────────────────────────────────────
 display_config "Backup Configuration" \
-    BACKUP_SOURCE_PATH EXCLUDE_PATHS REMOUNT_AS_RO DRY_RUN
+    BACKUP_SOURCE_PATH EXCLUDE_PATHS DRY_RUN
 
 echo "Repositories: ${#RESTIC_REPOS[@]}"
 for i in "${!RESTIC_REPOS[@]}"; do
@@ -68,11 +65,6 @@ for i in "${!RESTIC_REPOS[@]}"; do
 done
 
 display_dry_run_message "$DRY_RUN"
-
-# ─── Remount Read-Only if Needed ──────────────────────────────────
-if [ "$REMOUNT_AS_RO" = true ]; then
-    remount_as_read_only "$DRY_RUN" "$BACKUP_SOURCE_PATH"
-fi
 
 # ─── Build Exclude Arguments (Once) ───────────────────────────────
 EXCLUDE_ARGS=()
@@ -101,11 +93,6 @@ for i in "${!RESTIC_REPOS[@]}"; do
     # Execute backup for this repo
     run_or_echo "$DRY_RUN" "$RESTIC_CMD"
 done
-
-# ─── Remount Back to Read-Write if Needed ─────────────────────────
-if [ "$REMOUNT_AS_RO" = true ]; then
-    remount_as_read_write "$DRY_RUN" "$BACKUP_SOURCE_PATH"
-fi
 
 # ─── Done ─────────────────────────────────────────────────────────
 echo ""

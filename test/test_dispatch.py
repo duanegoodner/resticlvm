@@ -13,7 +13,6 @@ def test_standard_path_token_key_map():
     assert STANDARD_PATH_TOKEN_KEY_MAP["-p"] == "restic_password_file"
     assert STANDARD_PATH_TOKEN_KEY_MAP["-s"] == "backup_source_path"
     assert STANDARD_PATH_TOKEN_KEY_MAP["-e"] == "exclude_paths"
-    assert STANDARD_PATH_TOKEN_KEY_MAP["-m"] == "remount_readonly"
 
 
 def test_logical_volume_token_key_map():

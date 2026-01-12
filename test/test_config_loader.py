@@ -74,7 +74,7 @@ backup_source_path = "/boot"
 restic_repo = "/backup/boot"
 restic_password_file = "/tmp/pass.txt"
 exclude_paths = []
-remount_readonly = true
+
 prune_keep_last = 5
 prune_keep_daily = 7
 prune_keep_weekly = 4
