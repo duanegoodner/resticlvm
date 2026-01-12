@@ -6,6 +6,48 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.0] — 2026-01-11
+
+### 🔌 API Changes
+- **ADDED**: Support for multiple Restic repositories per backup job
+  - Each backup job can now send to multiple repositories simultaneously
+  - Configure with `repositories = ["repo1", "repo2"]` in backup job configuration
+- **ADDED**: Repository-to-repository copying via `copy_to` parameter
+  - Copy snapshots from one repository to another using `copy_to = ["repo2", "repo3"]`
+  - Useful for creating off-site copies or migrating between storage providers
+- **REMOVED**: `remount_readonly` configuration parameter for `standard_path` backups
+  - This feature posed safety risks by potentially blocking kernel/bootloader updates
+  - Use LVM snapshots for filesystems requiring consistency guarantees
+  - Existing configs using `remount_readonly` should remove this parameter
+
+### ✨ New Features
+- **Backblaze B2 cloud storage support**: Added full support for B2 repositories via S3-compatible API
+- **SSH agent management tools**: Added helper scripts for managing persistent SSH agents
+  - `backup-agent-start.sh`: Start SSH agent and load backup key
+  - `backup-agent-stop.sh`: Stop SSH agent and clean up
+  - `backup-ssh-status.sh`: Check agent status and loaded keys
+
+### 📚 Documentation
+- Added `docs/EXAMPLE_B2_SETUP.md` with comprehensive B2 configuration guide
+- Added `docs/EXAMPLE_SSH_SETUP.md` with SSH setup instructions for SFTP backups
+- Updated README with B2 and SSH backup examples
+- Updated `tools/README.md` to document new directory structure
+
+### 🔧 Internal
+- **Added comprehensive test suite**: Python unit tests with pytest for core orchestration logic
+  - Tests for configuration loading, backup planning, dispatching, and data classes
+  - 33 tests covering backup job validation, repository management, and argument handling
+  - Test fixtures for repository and backup job configuration
+- Reorganized `tools/` directory into subdirectories:
+  - `tools/release/`: Build and packaging tools
+  - `tools/repo_init/`: Repository initialization scripts
+  - `tools/ssh_setup/`: SSH agent management scripts
+- Added `tools/repo_init/init-b2-repos.sh` for initializing B2 repositories
+- Each tools subdirectory now has its own README with usage instructions
+- Removed `remount_readonly` from all test configurations and test cases
+
+---
+
 ## [0.1.3] — 2025-12-17
 
 ### � API Changes
