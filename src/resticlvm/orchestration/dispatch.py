@@ -10,7 +10,6 @@ STANDARD_PATH_TOKEN_KEY_MAP = {
     "-p": "restic_password_file",
     "-s": "backup_source_path",
     "-e": "exclude_paths",
-    "-m": "remount_readonly",
 }
 
 # Mapping of CLI tokens to configuration keys for logical volume backups.

@@ -104,24 +104,6 @@ def test_backup_job_get_arg_entry_list():
     assert arg_entry == ["-e", "/dev /proc /sys"]
 
 
-def test_backup_job_get_arg_entry_bool():
-    """Test get_arg_entry with a boolean value."""
-    config = {"remount_readonly": True}
-    pair = TokenConfigKeyPair(token="-m", config_key="remount_readonly")
-    
-    job = BackupJob(
-        script_name="backup_path.sh",
-        script_token_config_key_pairs=[pair],
-        config=config,
-        name="test",
-        category="standard_path",
-        repositories=[],
-    )
-    
-    arg_entry = job.get_arg_entry(pair)
-    assert arg_entry == ["-m", "true"]
-
-
 def test_backup_job_get_arg_entry_int():
     """Test get_arg_entry with an integer value."""
     config = {"snapshot_size": 2048}

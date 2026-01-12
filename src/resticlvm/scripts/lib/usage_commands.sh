@@ -11,14 +11,13 @@
 
 usage_path() {
     echo "Usage:"
-    echo "$0 -r REPO -p PASSFILE -s SRC [-e EXCLUDES] [-m] [-n]"
+    echo "$0 -r REPO -p PASSFILE -s SRC [-e EXCLUDES] [-n]"
     echo ""
     echo "Options:"
     echo "  -r, --restic-repo      Restic repository path"
     echo "  -p, --password-file    Path to password file"
     echo "  -s, --backup-source    Path to back up"
     echo "  -e, --exclude-paths    Space-separated paths to exclude"
-    echo "  -m, --remount-as-ro   Remount source as read-only (default: false)"
     echo "  -n, --dry-run          Dry run mode (preview only)"
     echo "  -h, --help             Display this message and exit"
     exit 1

@@ -32,7 +32,6 @@ backup_source_path = "/boot"
 restic_repo = "/srv/backup/boot"
 restic_password_file = "/tmp/password.txt"
 exclude_paths = []
-remount_readonly = true
 prune_keep_last = 5
 prune_keep_daily = 7
 prune_keep_weekly = 4
@@ -90,7 +89,7 @@ def test_backup_plan_create_backup_job_standard_path(temp_config_file):
     assert job.name == "boot"
     assert job.script_name == "backup_path.sh"
     assert job.config["backup_source_path"] == "/boot"
-    assert job.config["remount_readonly"] is True
+
 
 
 def test_backup_plan_create_backup_job_invalid_category(temp_config_file):
@@ -140,7 +139,7 @@ backup_source_path = "/home"
 restic_repo = "/backup/home"
 restic_password_file = "/tmp/pass.txt"
 exclude_paths = [".cache"]
-remount_readonly = false
+
 prune_keep_last = 3
 prune_keep_daily = 7
 prune_keep_weekly = 4

@@ -30,8 +30,22 @@ remount_as_read_only() {
     local backup_source="$2"
 
     if mountpoint -q "$backup_source"; then
-        local dev
+        local dev target_mount
         dev=$(findmnt -n -o SOURCE --target "$backup_source")
+        target_mount=$(findmnt -n -o TARGET --target "$backup_source")
+        
+        # Safety check: Never allow remounting root filesystem
+        if [ "$target_mount" = "/" ]; then
+            echo "❌ ERROR: Cannot remount root filesystem (/) as read-only"
+            echo "   Backup source: $backup_source"
+            echo "   Mount point: $target_mount"
+            echo "   Device: $dev"
+            echo ""
+            echo "   → Set 'remount_readonly = false' in your configuration."
+            echo "   → Consider using 'logical_volume_root' type for root filesystem backups."
+            exit 1
+        fi
+        
         echo "🔒 Remounting $dev as read-only..."
         run_or_echo "$dry_run" "mount -o remount,ro $dev"
     else
