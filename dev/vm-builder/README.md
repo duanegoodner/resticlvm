@@ -1,5 +1,7 @@
 # VM Builder - Debian VMs with LVM Root
 
+> **Note:** This directory was cloned from [https://github.com/duanegoodner/vm-builder](https://github.com/duanegoodner/vm-builder) at commit [6bdd04dc70f9c61dfec98fac3e4f26d484c208d8](https://github.com/duanegoodner/vm-builder/commit/6bdd04dc70f9c61dfec98fac3e4f26d484c208d8). The `.git/` directory and a top-level `archive/` directory were removed from the clone before adding to the ResticLVM repository. We aim to avoid editing the content of `dev/vm-builder/` directly (preferring to make changes in the original repository and re-clone), but cannot guarantee that no local edits have been made.
+
 Build and deploy Debian VMs with LVM root filesystem for snapshot testing. Works for both local KVM and AWS.
 
 ## Quick Start
