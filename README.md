@@ -55,15 +55,20 @@ This installs the CLI tools:
 
 - `rlvm-prune` —  Prune Restic snapshots according to the retention settings in your configuration.
 
+
+### What Can Be Backed Up
+
+ResticLVM supports backing up both **LVM logical volumes** and **regular filesystem partitions**:
+
+- **LVM logical volumes** — ResticLVM creates a temporary snapshot of the logical volume, mounts it, backs up from the snapshot, then automatically removes it. This ensures backup consistency even for actively-used filesystems. (Note: LVM volumes mounted at `/` require special handling internally, but this is transparent to the user.)
+
+- **Regular partitions** — ResticLVM can back up any mounted partition (e.g., `/boot`, `/boot/efi`) directly without creating a snapshot. The partition remains mounted read-write during backup.
+
+> **⚠️ Note on Regular Partition Backups:** Unlike LVM backups, regular partition backups are not atomic. Earlier versions of ResticLVM supported remounting these partitions as read-only during backup, but this feature was removed because having an in-use partition mounted read-only can cause system problems, particularly during critical operations like kernel or bootloader updates.
+
 ### Config File Setup
 
-ResticLVM is configured through a simple `.toml` file and supports three types of backup jobs:
-
-| Backup Type                | Section Example                      | Description |
-|:----------------------------|:-------------------------------------|:------------|
-| Standard filesystem path    | `[standard_path.boot]`               | Back up a normal directory (e.g., `/boot`) |
-| LVM volume (mounted at `/`)  | `[logical_volume_root.lv_root]`      | Back up an LVM logical volume that is mounted at root |
-| LVM volume (mounted elsewhere) | `[logical_volume_nonroot.data]`    | Back up an LVM volume mounted at another location (e.g., `/home`) |
+ResticLVM is configured through a simple `.toml` file.
 
 #### Example Configuration
 
@@ -447,8 +452,8 @@ To set up a development environment:
 
 2. **Create and activate the conda environment:**
    ```bash
-   conda env create -f tools/environment.yml
-   conda activate resticlvm-dev
+   conda env create -f tools/release/environment.yml
+   conda activate resticlvm
    ```
 
 3. **Install the package in editable mode:**
@@ -457,6 +462,21 @@ To set up a development environment:
    ```
 
 This setup allows you to make changes to the source code and see them reflected immediately without reinstalling.
+
+### Development VM
+
+For testing ResticLVM without modifying your local system's LVM configuration, use the included Infrastructure-as-Code (IaC) in `dev/vm-builder/` to build and deploy a Debian 13 test VM with LVM already configured.
+
+Supported platforms:
+- **Local:** QEMU/KVM virtual machine
+- **AWS:** EC2 instance
+
+The VM comes pre-configured with:
+- LVM root filesystem with multiple logical volumes
+- Standard `/boot` and `/boot/efi` partitions
+- Filesystem structure ready for testing ResticLVM backup scenarios
+
+For detailed instructions, see [dev/vm-builder/README.md](dev/vm-builder/README.md).
 
 
 ## Contributing
