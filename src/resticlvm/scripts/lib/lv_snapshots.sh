@@ -58,3 +58,10 @@ generate_snapshot_name() {
     timestamp=$(date +"%Y%m%d_%H%M%S")
     echo "${vg_name}_${lv_name}_snapshot_${timestamp}"
 }
+
+# Generate timestamped base directory for snapshot mounts
+generate_mount_base() {
+    local timestamp
+    timestamp=$(date +"%Y%m%d_%H%M%S")
+    echo "/tmp/resticlvm-${timestamp}"
+}

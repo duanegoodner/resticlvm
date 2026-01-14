@@ -271,6 +271,14 @@ rlvm-backup --config /path/to/your/backup-config.toml
 ```
 See [below](#running-specific-jobs-from-config-file) for instructions on how to run specific (i.e. not all) jobs shown in a config file.
 
+> **⚠️ Important: Failed Backup Cleanup**
+>
+> If a backup run fails or is interrupted (e.g., network errors, incorrect credentials, insufficient disk space), ResticLVM may leave behind LVM snapshots and mounted filesystems. These must be cleaned up manually to avoid consuming disk space and preventing future backups.
+>
+> Check for leftover snapshots with `sudo lvs | grep snapshot` and mounted filesystems with `mount | grep resticlvm`. See the [Troubleshooting](#troubleshooting) section for detailed cleanup instructions.
+>
+> We are evaluating the safest approach for automated cleanup. For now, manual cleanup ensures you maintain full control over snapshot removal.
+
 ## Additional Details for Running
 
 ### Config File Structure
@@ -517,6 +525,82 @@ The VM comes pre-configured with:
 - Filesystem structure ready for testing ResticLVM backup scenarios
 
 For detailed instructions, see [dev/vm-builder/README.md](dev/vm-builder/README.md).
+
+
+## Troubleshooting
+
+### Cleaning Up After Failed Backups
+
+If a backup fails (e.g., due to network issues, incorrect credentials, or insufficient disk space), ResticLVM may leave behind LVM snapshots and temporary mount points. These must be cleaned up manually.
+
+#### Identifying Leftover Resources
+
+Check for lingering LVM snapshots:
+```bash
+sudo lvs | grep snapshot
+```
+
+Check for mounted snapshots:
+```bash
+mount | grep resticlvm
+```
+
+Check for temporary directories:
+```bash
+ls -la /tmp/ | grep resticlvm
+```
+
+#### Cleanup Procedure
+
+**1. Unmount all ResticLVM mounts** (in reverse order, deepest paths first):
+
+```bash
+# List all mounts
+mount | grep resticlvm | awk '{print $3}' | sort -r
+
+# Unmount each one (or use a loop)
+sudo umount /tmp/resticlvm-TIMESTAMP/path/to/mount
+```
+
+For root volume snapshots with multiple bind mounts, you may need to unmount several paths:
+```bash
+# Example: unmount all mounts under a specific snapshot directory
+for mount in $(mount | grep '/tmp/resticlvm-TIMESTAMP/vg0_lv_root_snapshot_TIMESTAMP' | awk '{print $3}' | sort -r); do
+    sudo umount "$mount"
+done
+```
+
+**2. Remove snapshot logical volumes:**
+
+```bash
+# List snapshots to identify volume group and snapshot names
+sudo lvs | grep snapshot
+
+# Remove each snapshot (adjust VG and LV names as needed)
+sudo lvremove -f /dev/VG_NAME/SNAPSHOT_NAME
+```
+
+Example:
+```bash
+sudo lvremove -f /dev/vg0/vg0_lv_root_snapshot_20260114_185220
+sudo lvremove -f /dev/vg2/vg2_lv_data_snapshot_20260114_185221
+```
+
+**3. Remove temporary directories:**
+
+```bash
+sudo rm -rf /tmp/resticlvm-*
+```
+
+**⚠️ Important:** Only remove `/tmp/resticlvm-*` directories if you're certain no backups are currently running.
+
+#### Prevention
+
+To minimize cleanup issues:
+- Verify repository paths and credentials before running backups
+- Test configurations with `--dry-run` first (future feature)
+- Ensure sufficient disk space for snapshots
+- Monitor backup logs for errors
 
 
 ## Contributing

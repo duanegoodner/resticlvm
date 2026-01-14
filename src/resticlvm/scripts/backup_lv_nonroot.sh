@@ -75,7 +75,8 @@ LV_MOUNT_POINT=$(check_mount_point "$LV_DEVICE_PATH")
 confirm_source_in_lv "$LV_MOUNT_POINT" "$BACKUP_SOURCE_PATH"
 
 # Mount point for snapshot
-SNAPSHOT_MOUNT_POINT="/srv${LV_MOUNT_POINT}"
+MOUNT_BASE=$(generate_mount_base)
+SNAPSHOT_MOUNT_POINT="${MOUNT_BASE}${LV_MOUNT_POINT}"
 
 # Backup path inside the mounted snapshot
 REL_PATH="${BACKUP_SOURCE_PATH#$LV_MOUNT_POINT}"

@@ -66,7 +66,8 @@ fi
 # ─── Derived Variables ───────────────────────────────────────────
 SNAP_NAME=$(generate_snapshot_name "$VG_NAME" "$LV_NAME")
 LV_DEVICE_PATH="/dev/$VG_NAME/$LV_NAME"
-SNAPSHOT_MOUNT_POINT="/srv/${SNAP_NAME}"
+MOUNT_BASE=$(generate_mount_base)
+SNAPSHOT_MOUNT_POINT="${MOUNT_BASE}/${SNAP_NAME}"
 
 # ─── Pre-checks ───────────────────────────────────────────────────
 check_device_path "$LV_DEVICE_PATH"
