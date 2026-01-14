@@ -13,6 +13,7 @@ requires-python = ">=3.11"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
+b2 = ["b2>=3.0"]
 
 [project.scripts]
 rlvm-backup = "resticlvm.orchestration.backup_runner:main"
