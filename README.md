@@ -36,17 +36,10 @@ This approach ensures that backup operations are fast, safe, and do not interfer
 
 ### Installing
 
-Install ResticLVM directly from GitHub using pip:
+Install the latest release directly from GitHub:
 
-#### Install a specific version (recommended)
 ```bash
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.1.2
-```
-Replace `v0.1.2` with the desired version tag from the [releases page](https://github.com/duanegoodner/resticlvm/releases).
-
-#### Install from main branch (latest, but not guaranteed stable)
-```bash
-pip install git+https://github.com/duanegoodner/resticlvm.git@main
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.2.0
 ```
 
 This installs the CLI tools:
@@ -54,6 +47,8 @@ This installs the CLI tools:
 - `rlvm-backup` — Run backup jobs as defined in your configuration file.
 
 - `rlvm-prune` —  Prune Restic snapshots according to the retention settings in your configuration.
+
+For other installation methods, see [Alternate Installation Methods](#alternate-installation-methods).
 
 
 ### What Can Be Backed Up
@@ -276,7 +271,7 @@ rlvm-backup --config /path/to/your/backup-config.toml
 ```
 See [below](#running-specific-jobs-from-config-file) for instructions on how to run specific (i.e. not all) jobs shown in a config file.
 
-## Additional Details
+## Additional Details for Running
 
 ### Config File Structure
 
@@ -427,43 +422,88 @@ If you want to permanently protect a particular snapshot from being pruned:
     ```
 Snapshots tagged protected will automatically be preserved during pruning, regardless of age or retention rules. ResticLVM's pruning logic uses --keep-tag protected to ensure these snapshots are not deleted.
 
-## CLI Help
+### Alternate Installation Methods
+
+#### Install a Specific Version
+
+Replace the version tag with any release from the [releases page](https://github.com/duanegoodner/resticlvm/releases):
+
+```bash
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.1.2
+```
+
+#### Install from Main Branch
+
+Install the latest development version (not guaranteed stable):
+
+```bash
+pip install git+https://github.com/duanegoodner/resticlvm.git@main
+```
+
+#### Install with Optional Dependencies
+
+Install with B2 CLI support for Backblaze B2 management:
+
+```bash
+pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.2.0#egg=resticlvm[b2]"
+```
+
+Install with development tools (pytest):
+
+```bash
+pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.2.0#egg=resticlvm[dev]"
+```
+
+Install with both B2 and development dependencies:
+
+```bash
+pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.2.0#egg=resticlvm[dev,b2]"
+```
+
+#### Clone and Install in Development Mode
+
+For making changes to the source code:
+
+```bash
+# Clone the repository
+git clone https://github.com/duanegoodner/resticlvm.git
+cd resticlvm
+
+# Install in editable mode
+pip install -e .
+
+# Or with optional dependencies
+pip install -e ".[dev,b2]"
+```
+
+Changes to the source code are reflected immediately without reinstalling.
+
+### CLI Help
+
 To see available options for `rlvm-backup`:
 ```
 rlvm-backup --help
 ```
 
-And to see available `rlvm-prune` options:
+To see available `rlvm-prune` options:
 ```
 rlvm-prune --help
 ```
 
+## Helper Tools
 
+ResticLVM includes various helper scripts in the [tools/](tools/) directory for repository initialization, SSH setup, B2 cloud storage integration, and release building.
 
-## Development Setup
+Each subdirectory contains its own README with detailed instructions:
 
-To set up a development environment:
+- **[b2/](tools/b2/)** - Backblaze B2 helper scripts for backups and repository management
+- **[release/](tools/release/)** - Build and packaging tools
+- **[repo_init/](tools/repo_init/)** - Restic repository initialization scripts
+- **[ssh_setup/](tools/ssh_setup/)** - SSH agent management for automated backups
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/duanegoodner/resticlvm.git
-   cd resticlvm
-   ```
+For more information, see [tools/README.md](tools/README.md).
 
-2. **Create and activate the conda environment:**
-   ```bash
-   conda env create -f tools/release/environment.yml
-   conda activate resticlvm
-   ```
-
-3. **Install the package in editable mode:**
-   ```bash
-   pip install -e .
-   ```
-
-This setup allows you to make changes to the source code and see them reflected immediately without reinstalling.
-
-### Development VM
+## Development VM
 
 For testing ResticLVM without modifying your local system's LVM configuration, use the included Infrastructure-as-Code (IaC) in `dev/vm-builder/` to build and deploy a Debian 13 test VM with LVM already configured.
 
