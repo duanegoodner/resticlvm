@@ -1,13 +1,15 @@
+# Note: the package version is single-sourced in pyproject.toml; this manifest
+# intentionally omits a [workspace] version so there is only one place to bump.
 [workspace]
 authors = ["Duane Goodner <dmgoodner@gmail.com>"]
 channels = ["conda-forge"]
 name = "resticlvm"
 platforms = ["linux-64"]
-version = "0.2.1"
 
 [dependencies]
 python = ">=3.11,<3.13"
 pytest = ">=7.0"
+python-build = ">=1.0"
 
 [pypi-dependencies]
 resticlvm = { path = ".", editable = true }
@@ -15,3 +17,4 @@ resticlvm = { path = ".", editable = true }
 [tasks]
 test = "python -m pytest"
 pytest = "python -m pytest"
+release-build = "bash tools/release/build-release.sh"
