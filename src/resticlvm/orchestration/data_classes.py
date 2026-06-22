@@ -14,6 +14,21 @@ from resticlvm import scripts
 
 
 @dataclass
+class JobResult:
+    """Outcome of a single BackupJob.run()."""
+
+    category: str
+    name: str
+    script_ok: bool  # did the backup script itself succeed?
+    failed_copies: list  # copy-destination repo_paths that failed (empty if all ok)
+
+    @property
+    def ok(self) -> bool:
+        """True only if the backup script and all copy operations succeeded."""
+        return self.script_ok and not self.failed_copies
+
+
+@dataclass
 class TokenConfigKeyPair:
     """Represents a mapping between a script token and a config file key."""
 
@@ -112,21 +127,24 @@ class BackupJob:
         """
         return ["bash", str(self.script_path)] + self.args_list
 
-    def run(self):
+    def run(self) -> "JobResult":
         """Execute the backup job by running the associated script.
 
-        Raises:
-            subprocess.CalledProcessError: If the script exits with an error code.
-            FileNotFoundError: If the script file is missing.
-            Exception: For any other unexpected errors during execution.
+        Failures are caught (not raised) so that one failed job does not abort the
+        others; the outcome is reported via the returned JobResult instead. Copy
+        operations are only attempted when the backup script itself succeeds.
+
+        Returns:
+            JobResult: The outcome of this job — whether the backup script
+            succeeded and which copy destinations (if any) failed.
         """
         repo_count = len(self.repositories)
         print(f"▶️  Running backup job: [{self.category}.{self.name}] → {repo_count} repo(s)")
-        
+
         # Prepare environment with SSH agent socket for SFTP repositories
         env = os.environ.copy()
         env['SSH_AUTH_SOCK'] = '/root/.ssh/ssh-agent.sock'
-        
+
         try:
             subprocess.run(
                 args=self.cmd,
@@ -136,30 +154,47 @@ class BackupJob:
                 env=env,
             )
             print(f"✅ Backup [{self.category}.{self.name}] completed.\n")
-            
+
             # After successful backup, copy to remote destinations
-            self._run_copy_operations(env)
-            
+            failed_copies = self._run_copy_operations(env)
+            return JobResult(
+                category=self.category,
+                name=self.name,
+                script_ok=True,
+                failed_copies=failed_copies,
+            )
+
         except subprocess.CalledProcessError as e:
             print(f"❌ Command failed [{self.category}.{self.name}]: {e}")
         except FileNotFoundError as e:
             print(f"❌ Script not found [{self.category}.{self.name}]: {e}")
 
-    def _run_copy_operations(self, env: dict):
+        return JobResult(
+            category=self.category,
+            name=self.name,
+            script_ok=False,
+            failed_copies=[],
+        )
+
+    def _run_copy_operations(self, env: dict) -> list:
         """Execute copy operations for repositories with copy_to destinations.
-        
+
         Args:
             env (dict): Environment variables to pass to subprocess.
+
+        Returns:
+            list: Copy-destination repo_paths that failed (empty if all succeeded).
         """
+        failed_copies = []
         for repo in self.repositories:
             if not repo.copy_destinations:
                 continue
-            
+
             for copy_dest in repo.copy_destinations:
                 print(f"🔄 Copying from {repo.repo_path} to {copy_dest.repo_path}...")
-                
+
                 copy_script = pkg_resources.files(scripts) / "copy_repo.sh"
-                
+
                 cmd = [
                     "bash",
                     str(copy_script),
@@ -168,7 +203,7 @@ class BackupJob:
                     "-d", str(copy_dest.repo_path),
                     "-q", str(copy_dest.password_file),
                 ]
-                
+
                 try:
                     subprocess.run(
                         args=cmd,
@@ -180,3 +215,5 @@ class BackupJob:
                     print(f"✅ Copy to {copy_dest.repo_path} completed.\n")
                 except subprocess.CalledProcessError as e:
                     print(f"❌ Copy to {copy_dest.repo_path} failed: {e}\n")
+                    failed_copies.append(copy_dest.repo_path)
+        return failed_copies

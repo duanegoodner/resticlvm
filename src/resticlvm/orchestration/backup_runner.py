@@ -6,6 +6,7 @@ and executes backup jobs based on the specified filters.
 """
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -27,19 +28,39 @@ class BackupJobRunner:
 
     def run_all(
         self, category: Optional[str] = None, name: Optional[str] = None
-    ):
+    ) -> int:
         """Run all backup jobs, optionally filtering by category and/or job name.
+
+        Each job runs in isolation: a failure in one does not stop the others. A
+        summary is printed at the end naming any failed jobs and copy operations.
 
         Args:
             category (str, optional): Backup category to filter by (e.g., 'standard_path').
             name (str, optional): Specific backup job name to run.
+
+        Returns:
+            int: The number of jobs that failed (a failed backup script or any
+            failed copy operation counts as a failed job). 0 means everything
+            succeeded.
         """
+        results = []
         for job in self.jobs:
             if category and job.category != category:
                 continue
             if name and job.name != name:
                 continue
-            job.run()
+            results.append(job.run())
+
+        failures = [r for r in results if not r.ok]
+        print("\n──────── Backup run summary ────────")
+        print(f"  jobs run: {len(results)}   failed: {len(failures)}")
+        for r in failures:
+            if not r.script_ok:
+                print(f"  ❌ {r.category}.{r.name}: backup script failed")
+            for dest in r.failed_copies:
+                print(f"  ❌ {r.category}.{r.name}: copy to {dest} failed")
+
+        return len(failures)
 
 
 def main():
@@ -74,7 +95,9 @@ def main():
 
     plan = BackupPlan(config_path=config_path, dry_run=args.dry_run)
     runner = BackupJobRunner(plan.backup_jobs)
-    runner.run_all(category=args.category, name=args.name)
+    failure_count = runner.run_all(category=args.category, name=args.name)
+    if failure_count:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

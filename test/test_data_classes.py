@@ -1,14 +1,37 @@
 """Tests for the data_classes module."""
 
+import subprocess
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
 from resticlvm.orchestration.data_classes import (
     BackupJob,
+    JobResult,
     TokenConfigKeyPair,
 )
-from resticlvm.orchestration.restic_repo import ResticRepo, ResticPruneKeepParams
+from resticlvm.orchestration.restic_repo import (
+    CopyDestination,
+    ResticRepo,
+    ResticPruneKeepParams,
+)
+
+
+def _make_prune_params():
+    return ResticPruneKeepParams(last=10, daily=7, weekly=4, monthly=6, yearly=1)
+
+
+def _make_job(repositories=None):
+    """Build a minimal BackupJob suitable for exercising run()."""
+    return BackupJob(
+        script_name="backup_path.sh",
+        script_token_config_key_pairs=[],
+        config={},
+        name="test_job",
+        category="standard_path",
+        repositories=repositories if repositories is not None else [],
+    )
 
 
 def test_token_config_key_pair_creation():
@@ -207,3 +230,76 @@ def test_backup_job_cmd():
     assert "backup_path.sh" in cmd[1]
     # Should have -r and -p from the repository
     assert cmd[2:] == ["-r", "/srv/backup/test", "-p", "/tmp/password.txt"]
+
+
+# ─── JobResult / BackupJob.run() outcome reporting ──────────────────────────
+
+
+def test_job_result_ok_property():
+    """JobResult.ok is True only when the script succeeded and no copies failed."""
+    assert JobResult("c", "n", script_ok=True, failed_copies=[]).ok is True
+    assert JobResult("c", "n", script_ok=False, failed_copies=[]).ok is False
+    assert JobResult("c", "n", script_ok=True, failed_copies=["/dest"]).ok is False
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_full_success(mock_run):
+    """A clean backup with no copy destinations returns an ok JobResult."""
+    job = _make_job()
+
+    result = job.run()
+
+    assert result.script_ok is True
+    assert result.failed_copies == []
+    assert result.ok is True
+    mock_run.assert_called_once()
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_script_failure(mock_run):
+    """A failed backup script returns a not-ok JobResult (no exception raised)."""
+    mock_run.side_effect = subprocess.CalledProcessError(1, "bash")
+
+    result = job_result = _make_job().run()
+
+    assert job_result.script_ok is False
+    assert result.ok is False
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_script_missing(mock_run):
+    """A missing script (FileNotFoundError) is reported as a failure, not raised."""
+    mock_run.side_effect = FileNotFoundError("backup_path.sh")
+
+    result = _make_job().run()
+
+    assert result.script_ok is False
+    assert result.ok is False
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_copy_failure(mock_run):
+    """Backup succeeds but a copy fails: script_ok True, copy recorded, not ok."""
+    copy_dest = CopyDestination(
+        repo_path="/srv/backup/remote",
+        password_file=Path("/tmp/remote_pw.txt"),
+        prune_keep_params=_make_prune_params(),
+    )
+    repo = ResticRepo(
+        repo_path=Path("/srv/backup/local"),
+        password_file=Path("/tmp/pw.txt"),
+        prune_keep_params=_make_prune_params(),
+        copy_destinations=[copy_dest],
+    )
+    # First call = backup script (succeeds); second call = copy (fails).
+    mock_run.side_effect = [
+        mock.DEFAULT,
+        subprocess.CalledProcessError(1, "copy_repo.sh"),
+    ]
+
+    result = _make_job(repositories=[repo]).run()
+
+    assert result.script_ok is True
+    assert result.failed_copies == ["/srv/backup/remote"]
+    assert result.ok is False
+    assert mock_run.call_count == 2
