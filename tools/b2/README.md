@@ -2,37 +2,59 @@
 
 This directory contains helper scripts for working with Backblaze B2 cloud storage, including backup operations, repository management, and B2 CLI interactions.
 
-All scripts automatically load B2 credentials from `/root/.config/resticlvm/b2-env`, which should contain:
+All scripts load B2 credentials from `/root/.config/resticlvm/b2-env`, which should contain:
 
 ```bash
 export AWS_ACCESS_KEY_ID=your_b2_key_id
 export AWS_SECRET_ACCESS_KEY=your_b2_application_key
 ```
 
+(Override the location with the `B2_ENV_FILE` environment variable.)
+
 ## Scripts
+
+### 0. with-b2-creds.sh (generic credential loader)
+
+Loads B2 credentials, then `exec`s whatever command you give it. This is the
+building block the backup wrapper uses; reach for it directly when you want to run
+any command with B2 creds loaded.
+
+**Usage:**
+```bash
+sudo ./with-b2-creds.sh -- rlvm-backup --config /path/to/config.toml
+sudo ./with-b2-creds.sh -- restic -r s3:... -p /path/to/pw.txt snapshots
+```
+
+It deliberately does **not** locate any entrypoint — you pass the exact command to
+run, so there is no fragile `which` lookup or PATH guessing.
 
 ### 1. run-backup-with-b2.sh
 
-Wrapper for running `rlvm-backup` with B2 credentials loaded.
+Convenience wrapper for running `rlvm-backup` with B2 credentials loaded. It
+delegates credential-loading to `with-b2-creds.sh` and resolves the `rlvm-backup`
+entrypoint explicitly.
 
 **Purpose:** Execute ResticLVM backups that include B2 repositories.
 
 **Usage:**
 ```bash
-# Run full backup configuration
-sudo env "PATH=$PATH" ./run-backup-with-b2.sh --config /path/to/config.toml
+# Run full backup configuration (rlvm-backup resolved from PATH)
+sudo ./run-backup-with-b2.sh --config /path/to/config.toml
 
-# Run specific backup by name
-sudo env "PATH=$PATH" ./run-backup-with-b2.sh --name boot --config /path/to/config.toml
+# Pin the entrypoint explicitly (recommended for cron/systemd)
+sudo RLVM_BACKUP=/usr/local/bin/rlvm-backup ./run-backup-with-b2.sh --config /path/to/config.toml
 
-# Run category of backups
-sudo env "PATH=$PATH" ./run-backup-with-b2.sh --category standard_path --config /path/to/config.toml
+# Run a specific backup by name / category
+sudo ./run-backup-with-b2.sh --name boot --config /path/to/config.toml
+sudo ./run-backup-with-b2.sh --category standard_path --config /path/to/config.toml
 ```
 
 **Notes:**
-- Automatically sources B2 credentials
-- Ensures LVM commands are in PATH
-- Use `sudo env "PATH=$PATH"` to preserve conda environment
+- Delegates credential-loading to `with-b2-creds.sh` (single responsibility).
+- Resolves `rlvm-backup` via the `RLVM_BACKUP` env var, falling back to a PATH
+  lookup — no fragile bare `which`. Set `RLVM_BACKUP` to an absolute path for
+  unattended runs so resolution never depends on the ambient PATH.
+- Run as root (via `sudo`, or from a root cron/systemd unit).
 
 ### 2. restic-b2.sh
 
@@ -195,14 +217,15 @@ prune_keep_yearly = 1
 
 ## Cron Setup
 
-For automated backups, add to root's crontab (`sudo crontab -e`):
+For automated backups, add to root's crontab (`sudo crontab -e`). Pin the
+entrypoint with an absolute path via `RLVM_BACKUP` so resolution never depends on
+cron's minimal PATH — no need to bake a conda/pixi `bin` directory into the
+crontab `PATH`:
 
 ```cron
-# Set PATH to include conda environment with rlvm-backup
-PATH=/home/username/miniconda3/envs/resticlvm-0.2.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-# Run daily backup at 2 AM
-0 2 * * * /path/to/resticlvm/tools/b2/run-backup-with-b2.sh --config /path/to/config.toml
+# Run daily backup at 2 AM. Set RLVM_BACKUP to the absolute path of the
+# installed entrypoint (find it with: command -v rlvm-backup).
+0 2 * * * RLVM_BACKUP=/usr/local/bin/rlvm-backup /path/to/resticlvm/tools/b2/run-backup-with-b2.sh --config /path/to/config.toml
 ```
 
 ## Troubleshooting

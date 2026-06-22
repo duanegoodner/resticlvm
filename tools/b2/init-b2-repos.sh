@@ -39,7 +39,7 @@ Examples:
     root-direct root-copied data-direct data-copied
 
   # With sourced credentials
-  source /root/.config/restic/b2-env
+  source /root/.config/resticlvm/b2-env
   $(basename "$0") -b resticlvm-test -r us-west-004 -P /root/.restic-password \\
     backup/root backup/data
 
@@ -124,7 +124,7 @@ fi
 if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
   echo "Error: B2 credentials not found in environment"
   echo "Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
-  echo "Example: source /root/.config/restic/b2-env"
+  echo "Example: source /root/.config/resticlvm/b2-env"
   exit 1
 fi
 
