@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from resticlvm import __version__
 from resticlvm.orchestration.backup_plan import BackupPlan
 from resticlvm.orchestration.data_classes import BackupJob
 from resticlvm.orchestration.privileges import ensure_running_as_root
@@ -65,9 +66,12 @@ class BackupJobRunner:
 
 def main():
     """Parse CLI arguments and execute the backup plan."""
-    ensure_running_as_root()
-
     parser = argparse.ArgumentParser(description="Run backup jobs.")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"resticlvm {__version__}",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -90,6 +94,10 @@ def main():
         help="Path to configuration TOML file.",
     )
     args = parser.parse_args()
+
+    # Root check happens after argument parsing so --version / --help work
+    # without elevation.
+    ensure_running_as_root()
 
     config_path = Path(args.config)
 
