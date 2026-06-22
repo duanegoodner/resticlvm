@@ -117,3 +117,11 @@ second — but one cohesive "cut 0.3.0" PR is fine.)
 - Distill a **generic** release checklist into `tools/release/` (this doc is 0.3.0-specific scratch).
 - Optional future versioning nicety: derive `pyproject` version dynamically from a package
   `__version__` if we ever want the version importable at runtime.
+- **Clean up the "way of running".** The current invocation
+  (`sudo env PATH=$PATH ./tools/b2/run-backup-with-b2.sh --config ...` + the wrapper's
+  `RLVM_BACKUP=$(which rlvm-backup)`) is fragile: it depends on the right env being on `PATH`
+  through `sudo`, and `which` can silently resolve to the wrong/old install. The B2 wrapper also
+  conflates two concerns — loading B2 credentials and locating the `rlvm-backup` entrypoint.
+  Rework as its own scoped change (not wedged into a release): e.g. make entrypoint resolution
+  explicit/robust, separate credential-loading from invocation, and document a clean
+  root-execution recipe for both pixi-env and pip-installed setups.
