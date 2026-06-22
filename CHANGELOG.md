@@ -6,6 +6,37 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.3.0] — 2026-06-22
+
+### 🔌 API Changes
+- **Backup runs now exit non-zero on failure.** Previously `rlvm-backup` exited 0
+  even when a backup job or copy operation failed, silently defeating exit-code
+  based alerting (systemd `OnFailure=`, cron `MAILTO`, success heartbeats). It now
+  exits 1 if any job or copy fails. **Action:** if you had automation tolerating
+  the old always-0 exit, expect real failures to now surface as exit 1.
+
+### ✨ New Features
+- **End-of-run summary**: after all jobs run, a summary lists how many jobs ran and
+  names any failed jobs and failed copy destinations.
+- Jobs remain isolated — one failed job still lets the others run; failures are
+  reported rather than hidden.
+
+### 🔧 Internal
+- `BackupJob.run()` now returns a `JobResult`; `run_all()` returns a failure count.
+- Added pixi dev environment (`pixi.toml` / `pixi.lock`); run tests with `pixi run test`.
+- Single-sourced the package version in `pyproject.toml` (removed the duplicate from
+  `pixi.toml`).
+- Added a `release-build` pixi task and bundled the `python-build` frontend.
+- Added unit tests covering failure reporting, copy failures, job isolation, and the
+  non-zero exit code.
+
+### ⚠️ Known Limitations
+- A mid-run failure can still leak the LVM snapshot and bind-mounts (no cleanup
+  trap yet) — tracked in #24. Continue running ResticLVM **attended/manual only**
+  until that is fixed.
+
+---
+
 ## [0.2.1] — 2026-01-14
 
 ### 🔌 API Changes
