@@ -1,0 +1,17 @@
+[workspace]
+authors = ["Duane Goodner <dmgoodner@gmail.com>"]
+channels = ["conda-forge"]
+name = "resticlvm"
+platforms = ["linux-64"]
+version = "0.2.1"
+
+[dependencies]
+python = ">=3.11,<3.13"
+pytest = ">=7.0"
+
+[pypi-dependencies]
+resticlvm = { path = ".", editable = true }
+
+[tasks]
+test = "python -m pytest"
+pytest = "python -m pytest"
