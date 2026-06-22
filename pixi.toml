@@ -10,6 +10,7 @@ platforms = ["linux-64"]
 python = ">=3.11,<3.13"
 pytest = ">=7.0"
 python-build = ">=1.0"
+shellcheck = ">=0.9"
 
 [pypi-dependencies]
 resticlvm = { path = ".", editable = true }
@@ -18,3 +19,4 @@ resticlvm = { path = ".", editable = true }
 test = "python -m pytest"
 pytest = "python -m pytest"
 release-build = "bash tools/release/build-release.sh"
+lint-sh = "shellcheck tools/b2/*.sh src/resticlvm/scripts/*.sh src/resticlvm/scripts/lib/*.sh"

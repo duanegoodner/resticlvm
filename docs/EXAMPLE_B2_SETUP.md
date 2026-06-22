@@ -123,24 +123,24 @@ applicationKey: K004abc...      → This is your AWS_SECRET_ACCESS_KEY
 
 ```bash
 # Create secure directory (as root)
-sudo mkdir -p /root/.config/restic
-sudo chmod 700 /root/.config/restic
+sudo mkdir -p /root/.config/resticlvm
+sudo chmod 700 /root/.config/resticlvm
 
 # Store B2 credentials
-sudo tee /root/.config/restic/b2-env << 'EOF'
+sudo tee /root/.config/resticlvm/b2-env << 'EOF'
 export AWS_ACCESS_KEY_ID="your-key-id-here"
 export AWS_SECRET_ACCESS_KEY="your-application-key-here"
 EOF
 
 # Secure the file (root read-only)
-sudo chmod 600 /root/.config/restic/b2-env
+sudo chmod 600 /root/.config/resticlvm/b2-env
 ```
 
 ### Verify Credentials
 
 ```bash
 # Source credentials
-sudo bash -c 'source /root/.config/restic/b2-env && echo "Access Key: $AWS_ACCESS_KEY_ID"'
+sudo bash -c 'source /root/.config/resticlvm/b2-env && echo "Access Key: $AWS_ACCESS_KEY_ID"'
 ```
 
 You should see your key ID printed.
@@ -155,7 +155,7 @@ Before using ResticLVM, initialize the repository manually to verify credentials
 
 ```bash
 # Source credentials
-sudo bash -c 'source /root/.config/restic/b2-env && \
+sudo bash -c 'source /root/.config/resticlvm/b2-env && \
   restic -r s3:s3.REGION.backblazeb2.com/BUCKET-NAME/PREFIX \
   init --password-file /path/to/restic-password.txt'
 ```
@@ -167,7 +167,7 @@ sudo bash -c 'source /root/.config/restic/b2-env && \
 
 **Example:**
 ```bash
-sudo bash -c 'source /root/.config/restic/b2-env && \
+sudo bash -c 'source /root/.config/resticlvm/b2-env && \
   restic -r s3:s3.us-west-004.backblazeb2.com/mycompany-backups/resticlvm/root \
   init --password-file /etc/resticlvm/restic-password.txt'
 ```
@@ -244,7 +244,7 @@ ExecStart=/usr/local/bin/rlvm-backup --config /etc/resticlvm/backup.toml
 ```bash
 # Wrapper script: /usr/local/bin/resticlvm-backup-wrapper.sh
 #!/bin/bash
-source /root/.config/restic/b2-env
+source /root/.config/resticlvm/b2-env
 exec rlvm-backup --config /etc/resticlvm/backup.toml
 ```
 
@@ -345,7 +345,7 @@ Check your bucket details in B2 console for the exact region.
 echo $AWS_ACCESS_KEY_ID
 
 # Source credential file
-source /root/.config/restic/b2-env
+source /root/.config/resticlvm/b2-env
 
 # For systemd, add to service file
 Environment="AWS_ACCESS_KEY_ID=..."
@@ -394,7 +394,7 @@ Environment="AWS_ACCESS_KEY_ID=..."
 
 ```bash
 # List snapshots
-sudo bash -c 'source /root/.config/restic/b2-env && \
+sudo bash -c 'source /root/.config/resticlvm/b2-env && \
   restic -r s3:s3.REGION.backblazeb2.com/BUCKET/PREFIX \
   --password-file /etc/resticlvm/restic-password.txt \
   snapshots'
@@ -404,7 +404,7 @@ sudo bash -c 'source /root/.config/restic/b2-env && \
 
 ```bash
 # Check repository consistency
-sudo bash -c 'source /root/.config/restic/b2-env && \
+sudo bash -c 'source /root/.config/resticlvm/b2-env && \
   restic -r s3:s3.REGION.backblazeb2.com/BUCKET/PREFIX \
   --password-file /etc/resticlvm/restic-password.txt \
   check'
@@ -424,7 +424,7 @@ sudo bash -c 'source /root/.config/restic/b2-env && \
 
 ```bash
 # Delete all snapshots and data (DANGEROUS!)
-sudo bash -c 'source /root/.config/restic/b2-env && \
+sudo bash -c 'source /root/.config/resticlvm/b2-env && \
   restic -r s3:s3.REGION.backblazeb2.com/BUCKET/PREFIX \
   --password-file /etc/resticlvm/restic-password.txt \
   forget --prune --keep-last 0'
@@ -450,7 +450,7 @@ Before running first backup, verify:
 - [ ] Lifecycle rule set to "Keep only the last version"
 - [ ] S3-compatible application key created (checkbox checked!)
 - [ ] Credentials saved and stored securely
-- [ ] Environment variables file created (`/root/.config/restic/b2-env`)
+- [ ] Environment variables file created (`/root/.config/resticlvm/b2-env`)
 - [ ] Repository initialized manually with restic
 - [ ] ResticLVM config file created
 - [ ] Test backup runs successfully
