@@ -495,6 +495,18 @@ pip install -e ".[dev,b2]"
 
 Changes to the source code are reflected immediately without reinstalling.
 
+> **Two editable-install gotchas:**
+> - **`rlvm-backup --version` can lag.** The reported version comes from the
+>   package *metadata* written at install time, not from `pyproject.toml`. After a
+>   version bump, re-pull won't update it, and `pixi update` / `pixi install` won't
+>   either — force a rebuild: `rm -rf .pixi && pixi install` (pixi) or
+>   `pip install -e . --force-reinstall` (pip). The *code* is always live; only the
+>   printed number lags.
+> - **Running as root from a virtualenv/pixi env.** `sudo` resets `PATH`, so
+>   `sudo rlvm-backup …` may report "command not found" even when `rlvm-backup`
+>   works without `sudo`. Pin the absolute path:
+>   `sudo "$(command -v rlvm-backup)" --config /path/to/config.toml`.
+
 ### CLI Help
 
 To see available options for `rlvm-backup`:
