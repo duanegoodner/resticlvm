@@ -42,11 +42,11 @@ It also backs up **regular partitions** (e.g. `/boot`, `/boot/efi`) directly, wi
 
 A few design choices worth calling out:
 
-- **Crash-consistent snapshots.** Each LVM volume is captured from a point-in-time snapshot, so an actively-written filesystem is backed up consistently without pausing the system.
+- **Consistent point-in-time snapshots.** Each LVM volume is backed up from a snapshot taken at a single instant, so files that change during a long backup are captured as they were at the start — not smeared across the run — while the system keeps running.
+- **Full-system coverage, including the live root.** Backs up regular partitions (e.g. `/boot`, `/boot/efi`) and LVM volumes — *including* the `/`-mounted root logical volume, handled transparently via snapshot + chroot. A running root filesystem is the hard case that simpler tools often skip.
 - **Declarative, multi-destination config.** One TOML file describes every source and its repositories; each repository — and each `copy_to` copy — carries its own independent retention policy.
 - **Direct vs. `copy_to` tradeoff.** Back up directly from the snapshot, or copy to a remote repo *after* the snapshot is released — minimizing snapshot lifetime on busy systems (see [Data Transfer Methods](#data-transfer-methods)).
 - **Exit-code observability.** A run exits non-zero if any job or copy fails and prints an unmissable end-of-run summary, so cron, systemd `OnFailure=`, and heartbeat alerting behave as expected. A failed job is reported but does not abort the others.
-- **Native cloud credentials.** Backups to Backblaze B2 (S3-compatible) load credentials automatically when a config targets them; backups to non-cloud repos need none.
 - **Thin Python over Bash.** A small Python layer handles config, orchestration, and the CLI; the LVM/Restic mechanics live in focused, testable shell scripts.
 
 ## Status and Known Limitations
