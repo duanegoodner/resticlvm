@@ -61,6 +61,36 @@ def test_run_all_all_success_returns_zero():
     assert BackupJobRunner(jobs).run_all() == 0
 
 
+def test_run_all_prints_loud_banner_on_failure(capsys):
+    """Failures get an unmissable banner naming each failed job."""
+    jobs = [
+        _fake_job("standard_path", "ok",
+                  JobResult("standard_path", "ok", script_ok=True, failed_copies=[])),
+        _fake_job("standard_path", "bad",
+                  JobResult("standard_path", "bad", script_ok=False, failed_copies=[])),
+    ]
+
+    BackupJobRunner(jobs).run_all()
+
+    out = capsys.readouterr().out
+    assert "BACKUP FAILED" in out
+    assert "1 of 2" in out
+    assert "!!!!!" in out  # the loud bar
+    assert "standard_path.bad" in out
+
+
+def test_run_all_prints_calm_success_summary(capsys):
+    """All-success prints a plain success line, no failure banner."""
+    job = _fake_job("standard_path", "ok",
+                    JobResult("standard_path", "ok", script_ok=True, failed_copies=[]))
+
+    BackupJobRunner([job]).run_all()
+
+    out = capsys.readouterr().out
+    assert "completed successfully" in out
+    assert "BACKUP FAILED" not in out
+
+
 def test_run_all_respects_category_and_name_filters():
     """Filtered-out jobs are not run."""
     a = _fake_job("standard_path", "a",

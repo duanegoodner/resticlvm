@@ -352,16 +352,25 @@ For remote destinations, you'll need to configure credentials according to the b
 
 **SFTP:** See [docs/EXAMPLE_SSH_SETUP.md](docs/EXAMPLE_SSH_SETUP.md) for SSH key setup with passwordless authentication.
 
-**Backblaze B2:**
+**Backblaze B2 (native backend):**
 ```bash
 export B2_ACCOUNT_ID=<your_account_id>
 export B2_ACCOUNT_KEY=<your_account_key>
-**Backblaze B2 (S3-Compatible - Recommended):**
+```
+
+**Backblaze B2 (S3-Compatible — Recommended):**
 ```bash
 export AWS_ACCESS_KEY_ID=<your_key_id>
 export AWS_SECRET_ACCESS_KEY=<your_secret_key>
 restic -r s3:s3.us-west-004.backblazeb2.com/bucket-name/path init
 ```
+
+For automated runs you don't need to export these yourself: when a config contains
+a B2 (`s3:`) repo, `rlvm-backup` loads `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
+from `/root/.config/resticlvm/b2-env` automatically (credentials already in the
+environment take precedence). Backups to non-B2 repos run fine with no credentials
+present.
+
 See [docs/EXAMPLE_B2_SETUP.md](docs/EXAMPLE_B2_SETUP.md) for detailed B2 configuration.
 
 **Backblaze B2 (Native - Not Recommended):**

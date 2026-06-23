@@ -53,13 +53,22 @@ class BackupJobRunner:
             results.append(job.run())
 
         failures = [r for r in results if not r.ok]
-        print("\n──────── Backup run summary ────────")
-        print(f"  jobs run: {len(results)}   failed: {len(failures)}")
-        for r in failures:
-            if not r.script_ok:
-                print(f"  ❌ {r.category}.{r.name}: backup script failed")
-            for dest in r.failed_copies:
-                print(f"  ❌ {r.category}.{r.name}: copy to {dest} failed")
+        total = len(results)
+        print()
+        if failures:
+            bar = "!" * 64
+            print(bar)
+            print(f"  ⚠️  BACKUP FAILED — {len(failures)} of {total} job(s) did NOT succeed")
+            print(bar)
+            for r in failures:
+                if not r.script_ok:
+                    print(f"  ❌ {r.category}.{r.name}: backup failed")
+                for dest in r.failed_copies:
+                    print(f"  ❌ {r.category}.{r.name}: copy to {dest} failed")
+            print(bar)
+        else:
+            print("──────── Backup run summary ────────")
+            print(f"  ✅ All {total} job(s) completed successfully.")
 
         return len(failures)
 

@@ -328,3 +328,53 @@ def test_run_defaults_ssh_auth_sock_when_unset(mock_run, monkeypatch):
 
     env = mock_run.call_args.kwargs["env"]
     assert env["SSH_AUTH_SOCK"] == "/root/.ssh/ssh-agent.sock"
+
+
+# ─── Native B2 credential loading ───────────────────────────────────────────
+
+
+def _b2_repo():
+    return ResticRepo(
+        repo_path=Path("s3:s3.us-west-004.backblazeb2.com/bucket/path"),
+        password_file=Path("/tmp/pw.txt"),
+        prune_keep_params=_make_prune_params(),
+    )
+
+
+def test_uses_b2_detection():
+    """_uses_b2 is True for an s3: repo, False for a local-only job."""
+    assert _make_job(repositories=[_b2_repo()])._uses_b2() is True
+    local = ResticRepo(
+        repo_path=Path("/media/backups/local"),
+        password_file=Path("/tmp/pw.txt"),
+        prune_keep_params=_make_prune_params(),
+    )
+    assert _make_job(repositories=[local])._uses_b2() is False
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_b2_job_without_credentials_fails_isolated(mock_run, monkeypatch):
+    """A B2 job with no creds fails as a JobResult; the script is never run."""
+    monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
+    monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+    monkeypatch.setenv("RESTICLVM_B2_ENV", "/nonexistent/b2-env")
+
+    result = _make_job(repositories=[_b2_repo()]).run()
+
+    assert result.script_ok is False
+    assert result.ok is False
+    mock_run.assert_not_called()  # we fail before invoking restic
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_b2_job_loads_credentials_into_env(mock_run, monkeypatch):
+    """B2 creds available in the environment are threaded to the subprocess."""
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+
+    result = _make_job(repositories=[_b2_repo()]).run()
+
+    assert result.script_ok is True
+    env = mock_run.call_args.kwargs["env"]
+    assert env["AWS_ACCESS_KEY_ID"] == "id"
+    assert env["AWS_SECRET_ACCESS_KEY"] == "secret"
