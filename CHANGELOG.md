@@ -6,6 +6,22 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.1] — 2026-06-23
+
+### 📚 Documentation
+- Reworked the top-level README (the project's primary documentation): added a
+  Table of Contents, a **Quickstart**, a **Design Notes** section, and a
+  consolidated **Status and Known Limitations** note.
+- Accuracy fixes to match 0.4.0 behavior: run/prune examples now show `sudo` (root
+  is required), `--dry-run` and `--version` are documented, a duplicate Backblaze
+  B2 credential block was removed, the "future feature" note on `--dry-run` (which
+  already exists) was dropped, the Issues link placeholder was fixed, and install
+  snippets point at the current release.
+
+_No code changes._
+
+---
+
 ## [0.4.0] — 2026-06-23
 
 ### 🔌 API Changes
