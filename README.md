@@ -495,17 +495,9 @@ pip install -e ".[dev,b2]"
 
 Changes to the source code are reflected immediately without reinstalling.
 
-> **Two editable-install gotchas:**
-> - **`rlvm-backup --version` can lag.** The reported version comes from the
->   package *metadata* written at install time, not from `pyproject.toml`. After a
->   version bump, re-pull won't update it, and `pixi update` / `pixi install` won't
->   either — force a rebuild: `rm -rf .pixi && pixi install` (pixi) or
->   `pip install -e . --force-reinstall` (pip). The *code* is always live; only the
->   printed number lags.
-> - **Running as root from a virtualenv/pixi env.** `sudo` resets `PATH`, so
->   `sudo rlvm-backup …` may report "command not found" even when `rlvm-backup`
->   works without `sudo`. Pin the absolute path:
->   `sudo "$(command -v rlvm-backup)" --config /path/to/config.toml`.
+> For the **preferred pixi-based dev workflow** — and important editable-install
+> gotchas (`--version` reporting and `pixi.lock` handling) — see
+> [Development](#development).
 
 ### CLI Help
 
@@ -531,7 +523,67 @@ Each subdirectory contains its own README with detailed instructions:
 
 For more information, see [tools/README.md](tools/README.md).
 
-## Development VM
+## Development
+
+### Preferred dev env management: pixi
+
+Development and testing use a [pixi](https://pixi.sh) workspace (defined in
+`pixi.toml`) rather than conda/venv. It provisions Python plus the dev tools
+(`pytest`, `shellcheck`, `python-build`) and installs ResticLVM itself in **editable
+mode**, so source changes are picked up without reinstalling.
+
+```bash
+pixi install        # create/refresh the env from pixi.toml + pixi.lock
+pixi run test       # run the test suite (python -m pytest)
+pixi shell          # drop into an activated shell (leave with: exit)
+```
+
+The editable install is declared in `pixi.toml`:
+
+```toml
+[pypi-dependencies]
+resticlvm = { path = ".", editable = true }
+```
+
+#### Working with `pixi.lock`
+
+`pixi.lock` is a **generated file that we commit** for reproducible environments.
+Pixi rewrites it whenever it re-solves (`pixi install` / `pixi update`), so a stray
+`modified: pixi.lock` is normal. Treat the committed version as the source of truth:
+
+- If you **changed dependencies** (edited `pixi.toml`), commit the updated `pixi.lock`.
+- If you **didn't** intend a dependency change (a pixi command just rewrote it),
+  discard it — especially before pulling:
+  ```bash
+  git restore pixi.lock   # then: git pull
+  ```
+- On a machine you only *run* backups on (not develop), you'll almost always want to
+  discard local `pixi.lock` churn and take what's in the repo.
+
+#### `--version` can lag in an editable install
+
+`rlvm-backup --version` reads the package *metadata* snapshot written at install
+time, **not** `pyproject.toml`. After a version bump, a `git pull` updates the code
+but not that snapshot — and `pixi install` / `pixi update` won't refresh it either.
+Force a full rebuild:
+
+```bash
+rm -rf .pixi src/resticlvm.egg-info && pixi install
+```
+
+The running *code* is always current; only the printed number lags. (A real
+`pip install <wheel>` deployment always reports correctly.)
+
+#### Running as root from the pixi env
+
+`sudo` resets `PATH`, so `sudo rlvm-backup …` may report "command not found" even
+when `rlvm-backup` works without `sudo`. Pin the absolute path:
+
+```bash
+sudo "$(command -v rlvm-backup)" --config /path/to/config.toml
+```
+
+### LVM Test VM
 
 For testing ResticLVM without modifying your local system's LVM configuration, use the included Infrastructure-as-Code (IaC) in `dev/vm-builder/` to build and deploy a Debian 13 test VM with LVM already configured.
 
