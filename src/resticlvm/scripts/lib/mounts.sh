@@ -112,7 +112,7 @@ bind_chroot_essentials_to_mounted_snapshot() {
     fi
     
     # Bind SSH agent socket directory if it exists (for remote SFTP repos)
-    if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
+    if [ -n "${SSH_AUTH_SOCK:-}" ] && [ -S "$SSH_AUTH_SOCK" ]; then
         echo "🔑 Binding SSH agent socket for remote repos..."
         local socket_dir=$(dirname "$SSH_AUTH_SOCK")
         local chroot_socket_dir="$snapshot_mount_point$socket_dir"
@@ -164,7 +164,7 @@ unmount_chroot_essentials() {
     local snapshot_mount_point="$2"
 
     # Unmount SSH agent socket directory first if it was bound
-    if [ -n "$SSH_AUTH_SOCK" ]; then
+    if [ -n "${SSH_AUTH_SOCK:-}" ]; then
         local socket_dir=$(dirname "$SSH_AUTH_SOCK")
         if mountpoint -q "$snapshot_mount_point$socket_dir" 2>/dev/null; then
             run_or_echo "$dry_run" "umount \"$snapshot_mount_point$socket_dir\""

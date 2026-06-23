@@ -141,9 +141,11 @@ class BackupJob:
         repo_count = len(self.repositories)
         print(f"▶️  Running backup job: [{self.category}.{self.name}] → {repo_count} repo(s)")
 
-        # Prepare environment with SSH agent socket for SFTP repositories
+        # Prepare environment with SSH agent socket for SFTP repositories.
+        # Respect an SSH_AUTH_SOCK already set by the caller; only fall back to
+        # the conventional root agent socket when none is provided.
         env = os.environ.copy()
-        env['SSH_AUTH_SOCK'] = '/root/.ssh/ssh-agent.sock'
+        env.setdefault('SSH_AUTH_SOCK', '/root/.ssh/ssh-agent.sock')
 
         try:
             subprocess.run(
