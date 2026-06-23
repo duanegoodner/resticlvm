@@ -41,6 +41,13 @@ if [[ ! -f "$B2_ENV_FILE" ]]; then
     exit 1
 fi
 
+# Warn (don't fail) if the credentials file is readable by group/other.
+perms="$(stat -c '%a' "$B2_ENV_FILE" 2>/dev/null || true)"
+if [[ -n "$perms" && $(( 8#$perms & 8#077 )) -ne 0 ]]; then
+    echo "⚠️  Warning: $B2_ENV_FILE is accessible to group/other (mode $perms)." >&2
+    echo "   It holds your B2 credentials — restrict it: chmod 600 $B2_ENV_FILE" >&2
+fi
+
 # shellcheck disable=SC1090
 source "$B2_ENV_FILE"
 
