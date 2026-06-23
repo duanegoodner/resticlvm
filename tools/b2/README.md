@@ -23,25 +23,11 @@ export AWS_SECRET_ACCESS_KEY=your_b2_application_key
 Credentials already present in the environment (e.g. a systemd `Environment=`, or
 exported in your shell) take precedence over this file. `rlvm-backup` reads the file
 via `RESTICLVM_B2_ENV` if set, else the default path above; the helper scripts below
-read it via `B2_ENV_FILE` (same default).
+read it from the default path.
 
 ## Scripts
 
-### 1. with-b2-creds.sh (generic credential loader)
-
-Loads B2 credentials, then `exec`s whatever command you give it. Backups don't need
-it anymore (`rlvm-backup` handles B2 natively); reach for it when you want to run
-*some other* command with B2 creds loaded — e.g. a one-off `restic` invocation.
-
-**Usage:**
-```bash
-sudo ./with-b2-creds.sh -- restic -r s3:... -p /path/to/pw.txt snapshots
-```
-
-It deliberately does **not** locate any entrypoint — you pass the exact command to
-run, so there is no fragile `which` lookup or PATH guessing.
-
-### 2. restic-b2.sh
+### 1. restic-b2.sh
 
 Wrapper for running restic commands against B2 repositories.
 
@@ -79,15 +65,18 @@ sudo ./restic-b2.sh -r s3:s3.us-west-004.backblazeb2.com/bucket/path \
 - `forget` - Remove specific snapshots
 - `restore SNAPSHOT_ID --target /restore/path` - Restore files
 
-### 3. b2-cli.sh
+### 2. b2-cli.sh
 
 Wrapper for running Backblaze B2 CLI commands with credentials loaded.
 
 **Purpose:** Explore B2 bucket contents, manage files, view storage usage (requires `b2` package: `pip install -e ".[b2]"`).
 
+`b2-cli.sh` finds the `b2` CLI on `PATH`, so when `b2` lives in a virtualenv/pixi
+env (not on root's `PATH`) preserve your `PATH` through `sudo`:
+
 **Usage:**
 ```bash
-# List files in repository path (preserve PATH for conda env)
+# List files in repository path
 sudo env "PATH=$PATH" ./b2-cli.sh ls --long --recursive b2://bucket/path/
 
 # Get bucket information
@@ -116,7 +105,7 @@ pip install -e ".[b2]"
 pip install b2
 ```
 
-### 4. init-b2-repos.sh
+### 3. init-b2-repos.sh
 
 Initialize new restic repositories on Backblaze B2.
 
@@ -225,9 +214,12 @@ If you see "no credentials found" errors:
 
 ### Command Not Found (b2, rlvm-backup, lvcreate)
 
-When using sudo, commands may not be in PATH:
-- Use `sudo env "PATH=$PATH"` to preserve your user's PATH
-- For cron jobs, explicitly set PATH in the crontab
+`sudo` resets `PATH`, so a command installed in a virtualenv/pixi env may not be found:
+- **rlvm-backup:** pin its absolute path — `sudo "$(command -v rlvm-backup)" --config …`
+  (or use the system install path, e.g. `/usr/local/bin/rlvm-backup`).
+- **b2 / restic CLIs** (via these helper scripts): preserve your `PATH` —
+  `sudo env "PATH=$PATH" ./b2-cli.sh …`.
+- **For cron jobs**, call binaries by absolute path (cron's `PATH` is minimal).
 
 ### Checking B2 Storage Usage
 
