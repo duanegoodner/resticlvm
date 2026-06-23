@@ -1,6 +1,6 @@
 # ResticLVM
 
-> **A config-based tool for atomic, incremental backups — powered by [Restic](https://github.com/restic/restic) and [LVM2](https://sourceware.org/lvm2/).**
+> **Consistent backups of live Linux systems, using LVM snapshots and Restic.**
 
 ## Description
 
