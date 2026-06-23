@@ -1,10 +1,10 @@
 # ResticLVM
 
-> **Consistent backups of live Linux systems, using LVM snapshots and Restic.**
+Consistent backups of live Linux systems, using LVM snapshots and Restic.
 
 ## Description
 
-ResticLVM is a Linux command-line tool that combines the snapshot features of Logical Volume Manager (LVM) with the data deduplication and encryption features of the [Restic](https://github.com/restic/restic) backup tool to create consistent, efficient backups of active systems — without taking the system offline.
+ResticLVM is a Linux command-line tool that combines the snapshot features of Logical Volume Manager (LVM) with the data deduplication and encryption features of the [Restic](https://github.com/restic/restic) backup tool to create consistent, efficient backups of active systems, without taking the system offline.
 
 ResticLVM uses a simple TOML configuration file format to define backup jobs, and provides CLI commands to run backups or prune old snapshots based on configuration settings.
 
@@ -29,7 +29,7 @@ Interaction with Restic and LVM is handled by a set of [Bash shell scripts](src/
 
 ## How It Works
 
-ResticLVM backs up **LVM logical volumes** from a temporary snapshot — a consistent, point-in-time copy of an actively-used filesystem:
+ResticLVM backs up **LVM logical volumes** from a temporary snapshot, a consistent point-in-time copy of an actively-used filesystem:
 
 - 📦 Creates a timestamped LVM snapshot of each logical volume to be backed up.
 - 🔒 Mounts the snapshot read-only at a temporary mount point.
@@ -42,18 +42,18 @@ It also backs up **regular partitions** (e.g. `/boot`, `/boot/efi`) directly, wi
 
 A few design choices worth calling out:
 
-- **Consistent point-in-time snapshots.** Each LVM volume is backed up from a snapshot taken at a single instant, so files that change during a long backup are captured as they were at the start — not smeared across the run — while the system keeps running.
-- **Full-system coverage, including the live root.** Backs up regular partitions (e.g. `/boot`, `/boot/efi`) and LVM volumes — *including* the `/`-mounted root logical volume, handled transparently via snapshot + chroot. A running root filesystem is the hard case that simpler tools often skip.
-- **Declarative, multi-destination config.** One TOML file describes every source and its repositories; each repository — and each `copy_to` copy — carries its own independent retention policy.
-- **Direct vs. `copy_to` tradeoff.** Back up directly from the snapshot, or copy to a remote repo *after* the snapshot is released — minimizing snapshot lifetime on busy systems (see [Data Transfer Methods](#data-transfer-methods)).
+- **Consistent point-in-time snapshots.** Each LVM volume is backed up from a snapshot taken at a single instant, so files that change during a long backup are captured as they were at the start, not smeared across the run, while the system keeps running.
+- **Full-system coverage, including the live root.** Backs up regular partitions (e.g. `/boot`, `/boot/efi`) and LVM volumes, *including* the `/`-mounted root logical volume, handled transparently via snapshot + chroot. A running root filesystem is the hard case that simpler tools often skip.
+- **Declarative, multi-destination config.** One TOML file describes every source and its repositories; each repository (and each `copy_to` copy) carries its own independent retention policy.
+- **Direct vs. `copy_to` tradeoff.** Back up directly from the snapshot, or copy to a remote repo *after* the snapshot is released, minimizing snapshot lifetime on busy systems (see [Data Transfer Methods](#data-transfer-methods)).
 - **Exit-code observability.** A run exits non-zero if any job or copy fails and prints an unmissable end-of-run summary, so cron, systemd `OnFailure=`, and heartbeat alerting behave as expected. A failed job is reported but does not abort the others.
 - **Thin Python over Bash.** A small Python layer handles config, orchestration, and the CLI; the LVM/Restic mechanics live in focused, testable shell scripts.
 
 ## Status and Known Limitations
 
-ResticLVM is pre-1.0 and is used in a personal production backup workflow. One limitation is worth knowing before you rely on it:
+ResticLVM is pre-1.0. One limitation is worth knowing before you rely on it:
 
-- **Run attended for now.** If a backup fails mid-run, the LVM snapshot and its mounts may be left behind — cleanup-on-failure is not yet automatic (tracked in [#24](https://github.com/duanegoodner/resticlvm/issues/24)). Until that lands, run ResticLVM manually/attended rather than fully unattended on a schedule, and see [Troubleshooting](#troubleshooting) for cleanup steps. The exit-code and end-of-run summary behavior makes such failures easy to detect.
+- **Run attended for now.** If a backup fails mid-run, the LVM snapshot and its mounts may be left behind. Cleanup-on-failure is not yet automatic (tracked in [#24](https://github.com/duanegoodner/resticlvm/issues/24)). Until that lands, run ResticLVM manually/attended rather than fully unattended on a schedule, and see [Troubleshooting](#troubleshooting) for cleanup steps. The exit-code and end-of-run summary behavior makes such failures easy to detect.
 
 ## Requirements
 - A Linux system with Logical Volume Manager (LVM).
@@ -66,7 +66,7 @@ ResticLVM is pre-1.0 and is used in a personal production backup workflow. One l
 
 ## Quickstart
 
-A minimal end-to-end example — back up the `/home` logical volume to a local Restic repository:
+A minimal end-to-end example that backs up the `/home` logical volume to a local Restic repository:
 
 ```bash
 # 1. Install
@@ -79,7 +79,7 @@ sudo chmod 600 /root/.config/resticlvm/repo-creds/home.txt
 sudo restic init --repo /srv/backup/home \
   --password-file /root/.config/resticlvm/repo-creds/home.txt
 
-# 3. Write a config (backup.toml) — adjust vg_name/lv_name to your system
+# 3. Write a config (backup.toml), adjusting vg_name/lv_name to your system
 cat > backup.toml <<'EOF'
 [logical_volume_nonroot.home]
 vg_name = "vg0"
@@ -103,7 +103,7 @@ sudo rlvm-backup --config backup.toml --dry-run
 sudo rlvm-backup --config backup.toml
 ```
 
-For the full configuration reference — multiple/remote/cloud repositories, `copy_to`, root and standard-partition backups — see [Config File Setup](#config-file-setup).
+For the full configuration reference (multiple/remote/cloud repositories, `copy_to`, root and standard-partition backups), see [Config File Setup](#config-file-setup).
 
 
 ## Getting Started
@@ -118,9 +118,9 @@ pip install git+https://github.com/duanegoodner/resticlvm.git@v0.4.1
 
 This installs the CLI tools:
 
-- `rlvm-backup` — Run backup jobs as defined in your configuration file.
+- `rlvm-backup`: Run backup jobs as defined in your configuration file.
 
-- `rlvm-prune` —  Prune Restic snapshots according to the retention settings in your configuration.
+- `rlvm-prune`: Prune Restic snapshots according to the retention settings in your configuration.
 
 For other installation methods, see [Alternate Installation Methods](#alternate-installation-methods).
 
@@ -129,9 +129,9 @@ For other installation methods, see [Alternate Installation Methods](#alternate-
 
 ResticLVM supports backing up both **LVM logical volumes** and **regular filesystem partitions**:
 
-- **LVM logical volumes** — ResticLVM creates a temporary snapshot of the logical volume, mounts it, backs up from the snapshot, then automatically removes it. This ensures backup consistency even for actively-used filesystems. (Note: LVM volumes mounted at `/` require special handling internally, but this is transparent to the user.)
+- **LVM logical volumes**: ResticLVM creates a temporary snapshot of the logical volume, mounts it, backs up from the snapshot, then automatically removes it. This ensures backup consistency even for actively-used filesystems. (Note: LVM volumes mounted at `/` require special handling internally, but this is transparent to the user.)
 
-- **Regular partitions** — ResticLVM can back up any mounted partition (e.g., `/boot`, `/boot/efi`) directly without creating a snapshot. The partition remains mounted read-write during backup.
+- **Regular partitions**: ResticLVM can back up any mounted partition (e.g., `/boot`, `/boot/efi`) directly without creating a snapshot. The partition remains mounted read-write during backup.
 
 > **⚠️ Note on Regular Partition Backups:** Unlike LVM backups, regular partition backups are not atomic. Earlier versions of ResticLVM supported remounting these partitions as read-only during backup, but this feature was removed because having an in-use partition mounted read-only can cause system problems, particularly during critical operations like kernel or bootloader updates.
 
@@ -155,10 +155,10 @@ Consider a common UEFI system layout with one disk and LVM:
 
 This example demonstrates **four backup destinations** per volume using a combination of strategies:
 
-1. **Local repository** — Fast backups and quick recovery
-2. **Copy to SFTP** — Local repo copied to remote ([see below](#data-transfer-methods) for details on `copy_to`)
-3. **Direct SFTP** — Direct backup to different remote path
-4. **Direct B2 cloud** — Direct backup to offsite cloud storage
+1. **Local repository**: Fast backups and quick recovery
+2. **Copy to SFTP**: Local repo copied to remote ([see below](#data-transfer-methods) for details on `copy_to`)
+3. **Direct SFTP**: Direct backup to different remote path
+4. **Direct B2 cloud**: Direct backup to offsite cloud storage
 
 ```toml
 # /boot/efi partition (EFI System Partition)
@@ -344,7 +344,7 @@ Run all backup jobs defined in a config (ResticLVM must run as root):
 sudo rlvm-backup --config /path/to/your/backup-config.toml
 ```
 
-Preview what would happen — without writing any backups — with `--dry-run`:
+Preview what would happen, without writing any backups, using `--dry-run`:
 
 ```bash
 sudo rlvm-backup --config /path/to/your/backup-config.toml --dry-run
@@ -352,7 +352,7 @@ sudo rlvm-backup --config /path/to/your/backup-config.toml --dry-run
 
 See [below](#running-specific-jobs-from-config-file) for running specific (not all) jobs from a config file.
 
-> **⚠️ If a run fails,** ResticLVM may leave behind an LVM snapshot and its mounts — cleanup-on-failure isn't automatic yet (see [Status and Known Limitations](#status-and-known-limitations)). Check with `sudo lvs | grep snapshot` and `mount | grep resticlvm`, and see [Troubleshooting](#troubleshooting) for cleanup steps.
+> **⚠️ If a run fails,** ResticLVM may leave behind an LVM snapshot and its mounts; cleanup-on-failure isn't automatic yet (see [Status and Known Limitations](#status-and-known-limitations)). Check with `sudo lvs | grep snapshot` and `mount | grep resticlvm`, and see [Troubleshooting](#troubleshooting) for cleanup steps.
 
 ## Additional Details for Running
 
@@ -378,17 +378,17 @@ backup_source_path = "/path/to/source"
 
 **Structure components:**
 
-- **`[<volume_type>.<volume_id>]`** — Top-level section defining the volume to back up
+- **`[<volume_type>.<volume_id>]`**: Top-level section defining the volume to back up
   - `<volume_type>` specifies the type of volume:
-    - `standard_path` — Standard filesystem path (e.g., `/boot`, `/boot/efi`)
-    - `logical_volume_root` — LVM logical volume mounted at `/`
-    - `logical_volume_nonroot` — LVM logical volume mounted elsewhere (e.g., `/home`, `/data`)
+    - `standard_path`: Standard filesystem path (e.g., `/boot`, `/boot/efi`)
+    - `logical_volume_root`: LVM logical volume mounted at `/`
+    - `logical_volume_nonroot`: LVM logical volume mounted elsewhere (e.g., `/home`, `/data`)
   - `<volume_id>` is your chosen identifier for that specific volume (any valid name without spaces)
 
-- **`[[<volume_type>.<volume_id>.repositories]]`** — Direct backup destination (can have multiple)
+- **`[[<volume_type>.<volume_id>.repositories]]`**: Direct backup destination (can have multiple)
   - Defines where to send backups directly from the source
 
-- **`[[<volume_type>.<volume_id>.repositories.copy_to]]`** — Copy destination (can have multiple per repository)
+- **`[[<volume_type>.<volume_id>.repositories.copy_to]]`**: Copy destination (can have multiple per repository)
   - Copies snapshots from the parent repository after backup completes
 
 
@@ -408,9 +408,9 @@ sudo rlvm-backup --config /path/to/resticlvm_config.toml --category standard_pat
 
 ResticLVM supports two methods for transferring data to backup repositories:
 
-1. **Direct backup from source** — Restic reads directly from the backup source (mounted LVM snapshot or filesystem) and sends data to the repository. In the example above, this is used for the local repos and the direct SFTP and B2 destinations.
+1. **Direct backup from source**: Restic reads directly from the backup source (mounted LVM snapshot or filesystem) and sends data to the repository. In the example above, this is used for the local repos and the direct SFTP and B2 destinations.
 
-2. **Copy from existing repository** — Restic copies snapshots from one repository to another using `restic copy`. In the example above, this is used for the `boot-efi-copy`, `boot-copy`, `root-copy`, and `home-copy` destinations (configured via `[[repositories.copy_to]]` blocks).
+2. **Copy from existing repository**: Restic copies snapshots from one repository to another using `restic copy`. In the example above, this is used for the `boot-efi-copy`, `boot-copy`, `root-copy`, and `home-copy` destinations (configured via `[[repositories.copy_to]]` blocks).
 
 **Pros and cons of each approach:**
 
@@ -418,7 +418,7 @@ ResticLVM supports two methods for transferring data to backup repositories:
 
 - **`copy_to`** releases LVM snapshots faster since copying happens *after* snapshot cleanup. This minimizes snapshot lifetime, which matters for systems with high write activity or when backing up large volumes over slow connections. The tradeoff is less detailed output during the copy phase.
 
-You can add `copy_to` destinations under *any* repository entry (local or remote). Each `copy_to` destination is a fully independent restic repository with its own retention policy — it does not need to match the pruning settings of the source repository. For simplicity, choose **either** direct backup **or** `copy_to` for each specific destination — using both to the same location is redundant.
+You can add `copy_to` destinations under *any* repository entry (local or remote). Each `copy_to` destination is a fully independent restic repository with its own retention policy; it does not need to match the pruning settings of the source repository. For simplicity, choose **either** direct backup **or** `copy_to` for each specific destination. Using both to the same location is redundant.
 
 
 ### Remote Repository Setup
@@ -427,7 +427,7 @@ For remote destinations, you'll need to configure credentials according to the b
 
 **SFTP:** See [docs/EXAMPLE_SSH_SETUP.md](docs/EXAMPLE_SSH_SETUP.md) for SSH key setup with passwordless authentication.
 
-**Backblaze B2 (S3-Compatible — Recommended):**
+**Backblaze B2 (S3-Compatible, recommended):**
 ```bash
 export AWS_ACCESS_KEY_ID=<your_key_id>
 export AWS_SECRET_ACCESS_KEY=<your_secret_key>
@@ -463,9 +463,9 @@ See [Restic documentation](https://restic.readthedocs.io/en/stable/030_preparing
 
 - **`snapshot_size`** must be large enough to capture changes during backup. Overflow causes backup failure.
 - **`exclude_paths`** is a TOML array of paths to exclude from backup.
-- **Multiple repos per job** — All `[[repositories]]` receive the same snapshot data.
-- **`copy_to` destinations** — Receive copies after local backup completes.
-- **All repositories must exist** — Use `restic init` to create each repo before first use.
+- **Multiple repos per job**: All `[[repositories]]` receive the same snapshot data.
+- **`copy_to` destinations**: Receive copies after local backup completes.
+- **All repositories must exist**: Use `restic init` to create each repo before first use.
 
 
 ### Pruning Snapshots
@@ -564,8 +564,8 @@ pip install -e ".[dev,b2]"
 
 Changes to the source code are reflected immediately without reinstalling.
 
-> For the **preferred pixi-based dev workflow** — and important editable-install
-> gotchas (`--version` reporting and `pixi.lock` handling) — see
+> For the **preferred pixi-based dev workflow**, and important editable-install
+> gotchas (`--version` reporting and `pixi.lock` handling), see
 > [Development](#development).
 
 ### CLI Help
@@ -622,7 +622,7 @@ Pixi rewrites it whenever it re-solves (`pixi install` / `pixi update`), so a st
 
 - If you **changed dependencies** (edited `pixi.toml`), commit the updated `pixi.lock`.
 - If you **didn't** intend a dependency change (a pixi command just rewrote it),
-  discard it — especially before pulling:
+  discard it, especially before pulling:
   ```bash
   git restore pixi.lock   # then: git pull
   ```
@@ -633,7 +633,7 @@ Pixi rewrites it whenever it re-solves (`pixi install` / `pixi update`), so a st
 
 `rlvm-backup --version` reads the package *metadata* snapshot written at install
 time, **not** `pyproject.toml`. After a version bump, a `git pull` updates the code
-but not that snapshot — and `pixi install` / `pixi update` won't refresh it either.
+but not that snapshot, and `pixi install` / `pixi update` won't refresh it either.
 Force a full rebuild:
 
 ```bash
