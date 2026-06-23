@@ -1,27 +1,59 @@
 # ResticLVM
 
-> **A config-based tool for atomic, incremental backups — powered by [Restic](https://github.com/restic/restic) and [LVM2](https://sourceware.org/lvm2/).**
+> **Consistent backups of live Linux systems, using LVM snapshots and Restic.**
 
 ## Description
 
-ResticLVM is a Linux command-line tool that combines the snapshot features of Logical Volume Manager (LVM) with the data deduplication and encryption features of the [Restic](https://github.com/restic/restic) backup tool to create consistent, efficient backups of active systems with minimal downtime.
+ResticLVM is a Linux command-line tool that combines the snapshot features of Logical Volume Manager (LVM) with the data deduplication and encryption features of the [Restic](https://github.com/restic/restic) backup tool to create consistent, efficient backups of active systems — without taking the system offline.
 
 ResticLVM uses a simple TOML configuration file format to define backup jobs, and provides CLI commands to run backups or prune old snapshots based on configuration settings.
 
 Interaction with Restic and LVM is handled by a set of [Bash shell scripts](src/resticlvm/scripts/README.md), while a lightweight Python wrapper orchestrates the backup flow, provides the CLI interface, and enables installation as a Python package.
 
+## Table of Contents
 
-## How It Works:
+- [How It Works](#how-it-works)
+- [Design Notes](#design-notes)
+- [Status and Known Limitations](#status-and-known-limitations)
+- [Requirements](#requirements)
+- [Quickstart](#quickstart)
+- [Getting Started](#getting-started)
+- [Additional Details for Running](#additional-details-for-running)
+- [Alternate Installation Methods](#alternate-installation-methods)
+- [CLI Help](#cli-help)
+- [Helper Tools](#helper-tools)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [Links](#links)
+
+## How It Works
+
+ResticLVM backs up **LVM logical volumes** from a temporary snapshot — a consistent, point-in-time copy of an actively-used filesystem:
 
 - 📦 Creates a timestamped LVM snapshot of each logical volume to be backed up.
+- 🔒 Mounts the snapshot read-only at a temporary mount point.
+- 📤 Runs Restic to back up the mounted snapshot to the configured repository(ies).
+- 🧹 Cleans up the snapshot after the backup completes.
 
-- 🔒 Mounts the snapshot to a temporary mount point.
+It also backs up **regular partitions** (e.g. `/boot`, `/boot/efi`) directly, without a snapshot. Snapshotting keeps LVM backups consistent without interrupting the running system.
 
-- 📤 Runs Restic to back up the mounted snapshot to the configured repository.
+## Design Notes
 
-- 🧹 Cleans up the snapshot automatically after backup completes.
+A few design choices worth calling out:
 
-This approach ensures that backup operations are fast, safe, and do not interfere with the running system.
+- **Crash-consistent snapshots.** Each LVM volume is captured from a point-in-time snapshot, so an actively-written filesystem is backed up consistently without pausing the system.
+- **Declarative, multi-destination config.** One TOML file describes every source and its repositories; each repository — and each `copy_to` copy — carries its own independent retention policy.
+- **Direct vs. `copy_to` tradeoff.** Back up directly from the snapshot, or copy to a remote repo *after* the snapshot is released — minimizing snapshot lifetime on busy systems (see [Data Transfer Methods](#data-transfer-methods)).
+- **Exit-code observability.** A run exits non-zero if any job or copy fails and prints an unmissable end-of-run summary, so cron, systemd `OnFailure=`, and heartbeat alerting behave as expected. A failed job is reported but does not abort the others.
+- **Native cloud credentials.** Backups to Backblaze B2 (S3-compatible) load credentials automatically when a config targets them; backups to non-cloud repos need none.
+- **Thin Python over Bash.** A small Python layer handles config, orchestration, and the CLI; the LVM/Restic mechanics live in focused, testable shell scripts.
+
+## Status and Known Limitations
+
+ResticLVM is pre-1.0 and is used in a personal production backup workflow. One limitation is worth knowing before you rely on it:
+
+- **Run attended for now.** If a backup fails mid-run, the LVM snapshot and its mounts may be left behind — cleanup-on-failure is not yet automatic (tracked in [#24](https://github.com/duanegoodner/resticlvm/issues/24)). Until that lands, run ResticLVM manually/attended rather than fully unattended on a schedule, and see [Troubleshooting](#troubleshooting) for cleanup steps. The exit-code and end-of-run summary behavior makes such failures easy to detect.
 
 ## Requirements
 - A Linux system with Logical Volume Manager (LVM).
@@ -32,6 +64,48 @@ This approach ensures that backup operations are fast, safe, and do not interfer
 - For remote repositories: Authentication must be configured for automated access (e.g., SSH keys for SFTP, environment variables for cloud storage). See [Remote Repository Setup](#remote-repository-setup) for details.
 
 
+## Quickstart
+
+A minimal end-to-end example — back up the `/home` logical volume to a local Restic repository:
+
+```bash
+# 1. Install
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.4.1
+
+# 2. Create a password file and initialize the Restic repository (one-time)
+sudo mkdir -p /root/.config/resticlvm/repo-creds
+echo "choose-a-strong-passphrase" | sudo tee /root/.config/resticlvm/repo-creds/home.txt > /dev/null
+sudo chmod 600 /root/.config/resticlvm/repo-creds/home.txt
+sudo restic init --repo /srv/backup/home \
+  --password-file /root/.config/resticlvm/repo-creds/home.txt
+
+# 3. Write a config (backup.toml) — adjust vg_name/lv_name to your system
+cat > backup.toml <<'EOF'
+[logical_volume_nonroot.home]
+vg_name = "vg0"
+lv_name = "lv_home"
+snapshot_size = "2G"
+backup_source_path = "/home"
+exclude_paths = []
+
+  [[logical_volume_nonroot.home.repositories]]
+  repo_path = "/srv/backup/home"
+  password_file = "/root/.config/resticlvm/repo-creds/home.txt"
+  prune_keep_last = 7
+  prune_keep_daily = 7
+  prune_keep_weekly = 4
+  prune_keep_monthly = 3
+  prune_keep_yearly = 1
+EOF
+
+# 4. Preview, then run (must be root)
+sudo rlvm-backup --config backup.toml --dry-run
+sudo rlvm-backup --config backup.toml
+```
+
+For the full configuration reference — multiple/remote/cloud repositories, `copy_to`, root and standard-partition backups — see [Config File Setup](#config-file-setup).
+
+
 ## Getting Started
 
 ### Installing
@@ -39,7 +113,7 @@ This approach ensures that backup operations are fast, safe, and do not interfer
 Install the latest release directly from GitHub:
 
 ```bash
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.3.0
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.4.1
 ```
 
 This installs the CLI tools:
@@ -264,20 +338,21 @@ exclude_paths = []
 
 ### Running
 
-To execute all backup jobs specified in a .toml run:
+Run all backup jobs defined in a config (ResticLVM must run as root):
 
+```bash
+sudo rlvm-backup --config /path/to/your/backup-config.toml
 ```
-rlvm-backup --config /path/to/your/backup-config.toml
-```
-See [below](#running-specific-jobs-from-config-file) for instructions on how to run specific (i.e. not all) jobs shown in a config file.
 
-> **⚠️ Important: Failed Backup Cleanup**
->
-> If a backup run fails or is interrupted (e.g., network errors, incorrect credentials, insufficient disk space), ResticLVM may leave behind LVM snapshots and mounted filesystems. These must be cleaned up manually to avoid consuming disk space and preventing future backups.
->
-> Check for leftover snapshots with `sudo lvs | grep snapshot` and mounted filesystems with `mount | grep resticlvm`. See the [Troubleshooting](#troubleshooting) section for detailed cleanup instructions.
->
-> We are evaluating the safest approach for automated cleanup. For now, manual cleanup ensures you maintain full control over snapshot removal.
+Preview what would happen — without writing any backups — with `--dry-run`:
+
+```bash
+sudo rlvm-backup --config /path/to/your/backup-config.toml --dry-run
+```
+
+See [below](#running-specific-jobs-from-config-file) for running specific (not all) jobs from a config file.
+
+> **⚠️ If a run fails,** ResticLVM may leave behind an LVM snapshot and its mounts — cleanup-on-failure isn't automatic yet (see [Status and Known Limitations](#status-and-known-limitations)). Check with `sudo lvs | grep snapshot` and `mount | grep resticlvm`, and see [Troubleshooting](#troubleshooting) for cleanup steps.
 
 ## Additional Details for Running
 
@@ -323,10 +398,10 @@ The `--category` and/or `--name` options can be used if we only want to run some
 
 ```
 # Run all jobs in a category
-rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path
+sudo rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path
 
 # Run a single specific job
-rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path --name boot
+sudo rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path --name boot
 ```
 
 ### Data Transfer Methods
@@ -351,12 +426,6 @@ You can add `copy_to` destinations under *any* repository entry (local or remote
 For remote destinations, you'll need to configure credentials according to the backend type:
 
 **SFTP:** See [docs/EXAMPLE_SSH_SETUP.md](docs/EXAMPLE_SSH_SETUP.md) for SSH key setup with passwordless authentication.
-
-**Backblaze B2 (native backend):**
-```bash
-export B2_ACCOUNT_ID=<your_account_id>
-export B2_ACCOUNT_KEY=<your_account_key>
-```
 
 **Backblaze B2 (S3-Compatible — Recommended):**
 ```bash
@@ -403,8 +472,8 @@ See [Restic documentation](https://restic.readthedocs.io/en/stable/030_preparing
 
 #### Prune All Configured Repositories
 
-```
-rlvm-prune --config /path/to/your/resticlvm_config.toml
+```bash
+sudo rlvm-prune --config /path/to/your/resticlvm_config.toml
 ```
 - Applies the configured prune_keep_* settings to each Restic repo.
 
@@ -446,7 +515,7 @@ Snapshots tagged protected will automatically be preserved during pruning, regar
 Replace the version tag with any release from the [releases page](https://github.com/duanegoodner/resticlvm/releases):
 
 ```bash
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.3.0
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.4.1
 ```
 
 #### Install from Main Branch
@@ -462,19 +531,19 @@ pip install git+https://github.com/duanegoodner/resticlvm.git@main
 Install with B2 CLI support for Backblaze B2 management:
 
 ```bash
-pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.3.0#egg=resticlvm[b2]"
+pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.4.1#egg=resticlvm[b2]"
 ```
 
 Install with development tools (pytest):
 
 ```bash
-pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.3.0#egg=resticlvm[dev]"
+pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.4.1#egg=resticlvm[dev]"
 ```
 
 Install with both B2 and development dependencies:
 
 ```bash
-pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.3.0#egg=resticlvm[dev,b2]"
+pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.4.1#egg=resticlvm[dev,b2]"
 ```
 
 #### Clone and Install in Development Mode
@@ -501,13 +570,13 @@ Changes to the source code are reflected immediately without reinstalling.
 
 ### CLI Help
 
-To see available options for `rlvm-backup`:
-```
-rlvm-backup --help
-```
+Both commands accept `--config`, `--category`, `--name`, `--dry-run`, `--version`, and
+`--help`. `--help` and `--version` work without root; running an actual backup or prune
+requires root.
 
-To see available `rlvm-prune` options:
-```
+```bash
+rlvm-backup --help      # full option list
+rlvm-backup --version   # print the installed version (no root needed)
 rlvm-prune --help
 ```
 
@@ -670,7 +739,7 @@ sudo rm -rf /tmp/resticlvm-*
 
 To minimize cleanup issues:
 - Verify repository paths and credentials before running backups
-- Test configurations with `--dry-run` first (future feature)
+- Test configurations with `--dry-run` first
 - Ensure sufficient disk space for snapshots
 - Monitor backup logs for errors
 
@@ -690,7 +759,7 @@ Thanks for helping improve ResticLVM!
 
 ## Links
 
-- [Submit Issues](https://github.com/yourusername/resticlvm/issues)
+- [Submit Issues](https://github.com/duanegoodner/resticlvm/issues)
 - [License (MIT)](./LICENSE)
 - [Restic Project (GitHub)](https://github.com/restic/restic)
 - [LVM2 (Sourceware upstream)](https://sourceware.org/lvm2/)
