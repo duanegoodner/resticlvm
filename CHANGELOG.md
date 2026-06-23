@@ -6,6 +6,50 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.0] — 2026-06-23
+
+### 🔌 API Changes
+- **No more automatic privilege elevation.** `rlvm-backup` / `rlvm-prune` no longer
+  re-exec themselves under `sudo`. If not run as root they now print a clear message
+  and exit 1 — run them via `sudo`, a systemd unit, or a root cron job. (Self-elevation
+  was incompatible with credential loading: `sudo` scrubs the environment, dropping
+  `AWS_*` / `SSH_AUTH_SOCK`.)
+- **`tools/b2/run-backup-with-b2.sh` removed.** It's no longer needed — see below.
+  Migrate cron/systemd to `sudo rlvm-backup --config …` (absolute path).
+
+### ✨ New Features
+- **`rlvm-backup` loads B2 credentials natively.** When a config contains a B2 (`s3:`)
+  repository, `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` are loaded automatically —
+  from the environment if present, else from `/root/.config/resticlvm/b2-env`
+  (override with `RESTICLVM_B2_ENV`). Backups to non-B2 repos run fine with no
+  credentials present. No wrapper, no `RLVM_BACKUP` pinning:
+  `sudo rlvm-backup --config /path/to/config.toml`.
+- **`--version` flag** on `rlvm-backup` and `rlvm-prune` (works without root).
+- **Unmissable failure summary.** When any job fails, the end-of-run summary is a
+  barred `BACKUP FAILED — N of M job(s) did NOT succeed` banner listing each failure;
+  a clean run prints a calm success line.
+
+### 🔧 Internal
+- Version is exposed at runtime via `importlib.metadata` (single-sourced in
+  `pyproject.toml`).
+- `--version` / `--help` are parsed before the root check, so they need no `sudo`.
+- A missing-credentials B2 job fails in isolation (clear message), so other jobs in
+  the same run still execute; the process still exits 1.
+- `SSH_AUTH_SOCK` respects an existing value (`env.setdefault`); shell reads guarded
+  as `${SSH_AUTH_SOCK:-}` under `set -u`.
+- B2 credential-handling hardening: no credential values printed; `b2-env` perms
+  warning; sharpened least-privilege / Object Lock guidance.
+- Tooling/docs: generic release checklist under `tools/release/`; `shellcheck` in the
+  pixi dev env; README/tools docs made consistent with the current run model; removed
+  the now-unused `tools/b2/with-b2-creds.sh`.
+
+### ⚠️ Known Limitations
+- A mid-run failure can still leak the LVM snapshot and bind-mounts (no cleanup trap
+  yet) — tracked in #24. Continue running ResticLVM **attended/manual only** until
+  that is fixed.
+
+---
+
 ## [0.3.0] — 2026-06-22
 
 ### 🔌 API Changes
