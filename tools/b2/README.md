@@ -235,7 +235,8 @@ crontab `PATH`:
 If you see "no credentials found" errors:
 - Verify `/root/.config/resticlvm/b2-env` exists and contains credentials
 - Check file permissions: `sudo chmod 600 /root/.config/resticlvm/b2-env`
-- Ensure credentials are exported: `source /root/.config/resticlvm/b2-env && echo $AWS_ACCESS_KEY_ID`
+- Ensure credentials are exported (checks presence without printing the secret):
+  `sudo bash -c 'source /root/.config/resticlvm/b2-env && [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ] && echo "credentials are set"'`
 
 ### Command Not Found (b2, rlvm-backup, lvcreate)
 

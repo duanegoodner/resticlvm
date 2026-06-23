@@ -139,8 +139,8 @@ sudo chmod 600 /root/.config/resticlvm/b2-env
 ### Verify Credentials
 
 ```bash
-# Source credentials
-sudo bash -c 'source /root/.config/resticlvm/b2-env && echo "Access Key: $AWS_ACCESS_KEY_ID"'
+# Confirm both credentials load, without printing their values
+sudo bash -c 'source /root/.config/resticlvm/b2-env && [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ] && echo "B2 credentials loaded"'
 ```
 
 You should see your key ID printed.
@@ -367,8 +367,13 @@ Environment="AWS_ACCESS_KEY_ID=..."
 
 ### Application Key Permissions
 
-1. **Bucket-specific keys**: Create separate keys for each bucket
-2. **Least privilege**: Grant only Read and Write (not Delete or List All Buckets unless needed)
+1. **Bucket-specific keys**: scope the key to a single bucket (not "All"), so a
+   leaked key can't reach the rest of your account.
+2. **Least privilege**: grant only what's needed. Note `restic prune`/`forget`
+   require **delete** on the bucket — so a key used for pruning needs it. For
+   stronger ransomware resistance, give the backup host a key **without** delete
+   and run prune separately with a delete-capable key, and/or enable B2 **Object
+   Lock** so existing snapshots can't be altered/removed.
 3. **Key rotation**: Rotate keys periodically (every 90 days recommended)
 4. **Expiration**: Consider setting key expiration dates
 
