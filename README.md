@@ -31,10 +31,10 @@ Interaction with Restic and LVM is handled by a set of [Bash shell scripts](src/
 
 ResticLVM backs up **LVM logical volumes** from a temporary snapshot, a consistent point-in-time copy of an actively-used filesystem:
 
-- 📦 Creates a timestamped LVM snapshot of each logical volume to be backed up.
-- 🔒 Mounts the snapshot read-only at a temporary mount point.
-- 📤 Runs Restic to back up the mounted snapshot to the configured repository(ies).
-- 🧹 Cleans up the snapshot after the backup completes.
+- Creates a timestamped LVM snapshot of each logical volume to be backed up.
+- Mounts the snapshot read-only at a temporary mount point.
+- Runs Restic to back up the mounted snapshot to the configured repository(ies).
+- Cleans up the snapshot after the backup completes.
 
 It also backs up **regular partitions** (e.g. `/boot`, `/boot/efi`) directly, without a snapshot. Snapshotting keeps LVM backups consistent without interrupting the running system.
 
