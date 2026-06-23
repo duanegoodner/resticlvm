@@ -227,30 +227,34 @@ prune_keep_yearly = 1
 
 ---
 
-## Step 8: Environment Variables for Automation
+## Step 8: Automation
 
-### For Systemd Services
+`rlvm-backup` loads B2 credentials from `/root/.config/resticlvm/b2-env` itself when
+a config contains an `s3:` repo, so automation needs **no wrapper script** — just
+run `rlvm-backup` as root.
+
+### Cron
+
+```cron
+# Crontab entry (sudo crontab -e). Absolute path so cron's minimal PATH is irrelevant.
+0 2 * * * /usr/local/bin/rlvm-backup --config /etc/resticlvm/backup.toml
+```
+
+### Systemd
 
 ```ini
 # /etc/systemd/system/resticlvm-backup.service
 [Service]
-Environment="AWS_ACCESS_KEY_ID=your-key-id"
-Environment="AWS_SECRET_ACCESS_KEY=your-app-key"
+Type=oneshot
 ExecStart=/usr/local/bin/rlvm-backup --config /etc/resticlvm/backup.toml
 ```
 
-### For Cron Jobs
+Credentials already present in the environment take precedence over the b2-env file,
+so if you prefer to supply them inline instead of via the file you can add:
 
-```bash
-# Wrapper script: /usr/local/bin/resticlvm-backup-wrapper.sh
-#!/bin/bash
-source /root/.config/resticlvm/b2-env
-exec rlvm-backup --config /etc/resticlvm/backup.toml
-```
-
-```cron
-# Crontab entry
-0 2 * * * /usr/local/bin/resticlvm-backup-wrapper.sh
+```ini
+Environment="AWS_ACCESS_KEY_ID=your-key-id"
+Environment="AWS_SECRET_ACCESS_KEY=your-app-key"
 ```
 
 ---

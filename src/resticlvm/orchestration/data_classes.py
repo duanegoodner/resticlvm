@@ -11,6 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from resticlvm import scripts
+from resticlvm.orchestration.credentials import (
+    B2CredentialsError,
+    load_b2_credentials,
+    repo_uses_b2,
+)
 
 
 @dataclass
@@ -127,6 +132,16 @@ class BackupJob:
         """
         return ["bash", str(self.script_path)] + self.args_list
 
+    def _uses_b2(self) -> bool:
+        """True if any repository or copy destination targets a B2 (s3:) repo."""
+        for repo in self.repositories:
+            if repo_uses_b2(repo.repo_path):
+                return True
+            for dest in (repo.copy_destinations or []):
+                if repo_uses_b2(dest.repo_path):
+                    return True
+        return False
+
     def run(self) -> "JobResult":
         """Execute the backup job by running the associated script.
 
@@ -146,6 +161,20 @@ class BackupJob:
         # the conventional root agent socket when none is provided.
         env = os.environ.copy()
         env.setdefault('SSH_AUTH_SOCK', '/root/.ssh/ssh-agent.sock')
+
+        # Load B2 (S3-compatible) credentials only if this job targets a B2 repo.
+        # Non-B2 jobs run without any credentials present.
+        if self._uses_b2():
+            try:
+                load_b2_credentials(env)
+            except B2CredentialsError as e:
+                print(f"❌ B2 credentials [{self.category}.{self.name}]: {e}")
+                return JobResult(
+                    category=self.category,
+                    name=self.name,
+                    script_ok=False,
+                    failed_copies=[],
+                )
 
         try:
             subprocess.run(
