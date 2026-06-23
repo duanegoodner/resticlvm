@@ -527,7 +527,6 @@ Each subdirectory contains its own README with detailed instructions:
 
 - **[b2/](tools/b2/)** - Backblaze B2 helper scripts for backups and repository management
 - **[release/](tools/release/)** - Build and packaging tools
-- **[repo_init/](tools/repo_init/)** - Restic repository initialization scripts
 - **[ssh_setup/](tools/ssh_setup/)** - SSH agent management for automated backups
 
 For more information, see [tools/README.md](tools/README.md).
