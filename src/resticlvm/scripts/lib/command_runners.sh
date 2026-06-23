@@ -33,7 +33,7 @@ run_in_chroot_or_echo() {
         echo -e "${DRY_RUN_PREFIX} chroot $*"
     else
         # Pass SSH_AUTH_SOCK to chroot if it's set (needed for SFTP repos)
-        if [ -n "$SSH_AUTH_SOCK" ]; then
+        if [ -n "${SSH_AUTH_SOCK:-}" ]; then
             chroot "$mount_point" /bin/bash -c "export SSH_AUTH_SOCK='$SSH_AUTH_SOCK' && $cmd"
         else
             chroot "$mount_point" /bin/bash -c "$cmd"

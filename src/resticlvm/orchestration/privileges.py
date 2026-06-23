@@ -1,29 +1,31 @@
-"""
-Handles privilege escalation by ensuring the script is running as root.
+"""Ensure the process is running as root.
 
-If the current process is not root, it re-executes itself using sudo.
+ResticLVM needs root for LVM snapshots, mounts, and chroot operations. Rather than
+silently self-elevating with ``sudo``, it requires the caller to run it as root
+(via ``sudo``, a systemd unit, or a root cron job) and fails fast with a clear
+message otherwise.
+
+Self-elevation was removed deliberately: re-running under ``sudo`` scrubs the
+environment, which would drop credentials (e.g. ``AWS_*`` for B2, ``SSH_AUTH_SOCK``)
+loaded by the caller — so "run it as root yourself" is the predictable, composable
+contract.
 """
 
 import os
-import subprocess
 import sys
 
 
 def ensure_running_as_root():
-    """Ensure the current process is running with root privileges.
+    """Exit with a clear error unless the current process is running as root.
 
-    If not running as root, the script re-executes itself with sudo. If
-    privilege escalation fails, the program exits with an error.
-
-    Raises:
-        subprocess.CalledProcessError: If sudo fails to elevate privileges.
+    Does not attempt to elevate privileges. If the effective UID is not 0, prints
+    guidance to stderr and exits with status 1.
     """
     if os.geteuid() != 0:
-        print("🔐 Root privileges required. Elevating with sudo...\n")
-        try:
-            # Re-run the current script with sudo
-            subprocess.check_call(["sudo", sys.executable] + sys.argv)
-        except subprocess.CalledProcessError as e:
-            print(f"❌ Failed to elevate privileges: {e}")
-            sys.exit(1)
-        sys.exit(0)  # Important: exit the current non-root process
+        print(
+            "❌ ResticLVM must be run as root.\n"
+            "   Re-run with sudo, or from a root systemd unit / cron job, e.g.:\n"
+            "       sudo rlvm-backup --config /path/to/config.toml",
+            file=sys.stderr,
+        )
+        sys.exit(1)

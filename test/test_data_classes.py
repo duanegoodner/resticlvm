@@ -303,3 +303,28 @@ def test_run_copy_failure(mock_run):
     assert result.failed_copies == ["/srv/backup/remote"]
     assert result.ok is False
     assert mock_run.call_count == 2
+
+
+# ─── SSH_AUTH_SOCK threading ────────────────────────────────────────────────
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_preserves_existing_ssh_auth_sock(mock_run, monkeypatch):
+    """An SSH_AUTH_SOCK already in the environment is respected, not overridden."""
+    monkeypatch.setenv("SSH_AUTH_SOCK", "/custom/agent.sock")
+
+    _make_job().run()
+
+    env = mock_run.call_args.kwargs["env"]
+    assert env["SSH_AUTH_SOCK"] == "/custom/agent.sock"
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_defaults_ssh_auth_sock_when_unset(mock_run, monkeypatch):
+    """With no SSH_AUTH_SOCK set, the conventional root agent socket is used."""
+    monkeypatch.delenv("SSH_AUTH_SOCK", raising=False)
+
+    _make_job().run()
+
+    env = mock_run.call_args.kwargs["env"]
+    assert env["SSH_AUTH_SOCK"] == "/root/.ssh/ssh-agent.sock"
