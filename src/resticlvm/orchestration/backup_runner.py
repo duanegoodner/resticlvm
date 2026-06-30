@@ -73,6 +73,21 @@ class BackupJobRunner:
         return len(failures)
 
 
+def run(args):
+    """Execute the backup plan from pre-parsed arguments.
+
+    Args:
+        args: Namespace with config, dry_run, category, and name attributes.
+    """
+    config_path = Path(args.config)
+
+    plan = BackupPlan(config_path=config_path, dry_run=args.dry_run)
+    runner = BackupJobRunner(plan.backup_jobs)
+    failure_count = runner.run_all(category=args.category, name=args.name)
+    if failure_count:
+        sys.exit(1)
+
+
 def main():
     """Parse CLI arguments and execute the backup plan."""
     parser = argparse.ArgumentParser(description="Run backup jobs.")
@@ -108,13 +123,7 @@ def main():
     # without elevation.
     ensure_running_as_root()
 
-    config_path = Path(args.config)
-
-    plan = BackupPlan(config_path=config_path, dry_run=args.dry_run)
-    runner = BackupJobRunner(plan.backup_jobs)
-    failure_count = runner.run_all(category=args.category, name=args.name)
-    if failure_count:
-        sys.exit(1)
+    run(args)
 
 
 if __name__ == "__main__":

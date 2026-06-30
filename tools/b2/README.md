@@ -3,10 +3,10 @@
 This directory contains helper scripts for working with Backblaze B2 cloud storage:
 repository management and manual B2/restic interactions.
 
-> **Running backups no longer needs a wrapper.** `rlvm-backup` loads B2 credentials
+> **Running backups no longer needs a wrapper.** `rlvm backup` loads B2 credentials
 > itself whenever a config contains a B2 (`s3:`) repository, so you just run:
 > ```bash
-> sudo rlvm-backup --config /path/to/config.toml
+> sudo rlvm backup --config /path/to/config.toml
 > ```
 > Backups to non-B2 repos run fine with no credentials present. See
 > [Credentials](#credentials) for where the keys come from.
@@ -21,7 +21,7 @@ export AWS_SECRET_ACCESS_KEY=your_b2_application_key
 ```
 
 Credentials already present in the environment (e.g. a systemd `Environment=`, or
-exported in your shell) take precedence over this file. `rlvm-backup` reads the file
+exported in your shell) take precedence over this file. `rlvm backup` reads the file
 via `RESTICLVM_B2_ENV` if set, else the default path above; the helper scripts below
 read it from the default path.
 
@@ -191,15 +191,15 @@ prune_keep_yearly = 1
 
 ## Cron Setup
 
-For automated backups, add to root's crontab (`sudo crontab -e`). `rlvm-backup`
+For automated backups, add to root's crontab (`sudo crontab -e`). `rlvm backup`
 loads B2 credentials itself, so no wrapper is needed — just call it by its absolute
-path (find it with `command -v rlvm-backup`) so cron's minimal `PATH` doesn't
+path (find it with `command -v rlvm`) so cron's minimal `PATH` doesn't
 matter:
 
 ```cron
-# Run daily backup at 2 AM (as root). rlvm-backup loads B2 creds from
+# Run daily backup at 2 AM (as root). rlvm backup loads B2 creds from
 # /root/.config/resticlvm/b2-env when the config has an s3: repo.
-0 2 * * * /usr/local/bin/rlvm-backup --config /path/to/config.toml
+0 2 * * * /usr/local/bin/rlvm backup --config /path/to/config.toml
 ```
 
 ## Troubleshooting
@@ -212,11 +212,11 @@ If you see "no credentials found" errors:
 - Ensure credentials are exported (checks presence without printing the secret):
   `sudo bash -c 'source /root/.config/resticlvm/b2-env && [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ] && echo "credentials are set"'`
 
-### Command Not Found (b2, rlvm-backup, lvcreate)
+### Command Not Found (b2, rlvm backup, lvcreate)
 
 `sudo` resets `PATH`, so a command installed in a virtualenv/pixi env may not be found:
-- **rlvm-backup:** pin its absolute path — `sudo "$(command -v rlvm-backup)" --config …`
-  (or use the system install path, e.g. `/usr/local/bin/rlvm-backup`).
+- **rlvm:** pin its absolute path — `sudo "$(command -v rlvm)" backup --config …`
+  (or use the system install path, e.g. `/usr/local/bin/rlvm backup`).
 - **b2 / restic CLIs** (via these helper scripts): preserve your `PATH` —
   `sudo env "PATH=$PATH" ./b2-cli.sh …`.
 - **For cron jobs**, call binaries by absolute path (cron's `PATH` is minimal).

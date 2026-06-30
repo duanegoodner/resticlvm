@@ -104,28 +104,29 @@ def test_run_all_respects_category_and_name_filters():
     b.run.assert_not_called()
 
 
-def _run_main_with_failure_count(monkeypatch, failure_count):
-    """Invoke main() with mocked deps and a forced run_all failure count."""
-    monkeypatch.setattr(backup_runner, "ensure_running_as_root", lambda: None)
+def _run_with_failure_count(monkeypatch, failure_count):
+    """Invoke run() with mocked deps and a forced run_all failure count."""
     monkeypatch.setattr(backup_runner, "BackupPlan", mock.Mock())
     monkeypatch.setattr(
         BackupJobRunner, "run_all",
         lambda self, category=None, name=None: failure_count,
     )
-    monkeypatch.setattr(
-        backup_runner.sys, "argv",
-        ["resticlvm-backup", "--config", "/tmp/config.toml"],
+    args = mock.Mock(
+        config="/tmp/config.toml",
+        dry_run=False,
+        category=None,
+        name=None,
     )
-    backup_runner.main()
+    backup_runner.run(args)
 
 
-def test_main_exits_nonzero_on_failure(monkeypatch):
-    """main() exits with code 1 when any job failed."""
+def test_run_exits_nonzero_on_failure(monkeypatch):
+    """run() exits with code 1 when any job failed."""
     with pytest.raises(SystemExit) as exc_info:
-        _run_main_with_failure_count(monkeypatch, failure_count=1)
+        _run_with_failure_count(monkeypatch, failure_count=1)
     assert exc_info.value.code == 1
 
 
-def test_main_exits_zero_on_success(monkeypatch):
-    """main() returns normally (no SystemExit) when nothing failed."""
-    _run_main_with_failure_count(monkeypatch, failure_count=0)
+def test_run_exits_zero_on_success(monkeypatch):
+    """run() returns normally (no SystemExit) when nothing failed."""
+    _run_with_failure_count(monkeypatch, failure_count=0)

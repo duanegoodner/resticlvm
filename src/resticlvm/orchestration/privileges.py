@@ -25,7 +25,7 @@ def ensure_running_as_root():
         print(
             "❌ ResticLVM must be run as root.\n"
             "   Re-run with sudo, or from a root systemd unit / cron job, e.g.:\n"
-            "       sudo rlvm-backup --config /path/to/config.toml",
+            "       sudo rlvm backup --config /path/to/config.toml",
             file=sys.stderr,
         )
         sys.exit(1)

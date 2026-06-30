@@ -99,8 +99,8 @@ exclude_paths = []
 EOF
 
 # 4. Preview, then run (must be root)
-sudo rlvm-backup --config backup.toml --dry-run
-sudo rlvm-backup --config backup.toml
+sudo rlvm backup --config backup.toml --dry-run
+sudo rlvm backup --config backup.toml
 ```
 
 For the full configuration reference (multiple/remote/cloud repositories, `copy_to`, root and standard-partition backups), see [Config File Setup](#config-file-setup).
@@ -118,9 +118,9 @@ pip install git+https://github.com/duanegoodner/resticlvm.git@v0.4.1
 
 This installs the CLI tools:
 
-- `rlvm-backup`: Run backup jobs as defined in your configuration file.
+- `rlvm backup`: Run backup jobs as defined in your configuration file.
 
-- `rlvm-prune`: Prune Restic snapshots according to the retention settings in your configuration.
+- `rlvm prune`: Prune Restic snapshots according to the retention settings in your configuration.
 
 For other installation methods, see [Alternate Installation Methods](#alternate-installation-methods).
 
@@ -341,13 +341,13 @@ exclude_paths = []
 Run all backup jobs defined in a config (ResticLVM must run as root):
 
 ```bash
-sudo rlvm-backup --config /path/to/your/backup-config.toml
+sudo rlvm backup --config /path/to/your/backup-config.toml
 ```
 
 Preview what would happen, without writing any backups, using `--dry-run`:
 
 ```bash
-sudo rlvm-backup --config /path/to/your/backup-config.toml --dry-run
+sudo rlvm backup --config /path/to/your/backup-config.toml --dry-run
 ```
 
 See [below](#running-specific-jobs-from-config-file) for running specific (not all) jobs from a config file.
@@ -398,10 +398,10 @@ The `--category` and/or `--name` options can be used if we only want to run some
 
 ```
 # Run all jobs in a category
-sudo rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path
+sudo rlvm backup --config /path/to/resticlvm_config.toml --category standard_path
 
 # Run a single specific job
-sudo rlvm-backup --config /path/to/resticlvm_config.toml --category standard_path --name boot
+sudo rlvm backup --config /path/to/resticlvm_config.toml --category standard_path --name boot
 ```
 
 ### Data Transfer Methods
@@ -435,7 +435,7 @@ restic -r s3:s3.us-west-004.backblazeb2.com/bucket-name/path init
 ```
 
 For automated runs you don't need to export these yourself: when a config contains
-a B2 (`s3:`) repo, `rlvm-backup` loads `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
+a B2 (`s3:`) repo, `rlvm backup` loads `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
 from `/root/.config/resticlvm/b2-env` automatically (credentials already in the
 environment take precedence). Backups to non-B2 repos run fine with no credentials
 present.
@@ -473,7 +473,7 @@ See [Restic documentation](https://restic.readthedocs.io/en/stable/030_preparing
 #### Prune All Configured Repositories
 
 ```bash
-sudo rlvm-prune --config /path/to/your/resticlvm_config.toml
+sudo rlvm prune --config /path/to/your/resticlvm_config.toml
 ```
 - Applies the configured prune_keep_* settings to each Restic repo.
 
@@ -484,10 +484,10 @@ sudo rlvm-prune --config /path/to/your/resticlvm_config.toml
 We can also choose to prune only certain repos:
 ```
 # Prune by category
-sudo rlvm-prune --config /path/to/resticlvm_config.toml --category logical_volume_root
+sudo rlvm prune --config /path/to/resticlvm_config.toml --category logical_volume_root
 
 # Prune by specific job name
-sudo rlvm-prune --config /path/to/resticlvm_config.toml --category logical_volume_root --name lv_root
+sudo rlvm prune --config /path/to/resticlvm_config.toml --category logical_volume_root --name lv_root
 ```
 
 #### Protecting Specific Snapshots from Deletion
@@ -575,9 +575,9 @@ Both commands accept `--config`, `--category`, `--name`, `--dry-run`, `--version
 requires root.
 
 ```bash
-rlvm-backup --help      # full option list
-rlvm-backup --version   # print the installed version (no root needed)
-rlvm-prune --help
+rlvm backup --help      # full option list
+rlvm backup --version   # print the installed version (no root needed)
+rlvm prune --help
 ```
 
 ## Helper Tools
@@ -631,7 +631,7 @@ Pixi rewrites it whenever it re-solves (`pixi install` / `pixi update`), so a st
 
 #### `--version` can lag in an editable install
 
-`rlvm-backup --version` reads the package *metadata* snapshot written at install
+`rlvm backup --version` reads the package *metadata* snapshot written at install
 time, **not** `pyproject.toml`. After a version bump, a `git pull` updates the code
 but not that snapshot, and `pixi install` / `pixi update` won't refresh it either.
 Force a full rebuild:
@@ -645,11 +645,11 @@ The running *code* is always current; only the printed number lags. (A real
 
 #### Running as root from the pixi env
 
-`sudo` resets `PATH`, so `sudo rlvm-backup …` may report "command not found" even
-when `rlvm-backup` works without `sudo`. Pin the absolute path:
+`sudo` resets `PATH`, so `sudo rlvm backup …` may report "command not found" even
+when `rlvm` works without `sudo`. Pin the absolute path:
 
 ```bash
-sudo "$(command -v rlvm-backup)" --config /path/to/config.toml
+sudo "$(command -v rlvm)" backup --config /path/to/config.toml
 ```
 
 ### LVM Test VM

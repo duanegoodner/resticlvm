@@ -16,8 +16,7 @@ dev = ["pytest>=7.0"]
 b2 = ["b2>=3.0"]
 
 [project.scripts]
-rlvm-backup = "resticlvm.orchestration.backup_runner:main"
-rlvm-prune = "resticlvm.orchestration.prune_runner:main"
+rlvm = "resticlvm.orchestration.cli:main"
 
 [tool.black]
 line-length = 79

@@ -2,7 +2,7 @@
 
 ResticLVM backs up to B2 via restic's S3-compatible backend (`s3:` repos), which
 authenticates with ``AWS_ACCESS_KEY_ID`` / ``AWS_SECRET_ACCESS_KEY``. Rather than
-requiring a separate credential-loading wrapper, ``rlvm-backup`` loads these itself
+requiring a separate credential-loading wrapper, ``rlvm backup`` loads these itself
 when — and only when — a job actually targets a B2 repo. Jobs with no B2 repo run
 without any credentials present.
 

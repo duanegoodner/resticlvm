@@ -14,12 +14,29 @@ from resticlvm.orchestration.privileges import ensure_running_as_root
 from resticlvm.orchestration.restic_repo import confirm_unique_repos
 
 
-def main():
-    """Parse CLI arguments and execute prune operations for Restic repositories.
+def run(args):
+    """Execute prune operations from pre-parsed arguments.
 
-    Raises:
-        PermissionError: If the user does not have root privileges.
+    Args:
+        args: Namespace with config, dry_run, category, and name attributes.
     """
+    config_path = Path(args.config)
+    config = load_config(config_path)
+
+    restic_repos = confirm_unique_repos(config=config)
+
+    for (category, name), repos in restic_repos.items():
+        if args.category and category != args.category:
+            continue
+        if args.name and name != args.name:
+            continue
+
+        for repo in repos:
+            repo.prune(dry_run=args.dry_run)
+
+
+def main():
+    """Parse CLI arguments and execute prune operations for Restic repositories."""
     parser = argparse.ArgumentParser(description="Prune Restic repositories.")
     parser.add_argument(
         "--version",
@@ -52,19 +69,7 @@ def main():
     # without elevation.
     ensure_running_as_root()
 
-    config_path = Path(args.config)
-    config = load_config(config_path)
-
-    restic_repos = confirm_unique_repos(config=config)
-
-    for (category, name), repos in restic_repos.items():
-        if args.category and category != args.category:
-            continue
-        if args.name and name != args.name:
-            continue
-
-        for repo in repos:
-            repo.prune(dry_run=args.dry_run)
+    run(args)
 
 
 if __name__ == "__main__":
