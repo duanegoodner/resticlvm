@@ -58,8 +58,8 @@ if [ ! -S "$AGENT_SOCK" ]; then
     echo "Error: no agent running on $AGENT_SOCK" >&2
     exit 1
 fi
-SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l &>/dev/null 2>&1
-rc=$?
+rc=0
+SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l &>/dev/null 2>&1 || rc=$?
 if [ "$rc" -eq 2 ]; then
     echo "Error: agent socket exists but agent is not responding" >&2
     exit 1
