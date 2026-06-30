@@ -19,4 +19,4 @@ resticlvm = { path = ".", editable = true }
 test = "python -m pytest"
 pytest = "python -m pytest"
 release-build = "bash tools/release/build-release.sh"
-lint-sh = "shellcheck tools/b2/*.sh src/resticlvm/scripts/*.sh src/resticlvm/scripts/lib/*.sh"
+lint-sh = "shellcheck tools/b2/*.sh tools/ssh_setup/*.sh src/resticlvm/scripts/*.sh src/resticlvm/scripts/lib/*.sh"

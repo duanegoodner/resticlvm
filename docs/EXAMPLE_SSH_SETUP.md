@@ -73,7 +73,11 @@ sudo chmod +x /usr/local/bin/backup-agent-*
 sudo chmod +x /usr/local/bin/backup-ssh-status
 ```
 
-These scripts manage a persistent SSH agent that holds your SSH key in memory, avoiding passphrase prompts during automated backups.
+These scripts manage a persistent SSH agent that holds your SSH key in memory, avoiding passphrase prompts during automated backups. All three accept `--help`; `backup-agent-start` accepts `--key` and `--socket` to override the defaults (`/root/.ssh/id_backup` and `/root/.ssh/ssh-agent.sock`). Since this example uses `id_restic_backup`:
+
+```bash
+sudo /usr/local/bin/backup-agent-start --key /root/.ssh/id_restic_backup
+```
 
 ### 2. Remote Server Setup
 
@@ -133,7 +137,7 @@ From the client, initialize the restic repositories on the remote:
 
 ```bash
 # Start SSH agent and add key (do this once after reboot)
-sudo /usr/local/bin/backup-agent-start
+sudo /usr/local/bin/backup-agent-start --key /root/.ssh/id_restic_backup
 # Enter passphrase when prompted
 
 # Initialize repositories
@@ -157,7 +161,7 @@ sudo SSH_AUTH_SOCK=/root/.ssh/ssh-agent.sock \
 The SSH agent doesn't persist across reboots. After reboot, start it and add the key:
 
 ```bash
-sudo /usr/local/bin/backup-agent-start
+sudo /usr/local/bin/backup-agent-start --key /root/.ssh/id_restic_backup
 # Enter passphrase once
 ```
 
@@ -271,7 +275,7 @@ Remote Server
 sudo backup-ssh-status
 
 # If agent not running:
-sudo /usr/local/bin/backup-agent-start
+sudo /usr/local/bin/backup-agent-start --key /root/.ssh/id_restic_backup
 
 # Test SSH connection
 sudo SSH_AUTH_SOCK=/root/.ssh/ssh-agent.sock \
@@ -297,7 +301,7 @@ fi
 The agent socket is at `/root/.ssh/ssh-agent.sock`. If this file doesn't exist, the agent isn't running. Restart it:
 
 ```bash
-sudo /usr/local/bin/backup-agent-start
+sudo /usr/local/bin/backup-agent-start --key /root/.ssh/id_restic_backup
 ```
 
 ## Configuration Example

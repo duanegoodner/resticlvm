@@ -30,6 +30,9 @@ sudo chmod +x /usr/local/bin/backup-ssh-status
 # Start the agent (will prompt for SSH key passphrase)
 sudo /usr/local/bin/backup-agent-start
 
+# Use a different key
+sudo /usr/local/bin/backup-agent-start --key /root/.ssh/id_restic_backup
+
 # Check agent status
 sudo /usr/local/bin/backup-ssh-status
 
@@ -37,13 +40,25 @@ sudo /usr/local/bin/backup-ssh-status
 sudo /usr/local/bin/backup-agent-stop
 ```
 
+All three scripts accept `--help` for full option details.
+
 ## Configuration
 
-By default, these scripts use:
-- Socket: `/root/.ssh/ssh-agent.sock`
-- SSH key: `/root/.ssh/id_backup`
+Default paths (override with CLI flags):
+- Socket: `/root/.ssh/ssh-agent.sock` (`--socket`)
+- SSH key: `/root/.ssh/id_backup` (`--key`, start script only)
 
-Edit the scripts if you need different paths.
+## Exit Codes (backup-agent-start)
+
+| Code | Meaning |
+|------|---------|
+| 0    | Agent started and key loaded successfully |
+| 1    | Error |
+| 2    | Agent already running on this socket (no action taken) |
+
+When exit code is 2, the script lists the currently loaded keys and prints
+instructions for either adding your key to the existing agent or stopping
+it first.
 
 ## Documentation
 
