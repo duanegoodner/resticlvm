@@ -1,5 +1,5 @@
 #!/bin/bash
-# Stop ssh-agent for root backups.
+# Stop root's SSH agent and remove the socket.
 set -euo pipefail
 
 DEFAULT_SOCK="/root/.ssh/ssh-agent.sock"

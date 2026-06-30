@@ -1,5 +1,5 @@
 #!/bin/bash
-# Report SSH agent status for backups.
+# Report SSH agent status for root.
 
 DEFAULT_SOCK="/root/.ssh/ssh-agent.sock"
 
@@ -7,7 +7,7 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") [--socket SOCKET_PATH]
 
-Check the status of the backup SSH agent.
+Check the status of root's SSH agent and list loaded keys.
 
 Options:
   --socket SOCKET_PATH Agent socket path (default: $DEFAULT_SOCK)
@@ -32,7 +32,7 @@ if [ ! -S "$AGENT_SOCK" ]; then
     echo "Agent not running (socket not found)"
     echo ""
     echo "To start agent, run:"
-    echo "  sudo $(dirname "$0")/backup-agent-start --socket $AGENT_SOCK"
+    echo "  sudo $(dirname "$0")/root-agent-start --socket $AGENT_SOCK"
     exit 1
 fi
 
@@ -42,7 +42,7 @@ if SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l &>/dev/null; then
 else
     echo "Agent running but no keys loaded"
     echo ""
-    echo "To add keys, run:"
-    echo "  sudo $(dirname "$0")/backup-agent-start --socket $AGENT_SOCK"
+    echo "To add a key, run:"
+    echo "  sudo $(dirname "$0")/root-agent-add-key --socket $AGENT_SOCK KEY_PATH"
     exit 1
 fi
