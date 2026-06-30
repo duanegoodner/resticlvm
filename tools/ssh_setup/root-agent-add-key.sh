@@ -52,7 +52,7 @@ fi
 if [ ! -S "$AGENT_SOCK" ] || ! SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l &>/dev/null 2>&1; then
     echo "Error: no agent running on $AGENT_SOCK" >&2
     echo "Start one first:" >&2
-    echo "  sudo $(dirname "$0")/root-agent-start --socket $AGENT_SOCK" >&2
+    echo "  sudo $(dirname "$0")/root-agent-start.sh --socket $AGENT_SOCK" >&2
     exit 1
 fi
 

@@ -32,7 +32,7 @@ if [ ! -S "$AGENT_SOCK" ]; then
     echo "Agent not running (socket not found)"
     echo ""
     echo "To start agent, run:"
-    echo "  sudo $(dirname "$0")/root-agent-start --socket $AGENT_SOCK"
+    echo "  sudo $(dirname "$0")/root-agent-start.sh --socket $AGENT_SOCK"
     exit 1
 fi
 
@@ -43,6 +43,6 @@ else
     echo "Agent running but no keys loaded"
     echo ""
     echo "To add a key, run:"
-    echo "  sudo $(dirname "$0")/root-agent-add-key --socket $AGENT_SOCK KEY_PATH"
+    echo "  sudo $(dirname "$0")/root-agent-add-key.sh --socket $AGENT_SOCK KEY_PATH"
     exit 1
 fi

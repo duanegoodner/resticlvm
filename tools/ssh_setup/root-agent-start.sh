@@ -38,7 +38,7 @@ if [ -S "$AGENT_SOCK" ] && SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l &>/dev/null; t
     SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l
     echo ""
     echo "To stop it first:"
-    echo "  $(dirname "$0")/root-agent-stop --socket $AGENT_SOCK"
+    echo "  $(dirname "$0")/root-agent-stop.sh --socket $AGENT_SOCK"
     exit 2
 fi
 
