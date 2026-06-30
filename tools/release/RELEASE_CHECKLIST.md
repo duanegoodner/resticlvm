@@ -16,7 +16,7 @@ A reusable, version-agnostic guide for cutting a ResticLVM release. Replace
 - [ ] On the production host: pull latest `main`, set up/refresh the env
       (`pixi install`), and run a **real backup** → succeeds.
       (When running as root from the pixi env, pin the path —
-      `sudo "$(command -v rlvm-backup)" --config …` — see [pixi-env notes](#pixi-env-notes).)
+      `sudo "$(command -v rlvm)" backup --config …` — see [pixi-env notes](#pixi-env-notes).)
 - [ ] Run any behavior-specific smoke tests for what changed this release
       (e.g. exit-code behavior, new flags).
 - [ ] Clean `main` checkout: `pixi run test` → all tests pass.
@@ -65,7 +65,7 @@ A reusable, version-agnostic guide for cutting a ResticLVM release. Replace
 ## Phase 4 — Post-release sanity
 
 - [ ] Fresh-install check: `pip install` the published wheel in a throwaway venv;
-      confirm version `X.Y.Z` and that `rlvm-backup`/`rlvm-prune` import.
+      confirm version `X.Y.Z` and that `rlvm backup`/`rlvm prune` import.
 - [ ] Confirm the GitHub release shows both artifacts and the correct `vX.Y.Z` tag.
 - [ ] If the README pins a "latest release" install tag, bump it to `vX.Y.Z`.
 
@@ -76,7 +76,7 @@ A reusable, version-agnostic guide for cutting a ResticLVM release. Replace
 Two gotchas when validating from an **editable pixi env** (they do **not** affect a
 real `pip install <wheel>` deployment):
 
-- **`rlvm-backup --version` lags after a bump.** The reported version comes from the
+- **`rlvm backup --version` lags after a bump.** The reported version comes from the
   package *metadata* snapshot written at install time, not from `pyproject.toml`. A
   `git pull` updates the code but not that snapshot, and **`pixi update` / `pixi
   install` won't refresh it either** (a version bump doesn't invalidate the lock for
@@ -86,6 +86,6 @@ real `pip install <wheel>` deployment):
   ```
   The running *code* is always current; only the printed number lags. So don't trust
   `--version` from an un-rebuilt editable env as a check that you're on new code.
-- **Running as root from the pixi env.** `sudo` resets `PATH`, so `sudo rlvm-backup`
-  may say "command not found" even though `rlvm-backup` works without `sudo`. Pin the
-  absolute path: `sudo "$(command -v rlvm-backup)" --config /path/to/config.toml`.
+- **Running as root from the pixi env.** `sudo` resets `PATH`, so `sudo rlvm backup`
+  may say "command not found" even though `rlvm backup` works without `sudo`. Pin the
+  absolute path: `sudo "$(command -v rlvm)" backup --config /path/to/config.toml`.

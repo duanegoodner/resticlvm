@@ -229,15 +229,15 @@ prune_keep_yearly = 1
 
 ## Step 8: Automation
 
-`rlvm-backup` loads B2 credentials from `/root/.config/resticlvm/b2-env` itself when
+`rlvm backup` loads B2 credentials from `/root/.config/resticlvm/b2-env` itself when
 a config contains an `s3:` repo, so automation needs **no wrapper script** — just
-run `rlvm-backup` as root.
+run `rlvm backup` as root.
 
 ### Cron
 
 ```cron
 # Crontab entry (sudo crontab -e). Absolute path so cron's minimal PATH is irrelevant.
-0 2 * * * /usr/local/bin/rlvm-backup --config /etc/resticlvm/backup.toml
+0 2 * * * /usr/local/bin/rlvm backup --config /etc/resticlvm/backup.toml
 ```
 
 ### Systemd
@@ -246,7 +246,7 @@ run `rlvm-backup` as root.
 # /etc/systemd/system/resticlvm-backup.service
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/rlvm-backup --config /etc/resticlvm/backup.toml
+ExecStart=/usr/local/bin/rlvm backup --config /etc/resticlvm/backup.toml
 ```
 
 Credentials already present in the environment take precedence over the b2-env file,

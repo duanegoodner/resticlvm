@@ -414,7 +414,7 @@ packages:
 - pypi: ./
   name: resticlvm
   version: 0.4.1
-  sha256: 5aa664630ca83dbd35a119f56b4e0bc753e69bc15c4b1973407abef7c888cef5
+  sha256: 6f76158fc67a163ebedb24ba6fb337a60624366a99d1a29aca3c6802ced2880d
   requires_dist:
   - pytest>=7.0 ; extra == 'dev'
   - b2>=3.0 ; extra == 'b2'

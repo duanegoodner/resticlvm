@@ -172,7 +172,7 @@ sudo backup-ssh-status
 Once the agent is running with the key loaded, backups work automatically:
 
 ```bash
-rlvm-backup --config /path/to/config.toml
+rlvm backup --config /path/to/config.toml
 # No passphrase prompt - uses agent!
 ```
 
@@ -200,7 +200,7 @@ if ! ssh-add -l &>/dev/null; then
 fi
 
 # Run backup
-/usr/local/bin/rlvm-backup --config /etc/resticlvm/backup.toml &> "$LOGFILE"
+/usr/local/bin/rlvm backup --config /etc/resticlvm/backup.toml &> "$LOGFILE"
 
 EXIT_CODE=$?
 

@@ -18,29 +18,22 @@ def test_version_matches_installed_metadata():
     assert resticlvm.__version__ == version("resticlvm")
 
 
-@pytest.mark.parametrize("module_name", [
-    "resticlvm.orchestration.backup_runner",
-    "resticlvm.orchestration.prune_runner",
-])
-def test_cli_version_flag_no_root_needed(module_name, capsys, monkeypatch):
-    """`--version` prints and exits 0 WITHOUT triggering the root check.
+def test_cli_version_flag_no_root_needed(capsys, monkeypatch):
+    """`rlvm --version` prints and exits 0 WITHOUT triggering the root check.
 
     Regression guard: the root check must run after argument parsing so
     --version/--help work without elevation.
     """
-    import importlib
+    from resticlvm.orchestration import cli
 
-    module = importlib.import_module(module_name)
-
-    # If the root check were reached, this would blow up the test.
     def _fail_if_called():
         raise AssertionError("root check ran before --version was handled")
 
-    monkeypatch.setattr(module, "ensure_running_as_root", _fail_if_called)
-    monkeypatch.setattr("sys.argv", [module_name, "--version"])
+    monkeypatch.setattr(cli, "ensure_running_as_root", _fail_if_called)
+    monkeypatch.setattr("sys.argv", ["rlvm", "--version"])
 
     with pytest.raises(SystemExit) as exc_info:
-        module.main()
+        cli.main()
 
     assert exc_info.value.code == 0
     out = capsys.readouterr().out

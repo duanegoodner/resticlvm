@@ -17,10 +17,10 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
 
 ## Running as root (require-root model)
 
-- `rlvm-backup` / `rlvm-prune` require root and exit 1 otherwise — they do **not**
+- `rlvm backup` / `rlvm prune` require root and exit 1 otherwise — they do **not**
   self-elevate.
 - From the pixi env, `sudo` scrubs `PATH`, so pin the entrypoint:
-  `sudo "$(command -v rlvm-backup)" --config <config>`.
+  `sudo "$(command -v rlvm)" backup --config <config>`.
 
 ## Conventions
 
