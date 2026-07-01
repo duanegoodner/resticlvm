@@ -6,6 +6,15 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.5.1] — 2026-07-01
+
+### 🐛 Bug Fixes
+- **`--dry-run` now works.** The flag was parsed by the CLI but never passed to the
+  shell scripts, so `rlvm backup --dry-run` performed a real backup. Fixed in both
+  the backup scripts and copy operations. (#48, #49)
+
+---
+
 ## [0.5.0] — 2026-07-01
 
 ### 🔌 API Changes
