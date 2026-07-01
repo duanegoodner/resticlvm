@@ -1,69 +1,49 @@
-# Root SSH Agent Management Tools
+# Root SSH Agent Helper
 
-Helper scripts for managing root's SSH agent for automated SFTP backups.
+A single script (`root-ssh-agent.sh`) for managing root's SSH agent on a
+dedicated socket. ResticLVM needs root to have SSH access to remote backup
+servers; this script is one way to set that up, but any method that provides
+`SSH_AUTH_SOCK` to root works.
 
-## Scripts
+## Commands
 
-| Script | Purpose |
-|--------|---------|
-| `root-agent-start.sh` | Start an SSH agent on a well-known socket |
-| `root-agent-stop.sh` | Stop the agent and remove the socket |
-| `root-agent-status.sh` | Show agent status and loaded keys |
-| `root-agent-add-key.sh` | Add an SSH key to the running agent |
-| `root-agent-remove-key.sh` | Remove a key (or all keys) from the agent |
+```
+root-ssh-agent start       Start the agent
+root-ssh-agent stop        Stop the agent and remove the socket
+root-ssh-agent status      Show agent state and loaded keys
+root-ssh-agent ssh-add ... Run ssh-add against this agent (all ssh-add flags work)
+```
 
-## Purpose
+The `ssh-add` command is a direct passthrough -- anything `ssh-add` supports
+works: `-l` (list), `-d` (remove key), `-D` (remove all), `-t` (lifetime), etc.
 
-These scripts manage a persistent SSH agent that runs as root and holds
-passphrase-protected SSH keys in memory. This allows ResticLVM to perform
-automated backups to SFTP repositories without password prompts.
-
-Agent lifecycle (start/stop) is separate from key management (add/remove),
-so you can start the agent once and add or rotate keys independently.
-
-## Installation
-
-Copy the scripts to `/usr/local/bin/` for system-wide use:
+## Optional installation
 
 ```bash
-sudo cp tools/ssh_setup/root-agent-*.sh /usr/local/bin/
-sudo chmod +x /usr/local/bin/root-agent-*.sh
+sudo cp tools/ssh_setup/root-ssh-agent.sh /usr/local/bin/root-ssh-agent
+sudo chmod +x /usr/local/bin/root-ssh-agent
 ```
+
+Or run it directly from the repo without installing.
 
 ## Usage
 
 ```bash
-# Start the agent
-sudo root-agent-start.sh
-
-# Add a key (you'll be prompted for its passphrase)
-sudo root-agent-add-key.sh /root/.ssh/id_restic_backup
-
-# Check status
-sudo root-agent-status.sh
-
-# Remove a specific key
-sudo root-agent-remove-key.sh /root/.ssh/id_restic_backup
-
-# Remove all keys
-sudo root-agent-remove-key.sh --all
-
-# Stop the agent
-sudo root-agent-stop.sh
+sudo ./root-ssh-agent.sh start
+sudo ./root-ssh-agent.sh ssh-add /root/.ssh/id_backup
+sudo ./root-ssh-agent.sh ssh-add -l
+sudo ./root-ssh-agent.sh status
+sudo ./root-ssh-agent.sh ssh-add -d /root/.ssh/id_backup
+sudo ./root-ssh-agent.sh stop
 ```
 
-All scripts accept `--socket` to override the default socket path
-(`/root/.ssh/ssh-agent.sock`) and `--help` for full usage details.
+All commands accept `--socket PATH` to override the default socket
+(`/root/.ssh/ssh-agent.sock`). Run `root-ssh-agent.sh --help` for details.
 
-## Exit Codes (root-agent-start)
+## Exit codes (start command)
 
 | Code | Meaning |
 |------|---------|
-| 0 | Agent started successfully |
+| 0 | Agent started |
 | 1 | Error |
-| 2 | Agent already running on this socket (no action taken) |
-
-## Documentation
-
-For complete SSH setup instructions including client/server configuration,
-see [docs/EXAMPLE_SSH_SETUP.md](../../docs/EXAMPLE_SSH_SETUP.md).
+| 2 | Agent already running on this socket |
