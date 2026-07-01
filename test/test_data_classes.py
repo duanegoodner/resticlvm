@@ -202,6 +202,36 @@ def test_backup_job_args_list():
     ]
 
 
+def test_backup_job_args_list_dry_run():
+    """Test that args_list includes --dry-run when dry_run is True."""
+    config = {
+        "backup_source_path": "/boot",
+        "exclude_paths": [],
+    }
+    pairs = [
+        TokenConfigKeyPair(token="-s", config_key="backup_source_path"),
+        TokenConfigKeyPair(token="-e", config_key="exclude_paths"),
+    ]
+    repo = ResticRepo(
+        repo_path=Path("/srv/backup/test"),
+        password_file=Path("/tmp/password.txt"),
+        prune_keep_params=_make_prune_params(),
+    )
+
+    job = BackupJob(
+        script_name="backup_path.sh",
+        script_token_config_key_pairs=pairs,
+        config=config,
+        name="boot",
+        category="standard_path",
+        repositories=[repo],
+        dry_run=True,
+    )
+
+    args = job.args_list
+    assert args[-1] == "--dry-run"
+
+
 def test_backup_job_cmd():
     """Test generating the full command list with repositories."""
     config = {}
@@ -303,6 +333,37 @@ def test_run_copy_failure(mock_run):
     assert result.failed_copies == ["/srv/backup/remote"]
     assert result.ok is False
     assert mock_run.call_count == 2
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_copy_passes_dry_run(mock_run):
+    """Copy operations pass -n to copy_repo.sh when dry_run is True."""
+    copy_dest = CopyDestination(
+        repo_path="/srv/backup/remote",
+        password_file=Path("/tmp/remote_pw.txt"),
+        prune_keep_params=_make_prune_params(),
+    )
+    repo = ResticRepo(
+        repo_path=Path("/srv/backup/local"),
+        password_file=Path("/tmp/pw.txt"),
+        prune_keep_params=_make_prune_params(),
+        copy_destinations=[copy_dest],
+    )
+    job = BackupJob(
+        script_name="backup_path.sh",
+        script_token_config_key_pairs=[],
+        config={},
+        name="test_job",
+        category="standard_path",
+        repositories=[repo],
+        dry_run=True,
+    )
+
+    job.run()
+
+    assert mock_run.call_count == 2
+    copy_cmd = mock_run.call_args_list[1].kwargs.get("args") or mock_run.call_args_list[1][0][0]
+    assert "-n" in copy_cmd
 
 
 # ─── SSH_AUTH_SOCK threading ────────────────────────────────────────────────
