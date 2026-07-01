@@ -2,6 +2,10 @@
 
 Consistent backups of live Linux systems, using LVM snapshots and Restic.
 
+> **Note:** ResticLVM is an independent project, neither built by nor affiliated
+> with the [Restic](https://github.com/restic/restic) or
+> [LVM](https://sourceware.org/lvm2/) teams.
+
 ## Description
 
 ResticLVM is a Linux command-line tool that combines the snapshot features of Logical Volume Manager (LVM) with the data deduplication and encryption features of the [Restic](https://github.com/restic/restic) backup tool to create consistent, efficient backups of active systems, without taking the system offline.
