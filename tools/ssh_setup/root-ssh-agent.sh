@@ -33,7 +33,58 @@ Examples:
 EOF
 }
 
+usage_start() {
+    cat <<EOF
+Usage: $(basename "$0") start [--socket SOCKET_PATH]
+
+Start an SSH agent bound to the socket. Exits 2 if an agent is already
+running on the socket.
+EOF
+}
+
+usage_stop() {
+    cat <<EOF
+Usage: $(basename "$0") stop [--socket SOCKET_PATH]
+
+Stop the SSH agent and remove the socket.
+EOF
+}
+
+usage_status() {
+    cat <<EOF
+Usage: $(basename "$0") status [--socket SOCKET_PATH]
+
+Show whether the agent is running and list its loaded keys.
+EOF
+}
+
+usage_ssh_add() {
+    cat <<EOF
+Usage: $(basename "$0") ssh-add [--socket SOCKET_PATH] [ssh-add args...]
+
+Run ssh-add against this agent. All ssh-add flags are supported.
+
+Examples:
+  $(basename "$0") ssh-add /root/.ssh/id_backup       # add a key
+  $(basename "$0") ssh-add -l                          # list keys
+  $(basename "$0") ssh-add -d /root/.ssh/id_backup     # remove a key
+  $(basename "$0") ssh-add -D                          # remove all keys
+  $(basename "$0") ssh-add -t 3600 /root/.ssh/id_backup  # add with lifetime
+EOF
+}
+
+check_help() {
+    for arg in "$@"; do
+        case "$arg" in
+            -h|--help) return 0 ;;
+        esac
+    done
+    return 1
+}
+
 cmd_start() {
+    if check_help "$@"; then usage_start; exit 0; fi
+
     if [ -S "$AGENT_SOCK" ] && SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l &>/dev/null; then
         echo "Agent already running on $AGENT_SOCK with these keys:"
         SSH_AUTH_SOCK="$AGENT_SOCK" ssh-add -l
@@ -54,6 +105,8 @@ cmd_start() {
 }
 
 cmd_stop() {
+    if check_help "$@"; then usage_stop; exit 0; fi
+
     if [ ! -S "$AGENT_SOCK" ]; then
         echo "SSH agent is not running (socket not found at $AGENT_SOCK)"
         exit 0
@@ -78,6 +131,8 @@ cmd_stop() {
 }
 
 cmd_status() {
+    if check_help "$@"; then usage_status; exit 0; fi
+
     echo "SSH Agent Status (socket: $AGENT_SOCK)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -111,6 +166,8 @@ cmd_status() {
 }
 
 cmd_ssh_add() {
+    if check_help "$@"; then usage_ssh_add; exit 0; fi
+
     if [ ! -S "$AGENT_SOCK" ]; then
         echo "Error: no agent running on $AGENT_SOCK" >&2
         echo "Start one first:" >&2
