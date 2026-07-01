@@ -6,6 +6,40 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.5.0] — 2026-07-01
+
+### 🔌 API Changes
+- **Unified CLI.** The separate `rlvm-backup` and `rlvm-prune` commands are replaced
+  by a single `rlvm` command with subcommands: `rlvm backup` and `rlvm prune`.
+  **Action:** update cron jobs, systemd units, and scripts —
+  `sudo rlvm-backup --config …` becomes `sudo rlvm backup --config …`;
+  `sudo rlvm-prune --config …` becomes `sudo rlvm prune --config …`.
+
+### 🔧 Internal
+- New `resticlvm.orchestration.cli` module dispatches subcommands; the runner
+  modules expose `run(args)` for the CLI to call.
+- SSH agent helper scripts (`tools/ssh_setup/`) consolidated from five separate
+  scripts into a single `root-ssh-agent.sh` with subcommands (`start`, `stop`,
+  `status`, `ssh-add`). Key management delegates directly to `ssh-add`, so the
+  full `ssh-add` interface is available. These scripts are not part of the
+  installed package.
+
+### 📚 Documentation
+- Added `CLAUDE.md` for agent kickoff context.
+- SSH setup docs reframed: root SSH access is a prerequisite users can fulfill
+  however they prefer; the helper script is one option.
+- All docs, examples, and error messages updated for the `rlvm backup`/`rlvm prune`
+  syntax.
+
+### ⚠️ Known Limitations
+- A mid-run failure can still leak the LVM snapshot and bind-mounts (no cleanup trap
+  yet) — tracked in #24. Continue running ResticLVM **attended/manual only** until
+  that is fixed.
+- A repo failure within a multi-repo job stops backup to remaining repos in that
+  job — tracked in #46. Other jobs in the same run are unaffected.
+
+---
+
 ## [0.4.1] — 2026-06-23
 
 ### 📚 Documentation

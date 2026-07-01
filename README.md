@@ -2,6 +2,10 @@
 
 Consistent backups of live Linux systems, using LVM snapshots and Restic.
 
+> **Note:** ResticLVM is an independent project, neither built by nor affiliated
+> with the [Restic](https://github.com/restic/restic) or
+> [LVM](https://sourceware.org/lvm2/) teams.
+
 ## Description
 
 ResticLVM is a Linux command-line tool that combines the snapshot features of Logical Volume Manager (LVM) with the data deduplication and encryption features of the [Restic](https://github.com/restic/restic) backup tool to create consistent, efficient backups of active systems, without taking the system offline.
@@ -70,7 +74,7 @@ A minimal end-to-end example that backs up the `/home` logical volume to a local
 
 ```bash
 # 1. Install
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.4.1
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.5.0
 
 # 2. Create a password file and initialize the Restic repository (one-time)
 sudo mkdir -p /root/.config/resticlvm/repo-creds
@@ -113,7 +117,7 @@ For the full configuration reference (multiple/remote/cloud repositories, `copy_
 Install the latest release directly from GitHub:
 
 ```bash
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.4.1
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.5.0
 ```
 
 This installs the CLI tools:
@@ -515,7 +519,7 @@ Snapshots tagged protected will automatically be preserved during pruning, regar
 Replace the version tag with any release from the [releases page](https://github.com/duanegoodner/resticlvm/releases):
 
 ```bash
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.4.1
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.5.0
 ```
 
 #### Install from Main Branch
@@ -531,19 +535,19 @@ pip install git+https://github.com/duanegoodner/resticlvm.git@main
 Install with B2 CLI support for Backblaze B2 management:
 
 ```bash
-pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.4.1#egg=resticlvm[b2]"
+pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.5.0#egg=resticlvm[b2]"
 ```
 
 Install with development tools (pytest):
 
 ```bash
-pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.4.1#egg=resticlvm[dev]"
+pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.5.0#egg=resticlvm[dev]"
 ```
 
 Install with both B2 and development dependencies:
 
 ```bash
-pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.4.1#egg=resticlvm[dev,b2]"
+pip install "git+https://github.com/duanegoodner/resticlvm.git@v0.5.0#egg=resticlvm[dev,b2]"
 ```
 
 #### Clone and Install in Development Mode
