@@ -111,7 +111,10 @@ class BackupJob:
         for repo in self.repositories:
             args += ["-r", str(repo.repo_path)]
             args += ["-p", str(repo.password_file)]
-        
+
+        if self.dry_run:
+            args.append("--dry-run")
+
         return args
 
     @property
@@ -234,6 +237,8 @@ class BackupJob:
                     "-d", str(copy_dest.repo_path),
                     "-q", str(copy_dest.password_file),
                 ]
+                if self.dry_run:
+                    cmd.append("-n")
 
                 try:
                     subprocess.run(
