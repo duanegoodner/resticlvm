@@ -28,23 +28,25 @@ keep_weekly = 4
 keep_monthly = 6
 keep_yearly = 1
 
-[logical_volume_root.root]
+[volume.root]
+volume_type = "lv_root"
 vg_name = "vg0"
 lv_name = "lv_root"
 snapshot_size = "2G"
 backup_source_path = "/"
 exclude_paths = ["/dev", "/proc", "/sys"]
 
-[[logical_volume_root.root.repositories]]
+[[volume.root.repositories]]
 repo_path = "/srv/backup/root"
 password_file = "/tmp/password.txt"
 prune_policy = "standard"
 
-[standard_path.boot]
+[volume.boot]
+volume_type = "standard_path"
 backup_source_path = "/boot"
 exclude_paths = []
 
-[[standard_path.boot.repositories]]
+[[volume.boot.repositories]]
 repo_path = "/srv/backup/boot"
 password_file = "/tmp/password.txt"
 prune_policy = "light"
@@ -72,14 +74,14 @@ def test_backup_plan_dry_run_mode(temp_config_file):
     assert plan.dry_run is True
 
 
-def test_backup_plan_job_logical_volume(temp_config_file):
-    """Test that a logical_volume_root job is built correctly."""
+def test_backup_plan_job_lv_root(temp_config_file):
+    """Test that an lv_root job is built correctly."""
     plan = BackupPlan(config_path=temp_config_file)
     jobs = plan.backup_jobs
 
     job = next(j for j in jobs if j.name == "root")
     assert isinstance(job, BackupJob)
-    assert job.category == "logical_volume_root"
+    assert job.category == "lv_root"
     assert job.script_name == "backup_lv_root.sh"
     assert job.config["vg_name"] == "vg0"
     assert job.config["lv_name"] == "lv_root"
@@ -107,7 +109,7 @@ def test_backup_plan_backup_jobs_property(temp_config_file):
     assert all(isinstance(job, BackupJob) for job in jobs)
 
     job_identifiers = {(job.category, job.name) for job in jobs}
-    assert ("logical_volume_root", "root") in job_identifiers
+    assert ("lv_root", "root") in job_identifiers
     assert ("standard_path", "boot") in job_identifiers
 
 
@@ -137,11 +139,12 @@ keep_weekly = 4
 keep_monthly = 6
 keep_yearly = 1
 
-[standard_path.home]
+[volume.home]
+volume_type = "standard_path"
 backup_source_path = "/home"
 exclude_paths = [".cache"]
 
-[[standard_path.home.repositories]]
+[[volume.home.repositories]]
 repo_path = "/backup/home"
 password_file = "/tmp/pass.txt"
 prune_policy = "minimal"
@@ -171,11 +174,12 @@ keep_weekly = 4
 keep_monthly = 6
 keep_yearly = 1
 
-[standard_path.boot]
+[volume.boot]
+volume_type = "standard_path"
 backup_source_path = "/boot"
 exclude_paths = []
 
-[[standard_path.boot.repositories]]
+[[volume.boot.repositories]]
 repo_path = "/srv/backup/boot"
 password_file = "/tmp/password.txt"
 prune_policy = "standard"
@@ -197,60 +201,15 @@ prune_policy = "standard"
         temp_path.unlink()
 
 
-def test_backup_plan_prune_policy_not_in_jobs():
-    """The prune_policy section does not produce a backup job."""
-    toml_content = """
-[prune_policy.standard]
-keep_last = 10
-keep_daily = 7
-keep_weekly = 4
-keep_monthly = 6
-keep_yearly = 1
-
-[logical_volume_root.root]
-vg_name = "vg0"
-lv_name = "lv_root"
-snapshot_size = "2G"
-backup_source_path = "/"
-exclude_paths = []
-
-[[logical_volume_root.root.repositories]]
-repo_path = "/srv/backup/root"
-password_file = "/tmp/password.txt"
-prune_policy = "standard"
-
-[standard_path.boot]
-backup_source_path = "/boot"
-exclude_paths = []
-
-[[standard_path.boot.repositories]]
-repo_path = "/srv/backup/boot"
-password_file = "/tmp/password.txt"
-prune_policy = "standard"
-"""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write(toml_content)
-        temp_path = Path(f.name)
-
-    try:
-        plan = BackupPlan(config_path=temp_path)
-        jobs = plan.backup_jobs
-
-        assert len(jobs) == 2
-        categories = {j.category for j in jobs}
-        assert "prune_policy" not in categories
-    finally:
-        temp_path.unlink()
-
-
 def test_backup_plan_invalid_prune_policy_reference():
     """Referencing a nonexistent prune policy raises ValueError at init."""
     toml_content = """
-[standard_path.boot]
+[volume.boot]
+volume_type = "standard_path"
 backup_source_path = "/boot"
 exclude_paths = []
 
-[[standard_path.boot.repositories]]
+[[volume.boot.repositories]]
 repo_path = "/srv/backup/boot"
 password_file = "/tmp/password.txt"
 prune_policy = "nonexistent"

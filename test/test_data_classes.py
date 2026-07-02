@@ -137,7 +137,7 @@ def test_backup_job_get_arg_entry_int():
         script_token_config_key_pairs=[pair],
         config=config,
         name="test",
-        category="logical_volume_root",
+        category="lv_root",
         repositories=[],
     )
     
