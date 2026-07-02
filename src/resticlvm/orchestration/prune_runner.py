@@ -9,9 +9,10 @@ import argparse
 from pathlib import Path
 
 from resticlvm import __version__
+from resticlvm.orchestration.backup_config import BackupConfigFactory
+from resticlvm.orchestration.backup_plan import _to_restic_repo
 from resticlvm.orchestration.config_loader import load_config
 from resticlvm.orchestration.privileges import ensure_running_as_root
-from resticlvm.orchestration.restic_repo import confirm_unique_repos
 
 
 def run(args):
@@ -21,18 +22,24 @@ def run(args):
         args: Namespace with config, dry_run, category, and name attributes.
     """
     config_path = Path(args.config)
-    config = load_config(config_path)
+    raw = load_config(config_path)
+    config = BackupConfigFactory(raw).build()
 
-    restic_repos = confirm_unique_repos(config=config)
+    _SECTIONS = [
+        ("standard_path", config.standard_paths),
+        ("logical_volume_root", config.logical_volume_roots),
+        ("logical_volume_nonroot", config.logical_volume_nonroots),
+    ]
 
-    for (category, name), repos in restic_repos.items():
+    for category, jobs in _SECTIONS:
         if args.category and category != args.category:
             continue
-        if args.name and name != args.name:
-            continue
-
-        for repo in repos:
-            repo.prune(dry_run=args.dry_run)
+        for name, job_cfg in jobs.items():
+            if args.name and name != args.name:
+                continue
+            for repo_cfg in job_cfg.repositories:
+                repo = _to_restic_repo(repo_cfg)
+                repo.prune(dry_run=args.dry_run)
 
 
 def main():
