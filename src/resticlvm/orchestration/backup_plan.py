@@ -4,112 +4,91 @@ and creates executable backup job instances based on it.
 """
 
 from pathlib import Path
+from typing import Union
 
+from resticlvm.orchestration.backup_config import (
+    BackupConfig,
+    BackupConfigFactory,
+    LvJobConfig,
+    RepoConfig,
+    StandardPathJobConfig,
+)
 from resticlvm.orchestration.config_loader import load_config
 from resticlvm.orchestration.data_classes import BackupJob, TokenConfigKeyPair
 from resticlvm.orchestration.dispatch import RESOURCE_DISPATCH
-from resticlvm.orchestration.dispatch import RESOURCE_DISPATCH
 from resticlvm.orchestration.restic_repo import (
-    ResticRepo,
     CopyDestination,
-    resolve_prune_params,
+    ResticRepo,
 )
+
+JobConfig = Union[StandardPathJobConfig, LvJobConfig]
+
+
+def _to_restic_repo(repo_cfg: RepoConfig) -> ResticRepo:
+    return ResticRepo(
+        repo_path=Path(repo_cfg.repo_path),
+        password_file=repo_cfg.password_file,
+        prune_keep_params=repo_cfg.prune_keep_params,
+        copy_destinations=[
+            CopyDestination(
+                repo_path=d.repo_path,
+                password_file=d.password_file,
+                prune_keep_params=d.prune_keep_params,
+            )
+            for d in repo_cfg.copy_destinations
+        ],
+    )
+
+
+def _job_config_dict(job_cfg: JobConfig) -> dict:
+    """Build the dict that BackupJob uses for shell script arg building."""
+    d = {
+        "backup_source_path": job_cfg.backup_source_path,
+        "exclude_paths": job_cfg.exclude_paths,
+    }
+    if isinstance(job_cfg, LvJobConfig):
+        d["vg_name"] = job_cfg.vg_name
+        d["lv_name"] = job_cfg.lv_name
+        d["snapshot_size"] = job_cfg.snapshot_size
+    return d
 
 
 class BackupPlan:
     """Represents a collection of backup jobs based on a configuration file."""
 
     def __init__(self, config_path: Path, dry_run: bool = False):
-        """Initialize a BackupPlan.
-
-        Args:
-            config_path (Path): Path to the configuration TOML file.
-            dry_run (bool, optional): If True, simulate backup actions without
-                executing them. Defaults to False.
-        """
         self.config_path = config_path
-        self.full_config = load_config(config_path)
         self.dry_run = dry_run
+        raw = load_config(config_path)
+        self._config = BackupConfigFactory(raw).build()
 
-    def create_backup_job(self, category: str, name: str) -> BackupJob:
-        """Create a BackupJob instance from a specific category and job name.
-
-        Args:
-            category (str): The backup category (e.g., 'standard_path', 'logical_volume_root').
-            name (str): The name of the backup job.
-
-        Returns:
-            BackupJob: An initialized BackupJob object ready to run.
-
-        Raises:
-            ValueError: If the given category is not recognized.
-        """
-        if category not in RESOURCE_DISPATCH:
-            raise ValueError(f"Invalid backup category: {category}")
-
+    def _build_backup_job(
+        self, category: str, name: str, job_cfg: JobConfig
+    ) -> BackupJob:
         dispatch = RESOURCE_DISPATCH[category]
-        script_name = dispatch["script_name"]
-        token_key_map = dispatch["token_key_map"]
-
-        config = self.full_config[category][name]
-
-        # Build list of ResticRepo instances
-        repositories = []
-        if "repositories" in config:
-            # New format: array of repositories
-            for repo_config in config["repositories"]:
-                # Parse copy_to destinations for this specific repository
-                copy_destinations = []
-                if "copy_to" in repo_config:
-                    for copy_config in repo_config["copy_to"]:
-                        copy_destinations.append(CopyDestination(
-                            repo_path=copy_config["repo"],
-                            password_file=Path(copy_config["password_file"]),
-                            prune_keep_params=resolve_prune_params(
-                                copy_config, self.full_config
-                            ),
-                        ))
-
-                repositories.append(ResticRepo(
-                    repo_path=Path(repo_config["repo_path"]),
-                    password_file=Path(repo_config["password_file"]),
-                    prune_keep_params=resolve_prune_params(
-                        repo_config, self.full_config
-                    ),
-                    copy_destinations=copy_destinations,
-                ))
-        else:
-            repositories.append(ResticRepo(
-                repo_path=Path(config["restic_repo"]),
-                password_file=Path(config["restic_password_file"]),
-                prune_keep_params=resolve_prune_params(
-                    config, self.full_config
-                ),
-            ))
-
         return BackupJob(
-            script_name=script_name,
+            script_name=dispatch["script_name"],
             script_token_config_key_pairs=TokenConfigKeyPair.from_token_key_map(
-                token_key_map
+                dispatch["token_key_map"]
             ),
-            config=config,
+            config=_job_config_dict(job_cfg),
             name=name,
             category=category,
-            repositories=repositories,
+            repositories=[_to_restic_repo(r) for r in job_cfg.repositories],
             dry_run=self.dry_run,
         )
 
     @property
     def backup_jobs(self) -> list[BackupJob]:
-        """List all backup jobs defined in the configuration.
-
-        Returns:
-            list[BackupJob]: List of BackupJob instances.
-        """
         jobs = []
-        for category, jobs_dict in self.full_config.items():
-            if category not in RESOURCE_DISPATCH:
-                continue
-            for job_name in jobs_dict.keys():
-                jobs.append(self.create_backup_job(category, job_name))
+        for name, cfg in self._config.standard_paths.items():
+            jobs.append(self._build_backup_job("standard_path", name, cfg))
+        for name, cfg in self._config.logical_volume_roots.items():
+            jobs.append(
+                self._build_backup_job("logical_volume_root", name, cfg)
+            )
+        for name, cfg in self._config.logical_volume_nonroots.items():
+            jobs.append(
+                self._build_backup_job("logical_volume_nonroot", name, cfg)
+            )
         return jobs
