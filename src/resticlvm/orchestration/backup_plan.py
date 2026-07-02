@@ -4,14 +4,12 @@ and creates executable backup job instances based on it.
 """
 
 from pathlib import Path
-from typing import Union
 
 from resticlvm.orchestration.backup_config import (
-    BackupConfig,
     BackupConfigFactory,
-    LvJobConfig,
     RepoConfig,
-    StandardPathJobConfig,
+    VolumeConfig,
+    VolumeType,
 )
 from resticlvm.orchestration.config_loader import load_config
 from resticlvm.orchestration.data_classes import BackupJob, TokenConfigKeyPair
@@ -20,8 +18,6 @@ from resticlvm.orchestration.restic_repo import (
     CopyDestination,
     ResticRepo,
 )
-
-JobConfig = Union[StandardPathJobConfig, LvJobConfig]
 
 
 def _to_restic_repo(repo_cfg: RepoConfig) -> ResticRepo:
@@ -40,16 +36,16 @@ def _to_restic_repo(repo_cfg: RepoConfig) -> ResticRepo:
     )
 
 
-def _job_config_dict(job_cfg: JobConfig) -> dict:
+def _job_config_dict(vol_cfg: VolumeConfig) -> dict:
     """Build the dict that BackupJob uses for shell script arg building."""
     d = {
-        "backup_source_path": job_cfg.backup_source_path,
-        "exclude_paths": job_cfg.exclude_paths,
+        "backup_source_path": vol_cfg.backup_source_path,
+        "exclude_paths": vol_cfg.exclude_paths,
     }
-    if isinstance(job_cfg, LvJobConfig):
-        d["vg_name"] = job_cfg.vg_name
-        d["lv_name"] = job_cfg.lv_name
-        d["snapshot_size"] = job_cfg.snapshot_size
+    if vol_cfg.volume_type in (VolumeType.LV_ROOT, VolumeType.LV_NONROOT):
+        d["vg_name"] = vol_cfg.vg_name
+        d["lv_name"] = vol_cfg.lv_name
+        d["snapshot_size"] = vol_cfg.snapshot_size
     return d
 
 
@@ -63,32 +59,24 @@ class BackupPlan:
         self._config = BackupConfigFactory(raw).build()
 
     def _build_backup_job(
-        self, category: str, name: str, job_cfg: JobConfig
+        self, name: str, vol_cfg: VolumeConfig
     ) -> BackupJob:
-        dispatch = RESOURCE_DISPATCH[category]
+        dispatch = RESOURCE_DISPATCH[vol_cfg.volume_type]
         return BackupJob(
             script_name=dispatch["script_name"],
             script_token_config_key_pairs=TokenConfigKeyPair.from_token_key_map(
                 dispatch["token_key_map"]
             ),
-            config=_job_config_dict(job_cfg),
+            config=_job_config_dict(vol_cfg),
             name=name,
-            category=category,
-            repositories=[_to_restic_repo(r) for r in job_cfg.repositories],
+            category=vol_cfg.volume_type.value,
+            repositories=[_to_restic_repo(r) for r in vol_cfg.repositories],
             dry_run=self.dry_run,
         )
 
     @property
     def backup_jobs(self) -> list[BackupJob]:
-        jobs = []
-        for name, cfg in self._config.standard_paths.items():
-            jobs.append(self._build_backup_job("standard_path", name, cfg))
-        for name, cfg in self._config.logical_volume_roots.items():
-            jobs.append(
-                self._build_backup_job("logical_volume_root", name, cfg)
-            )
-        for name, cfg in self._config.logical_volume_nonroots.items():
-            jobs.append(
-                self._build_backup_job("logical_volume_nonroot", name, cfg)
-            )
-        return jobs
+        return [
+            self._build_backup_job(name, cfg)
+            for name, cfg in self._config.volumes.items()
+        ]

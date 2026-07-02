@@ -1,6 +1,7 @@
 """Typed representation of a ResticLVM backup configuration file."""
 
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 
 from resticlvm.orchestration.restic_repo import ResticPruneKeepParams
@@ -14,6 +15,12 @@ def _parse_prune_policy(raw: dict) -> ResticPruneKeepParams:
         monthly=int(raw["keep_monthly"]),
         yearly=int(raw["keep_yearly"]),
     )
+
+
+class VolumeType(Enum):
+    STANDARD_PATH = "standard_path"
+    LV_ROOT = "lv_root"
+    LV_NONROOT = "lv_nonroot"
 
 
 @dataclass
@@ -36,24 +43,16 @@ class RepoConfig:
 
 
 @dataclass
-class StandardPathJobConfig:
-    """Config for a standard (non-LVM) backup job."""
+class VolumeConfig:
+    """Config for a backup volume."""
 
+    volume_type: VolumeType
     backup_source_path: str
     exclude_paths: list[str]
     repositories: list[RepoConfig]
-
-
-@dataclass
-class LvJobConfig:
-    """Config for a logical-volume backup job."""
-
-    vg_name: str
-    lv_name: str
-    snapshot_size: str
-    backup_source_path: str
-    exclude_paths: list[str]
-    repositories: list[RepoConfig]
+    vg_name: str | None = None
+    lv_name: str | None = None
+    snapshot_size: str | None = None
 
 
 @dataclass
@@ -61,9 +60,7 @@ class BackupConfig:
     """Typed, fully-resolved backup configuration."""
 
     prune_policies: dict[str, ResticPruneKeepParams]
-    standard_paths: dict[str, StandardPathJobConfig]
-    logical_volume_roots: dict[str, LvJobConfig]
-    logical_volume_nonroots: dict[str, LvJobConfig]
+    volumes: dict[str, VolumeConfig]
 
 
 class BackupConfigFactory:
@@ -104,37 +101,32 @@ class BackupConfigFactory:
             ))
         return repos
 
-    def _parse_standard_paths(self) -> dict[str, StandardPathJobConfig]:
-        return {
-            name: StandardPathJobConfig(
-                backup_source_path=job["backup_source_path"],
-                exclude_paths=job.get("exclude_paths", []),
-                repositories=self._parse_repos(job),
-            )
-            for name, job in self._raw.get("standard_path", {}).items()
-        }
+    def _parse_volumes(self) -> dict[str, VolumeConfig]:
+        volumes = {}
+        for name, job in self._raw.get("volume", {}).items():
+            volume_type = VolumeType(job["volume_type"])
 
-    def _parse_lv_jobs(self, section_key: str) -> dict[str, LvJobConfig]:
-        return {
-            name: LvJobConfig(
-                vg_name=job["vg_name"],
-                lv_name=job["lv_name"],
-                snapshot_size=job["snapshot_size"],
+            vg_name = None
+            lv_name = None
+            snapshot_size = None
+            if volume_type in (VolumeType.LV_ROOT, VolumeType.LV_NONROOT):
+                vg_name = job["vg_name"]
+                lv_name = job["lv_name"]
+                snapshot_size = job["snapshot_size"]
+
+            volumes[name] = VolumeConfig(
+                volume_type=volume_type,
                 backup_source_path=job["backup_source_path"],
                 exclude_paths=job.get("exclude_paths", []),
                 repositories=self._parse_repos(job),
+                vg_name=vg_name,
+                lv_name=lv_name,
+                snapshot_size=snapshot_size,
             )
-            for name, job in self._raw.get(section_key, {}).items()
-        }
+        return volumes
 
     def build(self) -> BackupConfig:
         return BackupConfig(
             prune_policies=self._policies,
-            standard_paths=self._parse_standard_paths(),
-            logical_volume_roots=self._parse_lv_jobs(
-                "logical_volume_root"
-            ),
-            logical_volume_nonroots=self._parse_lv_jobs(
-                "logical_volume_nonroot"
-            ),
+            volumes=self._parse_volumes(),
         )
