@@ -6,9 +6,9 @@ from resticlvm.orchestration.backup_config import (
     BackupConfig,
     BackupConfigFactory,
     CopyDestConfig,
-    LvJobConfig,
     RepoConfig,
-    StandardPathJobConfig,
+    VolumeConfig,
+    VolumeType,
 )
 from resticlvm.orchestration.restic_repo import ResticPruneKeepParams
 
@@ -30,8 +30,9 @@ def _minimal_config():
     """A small but complete raw config dict."""
     return {
         "prune_policy": {"standard": STANDARD_POLICY},
-        "standard_path": {
+        "volume": {
             "boot": {
+                "volume_type": "standard_path",
                 "backup_source_path": "/boot",
                 "exclude_paths": [],
                 "repositories": [
@@ -46,32 +47,35 @@ def _minimal_config():
     }
 
 
-def test_from_dict_parses_prune_policies():
+def test_parses_prune_policies():
     cfg = BackupConfigFactory(_minimal_config()).build()
     assert "standard" in cfg.prune_policies
     assert cfg.prune_policies["standard"] == STANDARD_PARAMS
 
 
-def test_from_dict_parses_standard_path():
+def test_parses_standard_path_volume():
     cfg = BackupConfigFactory(_minimal_config()).build()
-    assert "boot" in cfg.standard_paths
-    job = cfg.standard_paths["boot"]
-    assert isinstance(job, StandardPathJobConfig)
-    assert job.backup_source_path == "/boot"
-    assert job.exclude_paths == []
-    assert len(job.repositories) == 1
+    assert "boot" in cfg.volumes
+    vol = cfg.volumes["boot"]
+    assert isinstance(vol, VolumeConfig)
+    assert vol.volume_type == VolumeType.STANDARD_PATH
+    assert vol.backup_source_path == "/boot"
+    assert vol.exclude_paths == []
+    assert vol.vg_name is None
+    assert len(vol.repositories) == 1
 
-    repo = job.repositories[0]
+    repo = vol.repositories[0]
     assert isinstance(repo, RepoConfig)
     assert repo.repo_path == "/srv/backup/boot"
     assert repo.prune_keep_params == STANDARD_PARAMS
 
 
-def test_from_dict_parses_logical_volume_root():
+def test_parses_lv_root_volume():
     raw = {
         "prune_policy": {"standard": STANDARD_POLICY},
-        "logical_volume_root": {
+        "volume": {
             "root": {
+                "volume_type": "lv_root",
                 "vg_name": "vg0",
                 "lv_name": "lv_root",
                 "snapshot_size": "30G",
@@ -88,20 +92,21 @@ def test_from_dict_parses_logical_volume_root():
         },
     }
     cfg = BackupConfigFactory(raw).build()
-    job = cfg.logical_volume_roots["root"]
-    assert isinstance(job, LvJobConfig)
-    assert job.vg_name == "vg0"
-    assert job.lv_name == "lv_root"
-    assert job.snapshot_size == "30G"
-    assert job.exclude_paths == ["/dev", "/proc"]
-    assert job.repositories[0].prune_keep_params == STANDARD_PARAMS
+    vol = cfg.volumes["root"]
+    assert vol.volume_type == VolumeType.LV_ROOT
+    assert vol.vg_name == "vg0"
+    assert vol.lv_name == "lv_root"
+    assert vol.snapshot_size == "30G"
+    assert vol.exclude_paths == ["/dev", "/proc"]
+    assert vol.repositories[0].prune_keep_params == STANDARD_PARAMS
 
 
-def test_from_dict_parses_logical_volume_nonroot():
+def test_parses_lv_nonroot_volume():
     raw = {
         "prune_policy": {"standard": STANDARD_POLICY},
-        "logical_volume_nonroot": {
+        "volume": {
             "data": {
+                "volume_type": "lv_nonroot",
                 "vg_name": "vg_storage",
                 "lv_name": "lv_data",
                 "snapshot_size": "10G",
@@ -118,11 +123,12 @@ def test_from_dict_parses_logical_volume_nonroot():
         },
     }
     cfg = BackupConfigFactory(raw).build()
-    assert "data" in cfg.logical_volume_nonroots
-    assert cfg.logical_volume_nonroots["data"].vg_name == "vg_storage"
+    assert "data" in cfg.volumes
+    assert cfg.volumes["data"].volume_type == VolumeType.LV_NONROOT
+    assert cfg.volumes["data"].vg_name == "vg_storage"
 
 
-def test_from_dict_multiple_policies():
+def test_multiple_policies():
     raw = {
         "prune_policy": {
             "frequent": {
@@ -140,8 +146,9 @@ def test_from_dict_multiple_policies():
                 "keep_yearly": 10,
             },
         },
-        "standard_path": {
+        "volume": {
             "boot": {
+                "volume_type": "standard_path",
                 "backup_source_path": "/boot",
                 "repositories": [
                     {
@@ -159,17 +166,18 @@ def test_from_dict_multiple_policies():
         },
     }
     cfg = BackupConfigFactory(raw).build()
-    repos = cfg.standard_paths["boot"].repositories
+    repos = cfg.volumes["boot"].repositories
     assert repos[0].prune_keep_params.last == 20
     assert repos[1].prune_keep_params.last == 3
     assert repos[1].prune_keep_params.yearly == 10
 
 
-def test_from_dict_with_copy_destinations():
+def test_copy_destinations():
     raw = {
         "prune_policy": {"standard": STANDARD_POLICY},
-        "standard_path": {
+        "volume": {
             "boot": {
+                "volume_type": "standard_path",
                 "backup_source_path": "/boot",
                 "repositories": [
                     {
@@ -189,7 +197,7 @@ def test_from_dict_with_copy_destinations():
         },
     }
     cfg = BackupConfigFactory(raw).build()
-    repo = cfg.standard_paths["boot"].repositories[0]
+    repo = cfg.volumes["boot"].repositories[0]
     assert len(repo.copy_destinations) == 1
 
     dest = repo.copy_destinations[0]
@@ -198,10 +206,11 @@ def test_from_dict_with_copy_destinations():
     assert dest.prune_keep_params == STANDARD_PARAMS
 
 
-def test_from_dict_missing_policy_raises():
+def test_missing_policy_raises():
     raw = {
-        "standard_path": {
+        "volume": {
             "boot": {
+                "volume_type": "standard_path",
                 "backup_source_path": "/boot",
                 "repositories": [
                     {
@@ -217,27 +226,38 @@ def test_from_dict_missing_policy_raises():
         BackupConfigFactory(raw).build()
 
 
-def test_from_dict_empty_config():
+def test_invalid_volume_type_raises():
+    raw = {
+        "volume": {
+            "boot": {
+                "volume_type": "invalid",
+                "backup_source_path": "/boot",
+                "repositories": [],
+            }
+        },
+    }
+    with pytest.raises(ValueError):
+        BackupConfigFactory(raw).build()
+
+
+def test_empty_config():
     cfg = BackupConfigFactory({}).build()
     assert cfg.prune_policies == {}
-    assert cfg.standard_paths == {}
-    assert cfg.logical_volume_roots == {}
-    assert cfg.logical_volume_nonroots == {}
+    assert cfg.volumes == {}
 
 
-def test_from_dict_empty_categories():
+def test_no_volumes():
     raw = {"prune_policy": {"standard": STANDARD_POLICY}}
     cfg = BackupConfigFactory(raw).build()
-    assert cfg.standard_paths == {}
-    assert cfg.logical_volume_roots == {}
-    assert cfg.logical_volume_nonroots == {}
+    assert cfg.volumes == {}
 
 
-def test_from_dict_multiple_repos_per_job():
+def test_multiple_repos_per_volume():
     raw = {
         "prune_policy": {"standard": STANDARD_POLICY},
-        "standard_path": {
+        "volume": {
             "boot": {
+                "volume_type": "standard_path",
                 "backup_source_path": "/boot",
                 "repositories": [
                     {
@@ -260,18 +280,19 @@ def test_from_dict_multiple_repos_per_job():
         },
     }
     cfg = BackupConfigFactory(raw).build()
-    repos = cfg.standard_paths["boot"].repositories
+    repos = cfg.volumes["boot"].repositories
     assert len(repos) == 3
     assert repos[0].repo_path == "/srv/local/boot"
     assert repos[1].repo_path == "sftp:host:/backup/boot"
     assert repos[2].repo_path == "s3:bucket/boot"
 
 
-def test_from_dict_exclude_paths_defaults_to_empty():
+def test_exclude_paths_defaults_to_empty():
     raw = {
         "prune_policy": {"standard": STANDARD_POLICY},
-        "standard_path": {
+        "volume": {
             "boot": {
+                "volume_type": "standard_path",
                 "backup_source_path": "/boot",
                 "repositories": [
                     {
@@ -284,4 +305,4 @@ def test_from_dict_exclude_paths_defaults_to_empty():
         },
     }
     cfg = BackupConfigFactory(raw).build()
-    assert cfg.standard_paths["boot"].exclude_paths == []
+    assert cfg.volumes["boot"].exclude_paths == []

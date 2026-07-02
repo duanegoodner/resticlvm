@@ -18,14 +18,17 @@ keep_weekly = 4
 keep_monthly = 6
 keep_yearly = 1
 
-[logical_volume_root.root]
+[volume.root]
+volume_type = "lv_root"
 vg_name = "vg0"
 lv_name = "lv_root"
 snapshot_size = "2G"
-restic_repo = "/srv/backup/test"
-restic_password_file = "/tmp/password.txt"
 backup_source_path = "/"
 exclude_paths = ["/dev", "/proc"]
+
+[[volume.root.repositories]]
+repo_path = "/srv/backup/test"
+password_file = "/tmp/password.txt"
 prune_policy = "standard"
 """
     with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -35,11 +38,11 @@ prune_policy = "standard"
     try:
         config = load_config(temp_path)
         assert isinstance(config, dict)
-        assert "logical_volume_root" in config
-        assert "root" in config["logical_volume_root"]
-        assert config["logical_volume_root"]["root"]["vg_name"] == "vg0"
-        assert config["logical_volume_root"]["root"]["snapshot_size"] == "2G"
-        assert config["logical_volume_root"]["root"]["exclude_paths"] == ["/dev", "/proc"]
+        assert "volume" in config
+        assert "root" in config["volume"]
+        assert config["volume"]["root"]["vg_name"] == "vg0"
+        assert config["volume"]["root"]["snapshot_size"] == "2G"
+        assert config["volume"]["root"]["exclude_paths"] == ["/dev", "/proc"]
     finally:
         temp_path.unlink()
 
@@ -53,7 +56,7 @@ def test_load_config_file_not_found():
 def test_load_config_invalid_toml():
     """Test that TOMLDecodeError is raised for invalid TOML syntax."""
     import tomllib
-    
+
     invalid_toml = """
 [section
 invalid syntax here
@@ -79,11 +82,14 @@ keep_weekly = 4
 keep_monthly = 6
 keep_yearly = 1
 
-[standard_path.boot]
+[volume.boot]
+volume_type = "standard_path"
 backup_source_path = "/boot"
-restic_repo = "/backup/boot"
-restic_password_file = "/tmp/pass.txt"
 exclude_paths = []
+
+[[volume.boot.repositories]]
+repo_path = "/backup/boot"
+password_file = "/tmp/pass.txt"
 prune_policy = "light"
 """
     with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -91,8 +97,8 @@ prune_policy = "light"
         temp_path = f.name
 
     try:
-        config = load_config(temp_path)  # Pass as string, not Path
+        config = load_config(temp_path)
         assert isinstance(config, dict)
-        assert "standard_path" in config
+        assert "volume" in config
     finally:
         Path(temp_path).unlink()

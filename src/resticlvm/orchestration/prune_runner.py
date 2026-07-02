@@ -25,21 +25,14 @@ def run(args):
     raw = load_config(config_path)
     config = BackupConfigFactory(raw).build()
 
-    _SECTIONS = [
-        ("standard_path", config.standard_paths),
-        ("logical_volume_root", config.logical_volume_roots),
-        ("logical_volume_nonroot", config.logical_volume_nonroots),
-    ]
-
-    for category, jobs in _SECTIONS:
-        if args.category and category != args.category:
+    for name, vol_cfg in config.volumes.items():
+        if args.category and vol_cfg.volume_type.value != args.category:
             continue
-        for name, job_cfg in jobs.items():
-            if args.name and name != args.name:
-                continue
-            for repo_cfg in job_cfg.repositories:
-                repo = _to_restic_repo(repo_cfg)
-                repo.prune(dry_run=args.dry_run)
+        if args.name and name != args.name:
+            continue
+        for repo_cfg in vol_cfg.repositories:
+            repo = _to_restic_repo(repo_cfg)
+            repo.prune(dry_run=args.dry_run)
 
 
 def main():
@@ -63,17 +56,15 @@ def main():
     parser.add_argument(
         "--category",
         type=str,
-        help="Only prune repos in this backup category.",
+        help="Only prune repos with this volume type.",
     )
     parser.add_argument(
         "--name",
         type=str,
-        help="Only prune the repo matching this backup job name.",
+        help="Only prune the repo matching this volume name.",
     )
     args = parser.parse_args()
 
-    # Root check happens after argument parsing so --version / --help work
-    # without elevation.
     ensure_running_as_root()
 
     run(args)

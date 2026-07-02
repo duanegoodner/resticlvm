@@ -85,21 +85,25 @@ sudo restic init --repo /srv/backup/home \
 
 # 3. Write a config (backup.toml), adjusting vg_name/lv_name to your system
 cat > backup.toml <<'EOF'
-[logical_volume_nonroot.home]
+[prune_policy.standard]
+keep_last = 7
+keep_daily = 7
+keep_weekly = 4
+keep_monthly = 3
+keep_yearly = 1
+
+[volume.home]
+volume_type = "lv_nonroot"
 vg_name = "vg0"
 lv_name = "lv_home"
 snapshot_size = "2G"
 backup_source_path = "/home"
 exclude_paths = []
 
-  [[logical_volume_nonroot.home.repositories]]
+  [[volume.home.repositories]]
   repo_path = "/srv/backup/home"
   password_file = "/root/.config/resticlvm/repo-creds/home.txt"
-  prune_keep_last = 7
-  prune_keep_daily = 7
-  prune_keep_weekly = 4
-  prune_keep_monthly = 3
-  prune_keep_yearly = 1
+  prune_policy = "standard"
 EOF
 
 # 4. Preview, then run (must be root)
@@ -165,179 +169,141 @@ This example demonstrates **four backup destinations** per volume using a combin
 4. **Direct B2 cloud**: Direct backup to offsite cloud storage
 
 ```toml
+# Named prune policies — define once, reference by name in each repository
+[prune_policy.local]
+keep_last = 7
+keep_daily = 7
+keep_weekly = 4
+keep_monthly = 3
+keep_yearly = 1
+
+[prune_policy.remote]
+keep_last = 30
+keep_daily = 30
+keep_weekly = 12
+keep_monthly = 12
+keep_yearly = 3
+
+[prune_policy.cloud]
+keep_last = 14
+keep_daily = 14
+keep_weekly = 8
+keep_monthly = 6
+keep_yearly = 2
+
 # /boot/efi partition (EFI System Partition)
-[standard_path.boot-efi]
+[volume.boot-efi]
+volume_type = "standard_path"
 backup_source_path = "/boot/efi"
 exclude_paths = []
 
-  [[standard_path.boot-efi.repositories]]
+  [[volume.boot-efi.repositories]]
   repo_path = "/path/to/boot-efi-repo"
   password_file = "/path/to/boot-efi-repo-password.txt"
-  prune_keep_last = 7
-  prune_keep_daily = 7
-  prune_keep_weekly = 4
-  prune_keep_monthly = 3
-  prune_keep_yearly = 1
+  prune_policy = "local"
 
     # Optional: Copy to another repo after local backup completes
-    [[standard_path.boot-efi.repositories.copy_to]]
+    [[volume.boot-efi.repositories.copy_to]]
     repo = "sftp:backupuser@backup.example.com:/backups/hostname/boot-efi-copy"
     password_file = "/path/to/boot-efi-repo-password.txt"
-    prune_keep_last = 30
-    prune_keep_daily = 30
-    prune_keep_weekly = 12
-    prune_keep_monthly = 12
-    prune_keep_yearly = 3
+    prune_policy = "remote"
 
-  [[standard_path.boot-efi.repositories]]
+  [[volume.boot-efi.repositories]]
   repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/boot-efi"
   password_file = "/path/to/boot-efi-repo-password.txt"
-  prune_keep_last = 30
-  prune_keep_daily = 30
-  prune_keep_weekly = 12
-  prune_keep_monthly = 12
-  prune_keep_yearly = 3
+  prune_policy = "remote"
 
-  [[standard_path.boot-efi.repositories]]
+  [[volume.boot-efi.repositories]]
   repo_path = "s3:s3.us-west-004.backblazeb2.com/bucket-name/hostname/boot-efi"
   password_file = "/path/to/boot-efi-repo-password.txt"
-  prune_keep_last = 14
-  prune_keep_daily = 14
-  prune_keep_weekly = 8
-  prune_keep_monthly = 6
-  prune_keep_yearly = 2
+  prune_policy = "cloud"
 
 # /boot partition (kernel and initramfs)
-[standard_path.boot]
+[volume.boot]
+volume_type = "standard_path"
 backup_source_path = "/boot"
 exclude_paths = []
 
-  [[standard_path.boot.repositories]]
+  [[volume.boot.repositories]]
   repo_path = "/path/to/boot-repo"
   password_file = "/path/to/boot-repo-password.txt"
-  prune_keep_last = 7
-  prune_keep_daily = 7
-  prune_keep_weekly = 4
-  prune_keep_monthly = 3
-  prune_keep_yearly = 1
+  prune_policy = "local"
 
     # Optional: Copy to another repo after local backup completes
-    [[standard_path.boot.repositories.copy_to]]
+    [[volume.boot.repositories.copy_to]]
     repo = "sftp:backupuser@backup.example.com:/backups/hostname/boot-copy"
     password_file = "/path/to/boot-repo-password.txt"
-    prune_keep_last = 30
-    prune_keep_daily = 30
-    prune_keep_weekly = 12
-    prune_keep_monthly = 12
-    prune_keep_yearly = 3
+    prune_policy = "remote"
 
-  [[standard_path.boot.repositories]]
+  [[volume.boot.repositories]]
   repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/boot"
   password_file = "/path/to/boot-repo-password.txt"
-  prune_keep_last = 30
-  prune_keep_daily = 30
-  prune_keep_weekly = 12
-  prune_keep_monthly = 12
-  prune_keep_yearly = 3
+  prune_policy = "remote"
 
-  [[standard_path.boot.repositories]]
+  [[volume.boot.repositories]]
   repo_path = "s3:s3.us-west-004.backblazeb2.com/bucket-name/hostname/boot"
   password_file = "/path/to/boot-repo-password.txt"
-  prune_keep_last = 14
-  prune_keep_daily = 14
-  prune_keep_weekly = 8
-  prune_keep_monthly = 6
-  prune_keep_yearly = 2
+  prune_policy = "cloud"
 
 # Root filesystem (LVM logical volume mounted at /)
-[logical_volume_root.root]
+[volume.root]
+volume_type = "lv_root"
 vg_name = "vg0"
 lv_name = "lv_root"
 snapshot_size = "2G"
 backup_source_path = "/"
 exclude_paths = ["/dev", "/proc", "/sys", "/tmp", "/var/tmp", "/run"]
 
-  [[logical_volume_root.root.repositories]]
+  [[volume.root.repositories]]
   repo_path = "/path/to/root-repo"
   password_file = "/path/to/root-repo-password.txt"
-  prune_keep_last = 7
-  prune_keep_daily = 7
-  prune_keep_weekly = 4
-  prune_keep_monthly = 3
-  prune_keep_yearly = 1
+  prune_policy = "local"
 
     # Optional: Copy to another repo after local backup completes
-    [[logical_volume_root.root.repositories.copy_to]]
+    [[volume.root.repositories.copy_to]]
     repo = "sftp:backupuser@backup.example.com:/backups/hostname/root-copy"
     password_file = "/path/to/root-repo-password.txt"
-    prune_keep_last = 30
-    prune_keep_daily = 30
-    prune_keep_weekly = 12
-    prune_keep_monthly = 12
-    prune_keep_yearly = 3
+    prune_policy = "remote"
 
-  [[logical_volume_root.root.repositories]]
+  [[volume.root.repositories]]
   repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/root"
   password_file = "/path/to/root-repo-password.txt"
-  prune_keep_last = 30
-  prune_keep_daily = 30
-  prune_keep_weekly = 12
-  prune_keep_monthly = 12
-  prune_keep_yearly = 3
+  prune_policy = "remote"
 
-  [[logical_volume_root.root.repositories]]
+  [[volume.root.repositories]]
   repo_path = "s3:s3.us-west-004.backblazeb2.com/bucket-name/hostname/root"
   password_file = "/path/to/root-repo-password.txt"
-  prune_keep_last = 14
-  prune_keep_daily = 14
-  prune_keep_weekly = 8
-  prune_keep_monthly = 6
-  prune_keep_yearly = 2
+  prune_policy = "cloud"
 
 # /home filesystem (LVM logical volume mounted elsewhere)
-[logical_volume_nonroot.home]
+[volume.home]
+volume_type = "lv_nonroot"
 vg_name = "vg0"
 lv_name = "lv_home"
 snapshot_size = "2G"
 backup_source_path = "/home"
 exclude_paths = []
 
-  [[logical_volume_nonroot.home.repositories]]
+  [[volume.home.repositories]]
   repo_path = "/path/to/home-repo"
   password_file = "/path/to/home-repo-password.txt"
-  prune_keep_last = 7
-  prune_keep_daily = 7
-  prune_keep_weekly = 4
-  prune_keep_monthly = 3
-  prune_keep_yearly = 1
+  prune_policy = "local"
 
     # Optional: Copy to another repo after local backup completes
-    [[logical_volume_nonroot.home.repositories.copy_to]]
+    [[volume.home.repositories.copy_to]]
     repo = "sftp:backupuser@backup.example.com:/backups/hostname/home-copy"
     password_file = "/path/to/home-repo-password.txt"
-    prune_keep_last = 30
-    prune_keep_daily = 30
-    prune_keep_weekly = 12
-    prune_keep_monthly = 12
-    prune_keep_yearly = 3
+    prune_policy = "remote"
 
-  [[logical_volume_nonroot.home.repositories]]
+  [[volume.home.repositories]]
   repo_path = "sftp:backupuser@backup.example.com:/backups/hostname/home"
   password_file = "/path/to/home-repo-password.txt"
-  prune_keep_last = 30
-  prune_keep_daily = 30
-  prune_keep_weekly = 12
-  prune_keep_monthly = 12
-  prune_keep_yearly = 3
+  prune_policy = "remote"
 
-  [[logical_volume_nonroot.home.repositories]]
+  [[volume.home.repositories]]
   repo_path = "s3:s3.us-west-004.backblazeb2.com/bucket-name/hostname/home"
   password_file = "/path/to/home-repo-password.txt"
-  prune_keep_last = 14
-  prune_keep_daily = 14
-  prune_keep_weekly = 8
-  prune_keep_monthly = 6
-  prune_keep_yearly = 2
+  prune_policy = "cloud"
 ```
 
 ### Running
@@ -365,34 +331,42 @@ See [below](#running-specific-jobs-from-config-file) for running specific (not a
 ResticLVM configuration files use TOML format with the following hierarchical structure:
 
 ```toml
-[<volume_type>.<volume_id>]
+[prune_policy.<policy_name>]
+keep_last = 7
+# ... other retention settings ...
+
+[volume.<volume_id>]
+volume_type = "standard_path"  # or "lv_root" / "lv_nonroot"
 backup_source_path = "/path/to/source"
 # ... other volume-specific settings ...
 
-  [[<volume_type>.<volume_id>.repositories]]
+  [[volume.<volume_id>.repositories]]
   repo_path = "/path/to/local-repo"
   password_file = "/path/to/password.txt"
-  # ... prune settings ...
+  prune_policy = "<policy_name>"
 
-    [[<volume_type>.<volume_id>.repositories.copy_to]]
+    [[volume.<volume_id>.repositories.copy_to]]
     repo = "sftp:user@host:/remote/repo"
     password_file = "/path/to/password.txt"
-    # ... independent prune settings ...
+    prune_policy = "<policy_name>"
 ```
 
 **Structure components:**
 
-- **`[<volume_type>.<volume_id>]`**: Top-level section defining the volume to back up
-  - `<volume_type>` specifies the type of volume:
-    - `standard_path`: Standard filesystem path (e.g., `/boot`, `/boot/efi`)
-    - `logical_volume_root`: LVM logical volume mounted at `/`
-    - `logical_volume_nonroot`: LVM logical volume mounted elsewhere (e.g., `/home`, `/data`)
-  - `<volume_id>` is your chosen identifier for that specific volume (any valid name without spaces)
+- **`[prune_policy.<policy_name>]`**: Named retention policy (define once, reference by name)
+  - `keep_last`, `keep_daily`, `keep_weekly`, `keep_monthly`, `keep_yearly`
 
-- **`[[<volume_type>.<volume_id>.repositories]]`**: Direct backup destination (can have multiple)
+- **`[volume.<volume_id>]`**: Top-level section defining the volume to back up
+  - `<volume_id>` is your chosen identifier for that specific volume
+  - `volume_type` specifies the type of volume:
+    - `standard_path`: Standard filesystem path (e.g., `/boot`, `/boot/efi`)
+    - `lv_root`: LVM logical volume mounted at `/`
+    - `lv_nonroot`: LVM logical volume mounted elsewhere (e.g., `/home`, `/data`)
+
+- **`[[volume.<volume_id>.repositories]]`**: Direct backup destination (can have multiple)
   - Defines where to send backups directly from the source
 
-- **`[[<volume_type>.<volume_id>.repositories.copy_to]]`**: Copy destination (can have multiple per repository)
+- **`[[volume.<volume_id>.repositories.copy_to]]`**: Copy destination (can have multiple per repository)
   - Copies snapshots from the parent repository after backup completes
 
 
@@ -401,11 +375,11 @@ backup_source_path = "/path/to/source"
 The `--category` and/or `--name` options can be used if we only want to run some (not all) of the backup jobs specified in a .toml file.
 
 ```
-# Run all jobs in a category
+# Run only standard_path volumes
 sudo rlvm backup --config /path/to/resticlvm_config.toml --category standard_path
 
-# Run a single specific job
-sudo rlvm backup --config /path/to/resticlvm_config.toml --category standard_path --name boot
+# Run a single specific volume
+sudo rlvm backup --config /path/to/resticlvm_config.toml --name boot
 ```
 
 ### Data Transfer Methods
@@ -479,7 +453,7 @@ See [Restic documentation](https://restic.readthedocs.io/en/stable/030_preparing
 ```bash
 sudo rlvm prune --config /path/to/your/resticlvm_config.toml
 ```
-- Applies the configured prune_keep_* settings to each Restic repo.
+- Applies the configured prune policy settings to each Restic repo.
 
 - Handles Restic's `forget` and `--prune` commands.
 
@@ -487,11 +461,11 @@ sudo rlvm prune --config /path/to/your/resticlvm_config.toml
 
 We can also choose to prune only certain repos:
 ```
-# Prune by category
-sudo rlvm prune --config /path/to/resticlvm_config.toml --category logical_volume_root
+# Prune only lv_root volumes
+sudo rlvm prune --config /path/to/resticlvm_config.toml --category lv_root
 
-# Prune by specific job name
-sudo rlvm prune --config /path/to/resticlvm_config.toml --category logical_volume_root --name lv_root
+# Prune a specific volume by name
+sudo rlvm prune --config /path/to/resticlvm_config.toml --name root
 ```
 
 #### Protecting Specific Snapshots from Deletion
