@@ -6,6 +6,33 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.6.0] — 2026-07-02
+
+### 🔌 API Changes
+- **New config format: `[volume.<name>]` with `volume_type`.**
+  The three top-level category sections (`standard_path`, `logical_volume_root`,
+  `logical_volume_nonroot`) are replaced by a single `[volume.<name>]` section
+  where each entry has a `volume_type` field (`standard_path`, `lv_root`, or
+  `lv_nonroot`). **Action:** update config files — see README for the new format.
+- **Named prune policies replace inline prune params.**
+  Define retention policies once in `[prune_policy.<name>]` sections and reference
+  them with `prune_policy = "<name>"` on each repository. Inline `prune_keep_*`
+  keys are no longer supported.
+
+### 🔧 Internal
+- `VolumeType` enum replaces string-based category dispatch.
+- `VolumeConfig` dataclass replaces `StandardPathJobConfig` / `LvJobConfig`.
+- `BackupConfig` simplified to `prune_policies` + `volumes` (was three separate dicts).
+- `BackupPlan` uses `BackupConfig`/`BackupConfigFactory` instead of raw config dicts;
+  deeply nested `create_backup_job` replaced by flat `_build_backup_job`.
+- `prune_runner` uses `BackupConfig` directly; `confirm_unique_repos` and
+  `resolve_prune_params` removed from `restic_repo.py`.
+
+### 📚 Documentation
+- README config examples, quickstart, and CLI docs updated for the new format.
+
+---
+
 ## [0.5.1] — 2026-07-01
 
 ### 🐛 Bug Fixes
