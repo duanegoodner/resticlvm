@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from resticlvm import scripts
+from resticlvm.orchestration.dispatch import RESOURCE_DISPATCH
 
 
 @dataclass
@@ -22,6 +23,40 @@ class ResticPruneKeepParams:
     weekly: int
     monthly: int
     yearly: int
+
+
+def resolve_prune_params(
+    entry_config: dict,
+    full_config: dict,
+) -> ResticPruneKeepParams:
+    """Look up a named prune policy and return ResticPruneKeepParams.
+
+    Args:
+        entry_config: Per-repo or per-copy-destination config dict.
+            Must contain a ``prune_policy`` key naming a policy defined
+            in the top-level ``[prune_policy]`` section.
+        full_config: The entire parsed TOML config (for policy lookup).
+    """
+    if "prune_policy" not in entry_config:
+        raise ValueError(
+            "Repository config must include a prune_policy reference"
+        )
+
+    policy_name = entry_config["prune_policy"]
+    policies = full_config.get("prune_policy", {})
+    if policy_name not in policies:
+        raise ValueError(
+            f"Prune policy '{policy_name}' not found in "
+            f"[prune_policy] section"
+        )
+    p = policies[policy_name]
+    return ResticPruneKeepParams(
+        last=int(p["keep_last"]),
+        daily=int(p["keep_daily"]),
+        weekly=int(p["keep_weekly"]),
+        monthly=int(p["keep_monthly"]),
+        yearly=int(p["keep_yearly"]),
+    )
 
 
 @dataclass
@@ -112,13 +147,13 @@ def confirm_unique_repos(config: dict) -> dict[tuple[str, str], list[ResticRepo]
     seen_repos = {}
 
     for category in config.keys():
+        if category not in RESOURCE_DISPATCH:
+            continue
         for job_name, job_config in config[category].items():
             repos_for_job = []
             repo_paths_in_job = set()
 
-            # Handle both old (single repo) and new (repo array) formats
             if "repositories" in job_config:
-                # New format: array of repositories
                 for repo_config in job_config["repositories"]:
                     repo_path = repo_config["repo_path"]
                     if repo_path in repo_paths_in_job:
@@ -130,26 +165,17 @@ def confirm_unique_repos(config: dict) -> dict[tuple[str, str], list[ResticRepo]
                     repos_for_job.append(ResticRepo(
                         repo_path=Path(repo_path),
                         password_file=Path(repo_config["password_file"]),
-                        prune_keep_params=ResticPruneKeepParams(
-                            last=int(repo_config["prune_keep_last"]),
-                            daily=int(repo_config["prune_keep_daily"]),
-                            weekly=int(repo_config["prune_keep_weekly"]),
-                            monthly=int(repo_config["prune_keep_monthly"]),
-                            yearly=int(repo_config["prune_keep_yearly"]),
+                        prune_keep_params=resolve_prune_params(
+                            repo_config, config
                         ),
                     ))
             else:
-                # Old format: single repo (backward compatibility)
                 repo_path = job_config["restic_repo"]
                 repos_for_job.append(ResticRepo(
                     repo_path=Path(repo_path),
                     password_file=Path(job_config["restic_password_file"]),
-                    prune_keep_params=ResticPruneKeepParams(
-                        last=int(job_config["prune_keep_last"]),
-                        daily=int(job_config["prune_keep_daily"]),
-                        weekly=int(job_config["prune_keep_weekly"]),
-                        monthly=int(job_config["prune_keep_monthly"]),
-                        yearly=int(job_config["prune_keep_yearly"]),
+                    prune_keep_params=resolve_prune_params(
+                        job_config, config
                     ),
                 ))
 

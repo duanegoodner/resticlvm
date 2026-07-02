@@ -11,6 +11,13 @@ from resticlvm.orchestration.config_loader import load_config
 def test_load_config_success():
     """Test loading a valid TOML configuration file."""
     toml_content = """
+[prune_policy.standard]
+keep_last = 10
+keep_daily = 7
+keep_weekly = 4
+keep_monthly = 6
+keep_yearly = 1
+
 [logical_volume_root.root]
 vg_name = "vg0"
 lv_name = "lv_root"
@@ -19,11 +26,7 @@ restic_repo = "/srv/backup/test"
 restic_password_file = "/tmp/password.txt"
 backup_source_path = "/"
 exclude_paths = ["/dev", "/proc"]
-prune_keep_last = 10
-prune_keep_daily = 7
-prune_keep_weekly = 4
-prune_keep_monthly = 6
-prune_keep_yearly = 1
+prune_policy = "standard"
 """
     with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
         f.write(toml_content)
@@ -69,17 +72,19 @@ invalid syntax here
 def test_load_config_with_path_string():
     """Test loading config with a string path instead of Path object."""
     toml_content = """
+[prune_policy.light]
+keep_last = 5
+keep_daily = 7
+keep_weekly = 4
+keep_monthly = 6
+keep_yearly = 1
+
 [standard_path.boot]
 backup_source_path = "/boot"
 restic_repo = "/backup/boot"
 restic_password_file = "/tmp/pass.txt"
 exclude_paths = []
-
-prune_keep_last = 5
-prune_keep_daily = 7
-prune_keep_weekly = 4
-prune_keep_monthly = 6
-prune_keep_yearly = 1
+prune_policy = "light"
 """
     with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
         f.write(toml_content)
