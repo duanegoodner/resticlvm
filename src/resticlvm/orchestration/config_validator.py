@@ -57,4 +57,4 @@ def validate_config(config: BackupConfig) -> list[str]:
 def warn_on_validation_issues(config: BackupConfig) -> None:
     """Run validation and print any warnings to stderr."""
     for warning in validate_config(config):
-        print(f"⚠️  WARNING: {warning}", file=sys.stderr)
+        print(f"⚠️  WARNING: {warning}\n", file=sys.stderr)

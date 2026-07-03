@@ -287,3 +287,4 @@ def test_warn_on_validation_issues_prints_to_stderr(capsys):
     assert captured.out == ""
     assert "WARNING" in captured.err
     assert "efi" in captured.err
+    assert captured.err.endswith("\n\n")
