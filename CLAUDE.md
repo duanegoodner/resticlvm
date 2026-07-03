@@ -20,7 +20,9 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
 - `rlvm backup` / `rlvm prune` require root and exit 1 otherwise — they do **not**
   self-elevate.
 - From the pixi env, `sudo` scrubs `PATH`, so pin the entrypoint:
-  `sudo "$(command -v rlvm)" backup --config <config>`.
+  `sudo "$(command -v rlvm)" backup`.
+- `--config` is optional when `/etc/resticlvm/backup.toml` exists (or
+  `$RESTICLVM_CONFIG` is set). Use `--config <path>` to override.
 
 ## Conventions
 
@@ -34,7 +36,11 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
 
 - Pre-1.0. Run **attended**: a mid-run failure can leak the LVM snapshot and its
   mounts (cleanup-on-failure is not yet automatic).
-- **Next major task: Critical #2 / issue #24** (the LVM cleanup trap). Start there.
+- **Next immediate task: issue #55** — warn when repo names within a volume don't
+  match across locations. New feature (config validation), minor version bump.
+- **Queued bug fixes:** #46 (continue backing up to remaining repos when one fails)
+  and #57 (verbose output suppressed after remote repo failure). Both are patches.
+- **Next major task: Critical #2 / issue #24** (the LVM cleanup trap).
   - Background: `docs/PRODUCTION_READINESS_REVIEW.md` (Critical #2) and issue #24
     itself, which lists 4 open design questions.
   - Needs a VM with LVM for failure-injection testing: see `dev/vm-builder/`.
