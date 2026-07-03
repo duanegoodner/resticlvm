@@ -1,7 +1,5 @@
 """Tests for config_validator module."""
 
-import logging
-
 import pytest
 
 from resticlvm.orchestration.backup_config import BackupConfigFactory
@@ -260,7 +258,7 @@ def test_multiple_volumes_warns_only_mismatched():
 # --- warn_on_validation_issues logs warnings ---
 
 
-def test_warn_on_validation_issues_logs(caplog):
+def test_warn_on_validation_issues_prints_to_stderr(capsys):
     raw = {
         "prune_policy": {"standard": STANDARD_POLICY},
         "volume": {
@@ -283,9 +281,9 @@ def test_warn_on_validation_issues_logs(caplog):
         },
     }
     config = _build_config(raw)
-    with caplog.at_level(logging.WARNING):
-        warn_on_validation_issues(config)
+    warn_on_validation_issues(config)
 
-    assert len(caplog.records) == 1
-    assert "efi" in caplog.records[0].message
-    assert caplog.records[0].levelno == logging.WARNING
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "WARNING" in captured.err
+    assert "efi" in captured.err

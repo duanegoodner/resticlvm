@@ -1,11 +1,9 @@
 """Soft validation checks for a parsed BackupConfig."""
 
-import logging
+import sys
 from posixpath import basename as posix_basename
 
 from resticlvm.orchestration.backup_config import BackupConfig
-
-logger = logging.getLogger(__name__)
 
 
 def repo_name_from_path(repo_path: str) -> str:
@@ -57,6 +55,6 @@ def validate_config(config: BackupConfig) -> list[str]:
 
 
 def warn_on_validation_issues(config: BackupConfig) -> None:
-    """Run validation and log any warnings."""
+    """Run validation and print any warnings to stderr."""
     for warning in validate_config(config):
-        logger.warning(warning)
+        print(f"⚠️  WARNING: {warning}", file=sys.stderr)
