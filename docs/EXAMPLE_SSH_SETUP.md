@@ -197,7 +197,8 @@ if ! ssh-add -l &>/dev/null; then
     exit 1
 fi
 
-# Run backup
+# Run backup (/etc/resticlvm/backup.toml is the default config location,
+# so --config could be omitted here)
 /usr/local/bin/rlvm backup --config /etc/resticlvm/backup.toml &> "$LOGFILE"
 
 EXIT_CODE=$?

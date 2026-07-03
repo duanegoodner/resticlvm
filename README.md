@@ -314,6 +314,23 @@ Run all backup jobs defined in a config (ResticLVM must run as root):
 sudo rlvm backup --config /path/to/your/backup-config.toml
 ```
 
+If your config is at the default location (`/etc/resticlvm/backup.toml`), you can
+omit `--config`:
+
+```bash
+sudo rlvm backup
+```
+
+You can also set the `RESTICLVM_CONFIG` environment variable to point to your config
+file, which takes precedence over the default location:
+
+```bash
+export RESTICLVM_CONFIG=/path/to/your/backup-config.toml
+sudo rlvm backup
+```
+
+Config precedence: `--config` flag > `$RESTICLVM_CONFIG` > `/etc/resticlvm/backup.toml`.
+
 Preview what would happen, without writing any backups, using `--dry-run`:
 
 ```bash
@@ -549,8 +566,9 @@ Changes to the source code are reflected immediately without reinstalling.
 ### CLI Help
 
 Both commands accept `--config`, `--category`, `--name`, `--dry-run`, `--version`, and
-`--help`. `--help` and `--version` work without root; running an actual backup or prune
-requires root.
+`--help`. `--config` is optional when a config exists at `/etc/resticlvm/backup.toml`
+(or `$RESTICLVM_CONFIG` is set). `--help` and `--version` work without root; running
+an actual backup or prune requires root.
 
 ```bash
 rlvm backup --help      # full option list
