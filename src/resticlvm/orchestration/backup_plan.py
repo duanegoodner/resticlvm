@@ -12,6 +12,7 @@ from resticlvm.orchestration.backup_config import (
     VolumeType,
 )
 from resticlvm.orchestration.config_loader import load_config
+from resticlvm.orchestration.config_validator import warn_on_validation_issues
 from resticlvm.orchestration.data_classes import BackupJob, TokenConfigKeyPair
 from resticlvm.orchestration.dispatch import RESOURCE_DISPATCH
 from resticlvm.orchestration.restic_repo import (
@@ -57,6 +58,7 @@ class BackupPlan:
         self.dry_run = dry_run
         raw = load_config(config_path)
         self._config = BackupConfigFactory(raw).build()
+        warn_on_validation_issues(self._config)
 
     def _build_backup_job(
         self, name: str, vol_cfg: VolumeConfig
