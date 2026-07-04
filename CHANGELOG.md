@@ -6,6 +6,21 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.7.0] — 2026-07-03
+
+### ✨ New Features
+- **Default config path.** `--config` is now optional — `rlvm` falls back to
+  `$RESTICLVM_CONFIG` then `/etc/resticlvm/backup.toml`. (#56)
+- **Repo name mismatch warning.** When repos within a volume have different final
+  path components (e.g. `efi-01` vs `egi-01`), a warning is printed to stderr
+  before the run starts. Checks both primary repositories and `copy_to`
+  destinations. (#55)
+
+### 🔧 Internal
+- New `config_validator` module for soft validation checks on parsed configs.
+
+---
+
 ## [0.6.0] — 2026-07-02
 
 ### 🔌 API Changes
