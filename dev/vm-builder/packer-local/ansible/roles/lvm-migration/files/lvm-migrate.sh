@@ -5,8 +5,6 @@
 #   EFI_DISK: EFI partition mounted at /boot/efi
 #   LVM_DISK: LVM (vg0-lv_root) mounted at / (contains /boot directory)
 #   BACKUP_DISK: LVM (vg1-lv_backup) mounted at /srv/backup
-#   DATA_LV_DISK: LVM (vg2-lv_data) mounted at /srv/data_lv
-#   DATA_PARTITION_DISK: Standard partition mounted at /srv/data_standard_partition
 #   BOOT_DISK: Original cloud image (to be deleted after successful migration)
 #
 # Environment variables (optional):
@@ -14,9 +12,6 @@
 #   LVM_DISK: Disk for LVM root (default: /dev/vdc)
 #   LVM_LV_ROOT_SIZE: Size for lv_root logical volume (default: 100%FREE)
 #   BACKUP_DISK: Disk for backup LVM (default: /dev/vdd)
-#   DATA_LV_DISK: Disk for data LVM (default: /dev/vde)
-#   DATA_LV_SIZE: Size for lv_data logical volume (default: 2G)
-#   DATA_PARTITION_DISK: Disk for standard partition (default: /dev/vdf)
 #   BOOT_DISK: Original boot disk (default: /dev/vda)
 #   CURRENT_EFI: Current EFI partition (default: /dev/vda15)
 
@@ -40,22 +35,15 @@ EFI_DISK="${EFI_DISK:-/dev/vdb}"        # Will hold EFI partition
 LVM_DISK="${LVM_DISK:-/dev/vdc}"        # Will hold LVM root
 LVM_LV_ROOT_SIZE="${LVM_LV_ROOT_SIZE:-100%FREE}"  # Size for lv_root (can be specific size like 8G)
 BACKUP_DISK="${BACKUP_DISK:-/dev/vdd}"  # Will hold backup LVM
-DATA_LV_DISK="${DATA_LV_DISK:-/dev/vde}"  # Will hold data LVM
-DATA_LV_SIZE="${DATA_LV_SIZE}"          # Size for lv_data logical volume (set by service)
-DATA_PARTITION_DISK="${DATA_PARTITION_DISK:-/dev/vdf}"  # Will hold standard partition
 BOOT_DISK="${BOOT_DISK:-/dev/vda}"      # Original boot disk
 CURRENT_EFI="${CURRENT_EFI:-/dev/vda15}" # EFI partition in cloud image
 EFI_PART="${EFI_DISK}1"
-DATA_PARTITION="${DATA_PARTITION_DISK}1"
 
 echo "Configuration:"
 echo "  EFI Disk:         $EFI_DISK"
 echo "  LVM Disk:         $LVM_DISK"
 echo "  LV Root Size:     $LVM_LV_ROOT_SIZE"
 echo "  Backup Disk:      $BACKUP_DISK"
-echo "  Data LV Disk:     $DATA_LV_DISK"
-echo "  Data LV Size:     $DATA_LV_SIZE"
-echo "  Data Part Disk:   $DATA_PARTITION_DISK"
 echo "  Boot Disk:        $BOOT_DISK"
 echo "  Current EFI:      $CURRENT_EFI"
 
@@ -112,48 +100,6 @@ if [ -n "$BACKUP_DISK" ]; then
         echo "Backup LVM setup complete!"
     else
         echo "Backup LVM already exists."
-    fi
-fi
-
-# Create data LVM if data LV disk exists
-if [ -n "$DATA_LV_DISK" ]; then
-    echo "Checking data LVM configuration..."
-    if ! lvdisplay /dev/vg2/lv_data &>/dev/null; then
-        echo "Creating data LVM structure on $DATA_LV_DISK..."
-        
-        # Create data LVM structure (vg2 with lv_data)
-        pvcreate "$DATA_LV_DISK"
-        vgcreate vg2 "$DATA_LV_DISK"
-        lvcreate -L "$DATA_LV_SIZE" -n lv_data vg2
-        mkfs.ext4 /dev/vg2/lv_data
-        
-        # Show VG status to display free space
-        vgs vg2
-        echo "Data LVM setup complete!"
-    else
-        echo "Data LVM already exists."
-    fi
-fi
-
-# Create standard partition if data partition disk exists
-if [ -n "$DATA_PARTITION_DISK" ]; then
-    echo "Checking data partition configuration..."
-    if ! blkid "$DATA_PARTITION" &>/dev/null; then
-        echo "Creating standard partition on $DATA_PARTITION_DISK..."
-        
-        # Create partition table and partition
-        parted -s "$DATA_PARTITION_DISK" mklabel gpt
-        parted -s "$DATA_PARTITION_DISK" mkpart primary ext4 0% 100%
-        
-        # Force kernel to re-read partition table
-        partprobe "$DATA_PARTITION_DISK"
-        sleep 1  # Give kernel a moment to register the new partition
-        
-        # Format partition
-        mkfs.ext4 "$DATA_PARTITION"
-        echo "Standard partition setup complete!"
-    else
-        echo "Data partition already exists."
     fi
 fi
 
@@ -216,24 +162,6 @@ if [ -n "$BACKUP_DISK" ]; then
     mkdir -p /mnt/newroot/srv/backup
 fi
 
-# Add data LV to fstab if it exists
-if [ -n "$DATA_LV_DISK" ]; then
-    DATA_LV_UUID=$(blkid -s UUID -o value /dev/vg2/lv_data)
-    echo "UUID=$DATA_LV_UUID  /srv/data_lv ext4    defaults        0       2" >> /mnt/newroot/etc/fstab
-    
-    # Create data_lv mount point in new root
-    mkdir -p /mnt/newroot/srv/data_lv
-fi
-
-# Add data partition to fstab if it exists
-if [ -n "$DATA_PARTITION_DISK" ]; then
-    DATA_PART_UUID=$(blkid -s UUID -o value "$DATA_PARTITION")
-    echo "UUID=$DATA_PART_UUID  /srv/data_standard_partition ext4    defaults        0       2" >> /mnt/newroot/etc/fstab
-    
-    # Create data_standard_partition mount point in new root
-    mkdir -p /mnt/newroot/srv/data_standard_partition
-fi
-
 # Chroot and update GRUB
 echo "Updating GRUB configuration..."
 mount --bind /dev /mnt/newroot/dev
@@ -267,12 +195,6 @@ echo "  vdb1: EFI partition (/boot/efi)"
 echo "  vdc:  LVM root (/) with /boot directory"
 if [ -n "$BACKUP_DISK" ]; then
     echo "  vdd:  LVM backup (/srv/backup)"
-fi
-if [ -n "$DATA_LV_DISK" ]; then
-    echo "  vde:  LVM data (/srv/data_lv) - vg2/lv_data $DATA_LV_SIZE in $(echo $VM_DATA_LV_DISK_SIZE | sed 's/G//') GB VG"
-fi
-if [ -n "$DATA_PARTITION_DISK" ]; then
-    echo "  vdf1: Standard partition (/srv/data_standard_partition)"
 fi
 echo "  vda:  Original cloud image (can be deleted after successful boot)"
 echo ""

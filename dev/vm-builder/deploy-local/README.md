@@ -39,13 +39,11 @@ sudo ./deploy.sh ../packer-local/output/debian13-local/debian13-local \
 
 ## Deployment Process
 
-1. Creates VM with 6 disks:
+1. Creates VM with 4 disks:
    - `/dev/vda` (2GB) - EFI boot partition
    - `/dev/vdb` (1MB) - BIOS boot (compatibility)
    - `/dev/vdc` (10GB) - LVM root volume
-   - `/dev/vdd` (10GB) - Backup volume
-   - `/dev/vde` (5GB) - Data LV volume (LVM with 2GB LV)
-   - `/dev/vdf` (5GB) - Data standard partition
+   - `/dev/vdd` (20GB) - Backup volume
 2. Attaches cloud-init ISO with SSH keys and configuration
 3. VM boots and cloud-init configures hostname/SSH/network
 4. `lvm-migrate.service` runs automatically (migrates to LVM)

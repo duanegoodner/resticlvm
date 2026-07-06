@@ -18,8 +18,6 @@ VCPUS=${VM_DEPLOY_VCPUS}
 EFI_DISK_SIZE=${VM_EFI_DISK_SIZE%G}     # Remove G suffix for script processing
 LVM_DISK_SIZE=${VM_LVM_DISK_SIZE%G}     # Remove G suffix for script processing
 BACKUP_DISK_SIZE=${VM_BACKUP_DISK_SIZE%G} # Remove G suffix for script processing
-DATA_LV_DISK_SIZE=${VM_DATA_LV_DISK_SIZE%G} # Remove G suffix
-DATA_PARTITION_DISK_SIZE=${VM_DATA_PARTITION_DISK_SIZE%G} # Remove G suffix
 
 NETWORK="default"
 DISK_DIR="/var/lib/libvirt/images"
@@ -259,20 +257,6 @@ sudo qemu-img create -f qcow2 "$BACKUP_DISK" "${BACKUP_DISK_SIZE}G"
 sudo chown libvirt-qemu:kvm "$BACKUP_DISK"
 echo -e "${GREEN}✓ Backup disk ready (vdd - permanent)${NC}"
 
-# Create data LV disk (will hold /srv/data_lv with LVM)
-echo -e "${YELLOW}Creating data LV disk (${DATA_LV_DISK_SIZE}GB)...${NC}"
-DATA_LV_DISK="${DISK_DIR}/${VM_NAME}-data-lv.qcow2"
-sudo qemu-img create -f qcow2 "$DATA_LV_DISK" "${DATA_LV_DISK_SIZE}G"
-sudo chown libvirt-qemu:kvm "$DATA_LV_DISK"
-echo -e "${GREEN}✓ Data LV disk ready (vde - permanent)${NC}"
-
-# Create data partition disk (will hold /srv/data_standard_partition)
-echo -e "${YELLOW}Creating data partition disk (${DATA_PARTITION_DISK_SIZE}GB)...${NC}"
-DATA_PARTITION_DISK="${DISK_DIR}/${VM_NAME}-data-partition.qcow2"
-sudo qemu-img create -f qcow2 "$DATA_PARTITION_DISK" "${DATA_PARTITION_DISK_SIZE}G"
-sudo chown libvirt-qemu:kvm "$DATA_PARTITION_DISK"
-echo -e "${GREEN}✓ Data partition disk ready (vdf - permanent)${NC}"
-
 # Create VM
 echo -e "${YELLOW}Creating VM...${NC}"
 sudo virt-install \
@@ -283,8 +267,6 @@ sudo virt-install \
   --disk path="$EFI_DISK",format=qcow2,bus=virtio,boot_order=1 \
   --disk path="$LVM_DISK",format=qcow2,bus=virtio,boot_order=2 \
   --disk path="$BACKUP_DISK",format=qcow2,bus=virtio,boot_order=4 \
-  --disk path="$DATA_LV_DISK",format=qcow2,bus=virtio,boot_order=5 \
-  --disk path="$DATA_PARTITION_DISK",format=qcow2,bus=virtio,boot_order=6 \
   --disk path="$CLOUD_INIT_ISO",device=cdrom,bus=scsi \
   --controller type=scsi,model=virtio-scsi \
   --network network="$NETWORK",model=virtio \

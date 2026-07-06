@@ -28,7 +28,7 @@ source "qemu" "debian_local" {
   # It must be >= the cloud image size (typically 2GB).
   # In deployed VMs, this becomes a temporary disk that gets cleaned up after LVM migration.
   disk_image       = true
-  iso_url          = var.cloud_image_url
+  iso_urls         = [var.cloud_image_url, var.cloud_image_fallback_url]
   iso_checksum     = var.cloud_image_checksum
   disk_size        = var.source_image_disk_size
   disk_interface   = "virtio"
