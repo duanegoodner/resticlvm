@@ -30,6 +30,7 @@ echo "  Backup Volume:     ${AWS_BACKUP_VOLUME_SIZE}GB ($AWS_VOLUME_TYPE) - for 
 echo ""
 echo "Optional Tools:"
 echo "  Miniconda:         $INSTALL_MINICONDA"
+echo "  Pixi:              $INSTALL_PIXI"
 echo "  Restic:            $INSTALL_RESTIC"
 echo ""
 

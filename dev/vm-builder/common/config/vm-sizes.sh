@@ -36,17 +36,6 @@ export VM_LVM_LV_ROOT_SIZE="10G"
 #   - Should match deployment BACKUP_DISK_SIZE
 export VM_BACKUP_DISK_SIZE="10G"
 
-# Data LVM disk: Test disk with LVM for /srv/data_lv
-#   - 5G volume group with 2G logical volume
-#   - Used for testing LVM snapshots with small dataset
-export VM_DATA_LV_DISK_SIZE="5G"
-export VM_DATA_LV_LV_SIZE="2G"
-
-# Data standard partition: Test disk with regular partition for /srv/data_standard_partition
-#   - 5G standard ext4 partition (no LVM)
-#   - Used for comparison testing vs LVM
-export VM_DATA_PARTITION_DISK_SIZE="1G"
-
 # Deployment Disk Sizes
 # ---------------------
 # EFI disk: Dedicated /boot/efi partition
@@ -111,10 +100,7 @@ if [ -n "$VM_SIZES_DEBUG" ]; then
   echo "VM Size Configuration Loaded:"
   echo "  Source Image Disk: $VM_SOURCE_IMAGE_DISK_SIZE"
   echo "  LVM Disk:          $VM_LVM_DISK_SIZE"
-  echo "  LVM LV Root:       $VM_LVM_LV_ROOT_SIZE"
   echo "  Backup Disk:       $VM_BACKUP_DISK_SIZE"
-  echo "  Data LV Disk:      $VM_DATA_LV_DISK_SIZE (LV: $VM_DATA_LV_LV_SIZE)"
-  echo "  Data Part Disk:    $VM_DATA_PARTITION_DISK_SIZE"
   echo "  EFI Disk:          $VM_EFI_DISK_SIZE"
   echo "  Build Memory:      ${VM_BUILD_MEMORY}MB"
   echo "  Build CPUs:        $VM_BUILD_CPUS"

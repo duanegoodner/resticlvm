@@ -5,7 +5,8 @@
 # Used by both local and AWS builds
 
 # Set to 'true' to install, 'false' to skip
-export INSTALL_MINICONDA=${INSTALL_MINICONDA:-true}
+export INSTALL_MINICONDA=${INSTALL_MINICONDA:-false}
+export INSTALL_PIXI=${INSTALL_PIXI:-true}
 export INSTALL_RESTIC=${INSTALL_RESTIC:-true}
 
 # Tool versions

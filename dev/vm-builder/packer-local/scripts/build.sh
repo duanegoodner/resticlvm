@@ -29,6 +29,7 @@ echo "  Build CPUs:        $VM_BUILD_CPUS"
 echo ""
 echo "Optional Tools:"
 echo "  Miniconda:         $INSTALL_MINICONDA"
+echo "  Pixi:              $INSTALL_PIXI"
 echo "  Restic:            $INSTALL_RESTIC"
 echo ""
 

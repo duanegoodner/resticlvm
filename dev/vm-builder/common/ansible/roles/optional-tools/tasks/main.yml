@@ -1,6 +1,6 @@
 ---
 # Optional tools installation
-# Controlled by environment variables: INSTALL_MINICONDA, INSTALL_RESTIC
+# Controlled by environment variables: INSTALL_MINICONDA, INSTALL_PIXI, INSTALL_RESTIC
 
 - name: Install restic backup tool
   when: lookup('env', 'INSTALL_RESTIC') == 'true'
@@ -68,3 +68,32 @@
       when: not miniconda_installed.stat.exists
       debug:
         msg: "Miniconda installed at /home/debian/miniconda3 for user debian"
+
+- name: Install pixi
+  when: lookup('env', 'INSTALL_PIXI') == 'true'
+  block:
+    - name: Check if pixi is already installed
+      stat:
+        path: /home/debian/.pixi/bin/pixi
+      register: pixi_installed
+
+    - name: Install pixi via official installer
+      when: not pixi_installed.stat.exists
+      become: true
+      become_user: debian
+      shell: curl -fsSL https://pixi.sh/install.sh | bash
+      args:
+        creates: /home/debian/.pixi/bin/pixi
+
+    - name: Verify pixi installation
+      when: not pixi_installed.stat.exists
+      become: true
+      become_user: debian
+      shell: /home/debian/.pixi/bin/pixi --version
+      register: pixi_version
+      changed_when: false
+
+    - name: Display pixi version
+      when: not pixi_installed.stat.exists
+      debug:
+        msg: "Installed pixi {{ pixi_version.stdout }}"

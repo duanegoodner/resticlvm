@@ -62,12 +62,18 @@ variable "debian_version" {
 variable "cloud_image_url" {
   type    = string
   default = "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
-  description = "URL to Debian genericcloud image"
+  description = "Primary URL to Debian genericcloud image"
+}
+
+variable "cloud_image_fallback_url" {
+  type    = string
+  default = "https://gemmei.ftp.acc.umu.se/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
+  description = "Fallback mirror URL for Debian genericcloud image"
 }
 
 variable "cloud_image_checksum" {
   type    = string
-  default = "file:https://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS"
+  default = "file:https://gemmei.ftp.acc.umu.se/images/cloud/trixie/latest/SHA512SUMS"
   description = "Checksum for cloud image verification"
 }
 

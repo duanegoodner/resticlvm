@@ -1,6 +1,6 @@
-# VM Builder - Debian VMs with LVM Root
+**Note:** This directory was cloned from [https://github.com/duanegoodner/vm-builder](https://github.com/duanegoodner/vm-builder) at commit [92656f9](https://github.com/duanegoodner/vm-builder/commit/92656f9). The `.git/` directory and a top-level `archive/` directory were removed from the clone before adding to the ResticLVM repository. We aim to avoid editing the content of `dev/vm-builder/` directly (preferring to make changes in the original repository and re-clone), but cannot guarantee that no local edits have been made.
 
-> **Note:** This directory was cloned from [https://github.com/duanegoodner/vm-builder](https://github.com/duanegoodner/vm-builder) at commit [6bdd04dc70f9c61dfec98fac3e4f26d484c208d8](https://github.com/duanegoodner/vm-builder/commit/6bdd04dc70f9c61dfec98fac3e4f26d484c208d8). The `.git/` directory and a top-level `archive/` directory were removed from the clone before adding to the ResticLVM repository. We aim to avoid editing the content of `dev/vm-builder/` directly (preferring to make changes in the original repository and re-clone), but cannot guarantee that no local edits have been made.
+# VM Builder - Debian VMs with LVM Root
 
 Build and deploy Debian VMs with LVM root filesystem for snapshot testing. Works for both local KVM and AWS.
 
@@ -27,19 +27,14 @@ ssh -i ~/.ssh/your-key.pem debian@<PUBLIC_IP>
 This project creates Debian VMs with this filesystem layout:
 
 ```
-NAME                    MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
-vda                     254:0    0    2G  0 disk 
-└─vda1                  254:1    0    2G  0 part /boot/efi
-vdb                     254:16   0   10G  0 disk 
-├─vg0-lv_root           253:0    0    8G  0 lvm  /
+NAME            MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+vda             254:0    0    2G  0 disk 
+└─vda1          254:1    0    2G  0 part /boot/efi
+vdb             254:16   0   10G  0 disk 
+├─vg0-lv_root   253:0    0    8G  0 lvm  /
 └─(2G free in vg0)
-vdc                     254:32   0   10G  0 disk 
-└─vg1-lv_backup         253:1    0   10G  0 lvm  /srv/backup
-vdd                     254:48   0    5G  0 disk 
-├─vg2-lv_data           253:2    0    2G  0 lvm  /srv/data_lv
-└─(3G free in vg2)
-vde                     254:64   0    5G  0 disk 
-└─vde1                  254:65   0    5G  0 part /srv/data_standard_partition
+vdc             254:32   0   20G  0 disk 
+└─vg1-lv_backup 253:1    0   20G  0 lvm  /srv/backup
 ```
 
 Perfect for:
@@ -74,8 +69,9 @@ Optional tools and disk sizes are configured in `common/config/`:
 
 **Optional Tools** ([common/config/optional-tools.sh](common/config/optional-tools.sh)):
 ```bash
-export INSTALL_MINICONDA=false  # Set to true to include
-export INSTALL_RESTIC=false     # Set to true to include
+export INSTALL_MINICONDA=false  # Python env via miniconda
+export INSTALL_PIXI=true        # Python env via pixi
+export INSTALL_RESTIC=true      # Restic backup tool
 ```
 
 **Disk Sizes** ([common/config/vm-sizes.sh](common/config/vm-sizes.sh)):
@@ -101,8 +97,8 @@ cd packer-local
 # Build with default settings
 ./scripts/build.sh
 
-# OR build with optional tools
-INSTALL_MINICONDA=true INSTALL_RESTIC=true ./scripts/build.sh
+# OR override defaults (e.g. miniconda instead of pixi)
+INSTALL_MINICONDA=true INSTALL_PIXI=false ./scripts/build.sh
 ```
 
 Output: `output/debian13-local/debian13-local` (plus 2 additional disk images)  
@@ -144,9 +140,7 @@ ssh -i ~/.ssh/vm-dev debian@<IP>
 Final disk layout:
 - `/boot/efi` - 2GB EFI partition
 - `/` - 8GB LVM (vg0-lv_root) with 2GB free in vg0
-- `/srv/backup` - 10GB LVM (vg1-lv_backup)
-- `/srv/data_lv` - 2GB LVM (vg2-lv_data) with 3GB free in vg2
-- `/srv/data_standard_partition` - 5GB standard partition
+- `/srv/backup` - 20GB LVM (vg1-lv_backup)
 
 ### AWS Build & Deploy
 
@@ -158,8 +152,8 @@ cd packer-aws
 # Build with default settings
 ./scripts/build.sh
 
-# OR build with optional tools
-INSTALL_MINICONDA=true INSTALL_RESTIC=true ./scripts/build.sh
+# OR override defaults (e.g. miniconda instead of pixi)
+INSTALL_MINICONDA=true INSTALL_PIXI=false ./scripts/build.sh
 ```
 
 Output: AMI in your AWS account (check output for AMI ID)  
