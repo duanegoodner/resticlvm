@@ -35,12 +35,16 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
 ## Status & next work
 
 - Pre-1.0. Run **attended**: a mid-run failure can leak the LVM snapshot and its
-  mounts (cleanup-on-failure is not yet automatic).
-- **Next immediate task: issue #55** — warn when repo names within a volume don't
-  match across locations. New feature (config validation), minor version bump.
+  mounts (cleanup-on-failure is not yet automatic — this is issue #24, below).
+- **Next major task: Critical #2 / issue #24** (the LVM cleanup trap). The most common
+  leak is now root-caused: the `/dev` bind unmount intermittently fails `EBUSY` from
+  shared mount propagation (observed on a real full-system run). Two-part fix — a quick
+  `--make-private` hardening in `scripts/lib/mounts.sh`, plus the actual cleanup trap.
+  - **Plan of attack: `docs/ISSUE_24_CLEANUP_FIX_PLAN.md`** (also references
+    `docs/PRODUCTION_READINESS_REVIEW.md` Critical #2 and the 4 design questions in the
+    issue).
+  - VM with LVM is deployed on fraser (`debian13-vm`) — ready for failure-injection
+    testing. Rebuild/reconnect: see `docs/FRASER_VM_READY.md`.
 - **Queued bug fixes:** #46 (continue backing up to remaining repos when one fails)
   and #57 (verbose output suppressed after remote repo failure). Both are patches.
-- **Next major task: Critical #2 / issue #24** (the LVM cleanup trap).
-  - Background: `docs/PRODUCTION_READINESS_REVIEW.md` (Critical #2) and issue #24
-    itself, which lists 4 open design questions.
-  - Needs a VM with LVM for failure-injection testing: see `dev/vm-builder/`.
+- Issue #55 (warn on mismatched repo names across a volume's locations) shipped in 0.7.0.
