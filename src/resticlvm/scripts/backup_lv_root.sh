@@ -89,6 +89,9 @@ display_dry_run_message "$DRY_RUN"
 
 # ─── Create Snapshot and Mount ────────────────────────────────────
 create_snapshot "$DRY_RUN" "$SNAPSHOT_SIZE" "$SNAP_NAME" "$VG_NAME" "$LV_NAME"
+# Register cleanup-on-failure as soon as the snapshot exists so any later
+# failure/signal idempotently unwinds the snapshot and its mounts (issue #24).
+install_snapshot_cleanup_trap
 mount_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
 # ─── Prepare Chroot Environment ───────────────────────────────────
