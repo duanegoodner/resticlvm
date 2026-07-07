@@ -179,14 +179,22 @@ source /root/.config/resticlvm/b2-env
 Add B2 repositories to your ResticLVM config file (e.g., `backup-config.toml`):
 
 ```toml
-[[standard_path.boot.repositories]]
+[prune_policy.standard]
+keep_last = 10
+keep_daily = 7
+keep_weekly = 4
+keep_monthly = 6
+keep_yearly = 1
+
+[volume.boot]
+volume_type = "standard_path"
+backup_source_path = "/boot"
+exclude_paths = []
+
+[[volume.boot.repositories]]
 repo_path = "s3:s3.us-west-004.backblazeb2.com/kernelstate-backups/resticlvm/rudolph/boot-01"
 password_file = "/root/.config/resticlvm/repo-creds/b2-boot-01.txt"
-prune_keep_last = 10
-prune_keep_daily = 7
-prune_keep_weekly = 4
-prune_keep_monthly = 6
-prune_keep_yearly = 1
+prune_policy = "standard"
 ```
 
 ## Cron Setup
