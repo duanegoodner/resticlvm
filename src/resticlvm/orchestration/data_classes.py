@@ -16,6 +16,7 @@ from resticlvm.orchestration.credentials import (
     load_b2_credentials,
     repo_uses_b2,
 )
+from resticlvm.orchestration.terminal import preserved_terminal
 
 
 @dataclass
@@ -180,13 +181,18 @@ class BackupJob:
                 )
 
         try:
-            subprocess.run(
-                args=self.cmd,
-                check=True,
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-                env=env,
-            )
+            # ssh (spawned by restic for SFTP) can leave the terminal's
+            # foreground process group pointing at its dead group on failure,
+            # which makes later restic runs suppress their output; restore it
+            # afterward so subsequent jobs' output isn't lost (issue #57).
+            with preserved_terminal():
+                subprocess.run(
+                    args=self.cmd,
+                    check=True,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                    env=env,
+                )
             print(f"✅ Backup [{self.category}.{self.name}] completed.\n")
 
             # After successful backup, copy to remote destinations
@@ -241,13 +247,15 @@ class BackupJob:
                     cmd.append("-n")
 
                 try:
-                    subprocess.run(
-                        args=cmd,
-                        check=True,
-                        stdout=sys.stdout,
-                        stderr=sys.stderr,
-                        env=env,
-                    )
+                    # Copy targets can be remote (ssh); guard the terminal (#57).
+                    with preserved_terminal():
+                        subprocess.run(
+                            args=cmd,
+                            check=True,
+                            stdout=sys.stdout,
+                            stderr=sys.stderr,
+                            env=env,
+                        )
                     print(f"✅ Copy to {copy_dest.repo_path} completed.\n")
                 except subprocess.CalledProcessError as e:
                     print(f"❌ Copy to {copy_dest.repo_path} failed: {e}\n")
