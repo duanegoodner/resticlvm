@@ -137,6 +137,10 @@ for i in "${!RESTIC_REPOS[@]}"; do
         echo "❌ Repository backup failed: $RESTIC_REPO"
         FAILED_REPOS+=("$RESTIC_REPO")
     fi
+
+    # A remote repo's ssh can grab the terminal and not give it back, which would
+    # suppress the next repo's restic output; restore it here (issue #72).
+    restore_terminal_foreground
 done
 
 # ─── Cleanup ──────────────────────────────────────────────────────

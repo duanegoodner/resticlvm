@@ -157,6 +157,10 @@ for i in "${!RESTIC_REPOS[@]}"; do
     if ! unmount_repo_binding "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$CHROOT_REPO_FULL" "$RESTIC_REPO"; then
         echo "⚠️  Warning: could not unbind repository (will be cleaned up at teardown): $RESTIC_REPO"
     fi
+
+    # A remote repo's ssh can grab the terminal and not give it back, which would
+    # suppress the next repo's restic output; restore it here (issue #72).
+    restore_terminal_foreground
 done
 
 # ─── Cleanup ──────────────────────────────────────────────────────
