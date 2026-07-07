@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from resticlvm import scripts
+from resticlvm.orchestration.terminal import preserved_terminal
 
 
 @dataclass
@@ -81,9 +82,12 @@ class ResticRepo:
         env['SSH_AUTH_SOCK'] = '/root/.ssh/ssh-agent.sock'
 
         try:
-            subprocess.run(
-                cmd, check=True, stdout=sys.stdout, stderr=sys.stderr, env=env
-            )
+            # Pruning a remote repo runs ssh; guard the terminal (issue #57).
+            with preserved_terminal():
+                subprocess.run(
+                    cmd, check=True, stdout=sys.stdout, stderr=sys.stderr,
+                    env=env,
+                )
             print(f"✅ Prune completed for {self.repo_path}\n")
         except subprocess.CalledProcessError as e:
             print(f"❌ Prune failed for {self.repo_path}: {e}")
