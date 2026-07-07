@@ -40,3 +40,26 @@ run_in_chroot_or_echo() {
         fi
     fi
 }
+
+# Restore the controlling terminal's foreground process group to this script's
+# own group. restic's ssh (for a remote repo) can take over the terminal's
+# foreground group to show a prompt and, on failure, not restore it — which
+# makes the NEXT restic in the loop believe it is backgrounded and suppress its
+# output (issue #72, the within-job residual of #57). Call it after each repo.
+# No-op without a controlling terminal on stdout or without python3, so cron and
+# piped runs are unaffected. The Python child shares this script's process
+# group, so os.getpgrp() is the group we want to be foreground.
+restore_terminal_foreground() {
+    [ -t 1 ] || return 0
+    command -v python3 >/dev/null 2>&1 || return 0
+    python3 - <<'PY' 2>/dev/null || true
+import os
+import signal
+try:
+    if os.isatty(1) and os.tcgetpgrp(1) != os.getpgrp():
+        signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+        os.tcsetpgrp(1, os.getpgrp())
+except Exception:
+    pass
+PY
+}
