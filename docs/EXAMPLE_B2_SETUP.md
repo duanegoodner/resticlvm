@@ -186,43 +186,48 @@ created restic repository abc123def at s3:s3.us-west-004...
 ```toml
 # /etc/resticlvm/backup.toml
 
-[logical_volume_root.root]
+[prune_policy.cloud]
+keep_last = 60
+keep_daily = 60
+keep_weekly = 24
+keep_monthly = 36
+keep_yearly = 10
+
+[volume.root]
+volume_type = "lv_root"
 vg_name = "vg0"
 lv_name = "lv_root"
 snapshot_size = "2G"
 backup_source_path = "/"
 exclude_paths = ["/dev", "/proc", "/sys", "/tmp"]
 
-[[logical_volume_root.root.repositories]]
+[[volume.root.repositories]]
 repo_path = "s3:s3.us-west-004.backblazeb2.com/mycompany-backups/resticlvm/root"
 password_file = "/etc/resticlvm/restic-password.txt"
-prune_keep_last = 60
-prune_keep_daily = 60
-prune_keep_weekly = 24
-prune_keep_monthly = 36
-prune_keep_yearly = 10
+prune_policy = "cloud"
 ```
 
 ### Example: Local + Copy to B2 (Recommended)
 
 ```toml
-[[logical_volume_root.root.repositories]]
+# [prune_policy.cloud] is defined in the direct-backup example above; add a
+# "local" retention policy for the on-disk repository:
+[prune_policy.local]
+keep_last = 7
+keep_daily = 7
+keep_weekly = 4
+keep_monthly = 3
+keep_yearly = 1
+
+[[volume.root.repositories]]
 repo_path = "/backups/root-local"
 password_file = "/etc/resticlvm/restic-password.txt"
-prune_keep_last = 7
-prune_keep_daily = 7
-prune_keep_weekly = 4
-prune_keep_monthly = 3
-prune_keep_yearly = 1
+prune_policy = "local"
 
-  [[logical_volume_root.root.repositories.copy_to]]
+  [[volume.root.repositories.copy_to]]
   repo = "s3:s3.us-west-004.backblazeb2.com/mycompany-backups/resticlvm/root"
   password_file = "/etc/resticlvm/restic-password.txt"
-  prune_keep_last = 60
-  prune_keep_daily = 60
-  prune_keep_weekly = 24
-  prune_keep_monthly = 36
-  prune_keep_yearly = 10
+  prune_policy = "cloud"
 ```
 
 ---

@@ -42,7 +42,7 @@ remount_as_read_only() {
             echo "   Device: $dev"
             echo ""
             echo "   → Set 'remount_readonly = false' in your configuration."
-            echo "   → Consider using 'logical_volume_root' type for root filesystem backups."
+            echo "   → Consider using 'lv_root' volume_type for root filesystem backups."
             exit 1
         fi
         

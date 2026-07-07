@@ -95,8 +95,8 @@ def test_run_all_respects_category_and_name_filters():
     """Filtered-out jobs are not run."""
     a = _fake_job("standard_path", "a",
                   JobResult("standard_path", "a", script_ok=True, failed_copies=[]))
-    b = _fake_job("logical_volume_root", "b",
-                  JobResult("logical_volume_root", "b", script_ok=True, failed_copies=[]))
+    b = _fake_job("lv_root", "b",
+                  JobResult("lv_root", "b", script_ok=True, failed_copies=[]))
 
     BackupJobRunner([a, b]).run_all(category="standard_path")
 

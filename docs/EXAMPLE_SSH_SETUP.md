@@ -306,7 +306,15 @@ sudo root-ssh-agent ssh-add /root/.ssh/id_restic_backup
 In your ResticLVM config (`backup.toml`):
 
 ```toml
-[logical_volume_root.root]
+[prune_policy.standard]
+keep_last = 10
+keep_daily = 7
+keep_weekly = 4
+keep_monthly = 6
+keep_yearly = 1
+
+[volume.root]
+volume_type = "lv_root"
 vg_name = "vg0"
 lv_name = "lv_root"
 snapshot_size = "2G"
@@ -314,14 +322,16 @@ backup_source_path = "/"
 exclude_paths = ["/dev", "/proc", "/sys", "/tmp"]
 
 # Local repository
-[[logical_volume_root.root.repositories]]
+[[volume.root.repositories]]
 repo_path = "/srv/backup/root-local"
 password_file = "/etc/resticlvm/restic-password.txt"
+prune_policy = "standard"
 
 # Remote SFTP repository (dedicated user)
-[[logical_volume_root.root.repositories]]
+[[volume.root.repositories]]
 repo_path = "sftp:backup-clienthost@backup-server.example.com:/srv/client_backups/clienthost/root"
 password_file = "/etc/resticlvm/restic-password.txt"
+prune_policy = "standard"
 ```
 
 ## Additional Hardening (Optional)
