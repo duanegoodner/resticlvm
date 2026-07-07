@@ -113,13 +113,14 @@ populate_restic_tags_for_lv_nonroot RESTIC_TAGS "$EXCLUDE_PATHS" "$SNAPSHOT_MOUN
 # ─── Loop Over Repositories ───────────────────────────────────────
 echo "🚀 Backing up to ${#RESTIC_REPOS[@]} repository(ies)..."
 
+FAILED_REPOS=()
 for i in "${!RESTIC_REPOS[@]}"; do
     RESTIC_REPO="${RESTIC_REPOS[$i]}"
     RESTIC_PASSWORD_FILE="${RESTIC_PASSWORD_FILES[$i]}"
-    
+
     echo ""
     echo "▶️  Repository $((i+1))/${#RESTIC_REPOS[@]}: $RESTIC_REPO"
-    
+
     # Build Restic command for this repo
     RESTIC_CMD="restic -r $RESTIC_REPO"
     RESTIC_CMD+=" --password-file=$RESTIC_PASSWORD_FILE"
@@ -127,13 +128,22 @@ for i in "${!RESTIC_REPOS[@]}"; do
     RESTIC_CMD+=" ${EXCLUDE_ARGS[*]}"
     RESTIC_CMD+=" ${RESTIC_TAGS[*]}"
     RESTIC_CMD+=" --verbose"
-    
-    # Execute backup for this repo
-    run_or_echo "$DRY_RUN" "$RESTIC_CMD"
+
+    # Execute backup for this repo. A failure must not prevent the remaining
+    # repositories from being attempted (issue #46).
+    if run_or_echo "$DRY_RUN" "$RESTIC_CMD"; then
+        echo "✅ Repository backup succeeded: $RESTIC_REPO"
+    else
+        echo "❌ Repository backup failed: $RESTIC_REPO"
+        FAILED_REPOS+=("$RESTIC_REPO")
+    fi
 done
 
 # ─── Cleanup ──────────────────────────────────────────────────────
 clean_up_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
+# Read by the EXIT trap (_snapshot_cleanup_trap) to distinguish an orderly exit
+# from an abort; see lib/lv_snapshots.sh.
+# shellcheck disable=SC2034
+RLVM_CLEANUP_DONE=1
 
-echo ""
-echo "✅ Backup completed for ${#RESTIC_REPOS[@]} repository(ies) (or would have, in dry-run mode)."
+report_repo_outcomes "${#RESTIC_REPOS[@]}" ${FAILED_REPOS[@]+"${FAILED_REPOS[@]}"} || exit 1

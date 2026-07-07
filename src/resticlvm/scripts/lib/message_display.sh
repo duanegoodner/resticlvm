@@ -60,3 +60,28 @@ display_dry_run_message() {
         echo -e "\n🟡 The following describes what *would* happen if this were a real backup run.\n"
     fi
 }
+
+# Report per-repository backup outcomes for a single job (issue #46). Every
+# repository is attempted regardless of individual failures; this prints the
+# summary and returns 0 only if all succeeded, 1 if any failed — so the caller
+# can exit non-zero (marking the job failed) while still having backed up to the
+# working destinations.
+#   $1        total repository count
+#   $2..$N    repo_path of each failed repository (may be none)
+report_repo_outcomes() {
+    local total="$1"
+    shift
+    local failed=("$@")
+    local nfail=${#failed[@]}
+    local nok=$((total - nfail))
+
+    echo ""
+    if [ "$nfail" -eq 0 ]; then
+        echo "✅ Backup completed for all ${total} repository(ies) (or would have, in dry-run mode)."
+        return 0
+    fi
+
+    echo "❌ Backup finished with failures: ${nok}/${total} repository(ies) succeeded, ${nfail} failed:"
+    printf '   ✗ %s\n' "${failed[@]}"
+    return 1
+}

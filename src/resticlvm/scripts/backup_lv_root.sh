@@ -109,17 +109,23 @@ populate_restic_tags RESTIC_TAGS "$EXCLUDE_PATHS"
 # ─── Loop Over Repositories ───────────────────────────────────────
 echo "🚀 Backing up to ${#RESTIC_REPOS[@]} repository(ies)..."
 
+FAILED_REPOS=()
 for i in "${!RESTIC_REPOS[@]}"; do
     RESTIC_REPO="${RESTIC_REPOS[$i]}"
     RESTIC_PASSWORD_FILE="${RESTIC_PASSWORD_FILES[$i]}"
-    
+
     echo ""
     echo "▶️  Repository $((i+1))/${#RESTIC_REPOS[@]}: $RESTIC_REPO"
-    
-    # Bind this repo to chroot (skip for remote repos)
+
+    # Bind this repo to chroot (skip for remote repos). If the bind fails,
+    # record it and move on to the next repo rather than aborting (issue #46).
     CHROOT_REPO_FULL="$CHROOT_REPO_PATH/$(basename "$RESTIC_REPO")"
-    bind_repo_to_mounted_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_REPO" "$CHROOT_REPO_FULL"
-    
+    if ! bind_repo_to_mounted_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_REPO" "$CHROOT_REPO_FULL"; then
+        echo "❌ Failed to prepare repository: $RESTIC_REPO"
+        FAILED_REPOS+=("$RESTIC_REPO")
+        continue
+    fi
+
     # Determine which repo path to use in restic command
     if is_remote_repo "$RESTIC_REPO"; then
         # Remote repo - use the URL directly
@@ -128,7 +134,7 @@ for i in "${!RESTIC_REPOS[@]}"; do
         # Local repo - use the chroot-bound path
         EFFECTIVE_REPO="$CHROOT_REPO_FULL"
     fi
-    
+
     # Build Restic command for this repo
     RESTIC_CMD="export RESTIC_PASSWORD_FILE=$RESTIC_PASSWORD_FILE && restic"
     RESTIC_CMD+=" ${EXCLUDE_ARGS[*]}"
@@ -136,18 +142,30 @@ for i in "${!RESTIC_REPOS[@]}"; do
     RESTIC_CMD+=" -r $EFFECTIVE_REPO"
     RESTIC_CMD+=" backup $BACKUP_SOURCE_PATH"
     RESTIC_CMD+=" --verbose"
-    
-    # Execute backup for this repo
-    run_in_chroot_or_echo "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_CMD"
-    
-    # Unbind just this repo from chroot (keep /dev, /proc, /sys for next repo)
-    unmount_repo_binding "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$CHROOT_REPO_FULL" "$RESTIC_REPO"
+
+    # Execute backup for this repo. A failure must not prevent the remaining
+    # repositories from being attempted (issue #46).
+    if run_in_chroot_or_echo "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$RESTIC_CMD"; then
+        echo "✅ Repository backup succeeded: $RESTIC_REPO"
+    else
+        echo "❌ Repository backup failed: $RESTIC_REPO"
+        FAILED_REPOS+=("$RESTIC_REPO")
+    fi
+
+    # Always unbind this repo before the next iteration, even on failure. A
+    # failed unbind is non-fatal — teardown will sweep any leftover bind.
+    if ! unmount_repo_binding "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$CHROOT_REPO_FULL" "$RESTIC_REPO"; then
+        echo "⚠️  Warning: could not unbind repository (will be cleaned up at teardown): $RESTIC_REPO"
+    fi
 done
 
 # ─── Cleanup ──────────────────────────────────────────────────────
 # Unmount chroot essentials once after all repos are done
 unmount_chroot_essentials "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT"
 clean_up_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
+# Read by the EXIT trap (_snapshot_cleanup_trap) to distinguish an orderly exit
+# from an abort; see lib/lv_snapshots.sh.
+# shellcheck disable=SC2034
+RLVM_CLEANUP_DONE=1
 
-echo ""
-echo "✅ Backup completed for ${#RESTIC_REPOS[@]} repository(ies) (or would have, in dry-run mode)."
+report_repo_outcomes "${#RESTIC_REPOS[@]}" ${FAILED_REPOS[@]+"${FAILED_REPOS[@]}"} || exit 1

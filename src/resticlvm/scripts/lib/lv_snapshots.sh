@@ -147,7 +147,10 @@ _snapshot_cleanup_trap() {
     local rc=$?
     trap - EXIT INT TERM HUP
     if [ "${DRY_RUN:-false}" != true ]; then
-        if [ "$rc" -ne 0 ]; then
+        # Only announce a "releasing…" cleanup for an actual abort. A controlled
+        # non-zero exit after orderly teardown (e.g. a partial multi-repo
+        # failure, issue #46) sets RLVM_CLEANUP_DONE=1 and stays quiet.
+        if [ "$rc" -ne 0 ] && [ "${RLVM_CLEANUP_DONE:-0}" != 1 ]; then
             echo "" >&2
             echo "⚠️  Backup aborted (exit $rc) — releasing LVM snapshot and mounts…" >&2
         fi

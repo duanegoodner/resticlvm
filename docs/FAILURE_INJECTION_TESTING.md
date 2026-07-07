@@ -51,6 +51,18 @@ sudo bash dev/failure-injection/verify_nonroot.sh "$(command -v rlvm)"
 sudo bash dev/failure-injection/teardown_nonroot.sh          # when done
 ```
 
+Multi-repo resilience (issue #46 — a failing repo must not block the others):
+
+```bash
+sudo bash dev/failure-injection/verify_multirepo.sh "$(command -v rlvm)"
+```
+
+Runs a two-repo `lv_root` job with the bad repo first, then bad repo second, and
+asserts that in both orderings the good repo still gets a new snapshot, the job
+exits non-zero, no snapshot/mount/temp dir leaks, and no "aborted" trap message
+is printed (the controlled partial-failure exit path). It creates/uses a `bad`
+repo referenced with a wrong password.
+
 Each verify script prints a per-scenario table and a final `N passed, M failed`
 summary (exit 0 iff all passed), and prints a control-run command using a
 generated good config so you can confirm the happy path still succeeds cleanly.
