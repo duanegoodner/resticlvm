@@ -92,6 +92,8 @@ bind_repo_to_mounted_snapshot() {
     echo "  Chroot repo path: $chroot_repo_full"
     run_or_echo "$dry_run" "mkdir -p $snapshot_mount_point/$chroot_repo_full"
     run_or_echo "$dry_run" "mount --bind $restic_repo $snapshot_mount_point/$chroot_repo_full"
+    # Detach from shared propagation so teardown can't propagate into the host.
+    run_or_echo "$dry_run" "mount --make-private $snapshot_mount_point/$chroot_repo_full"
 }
 
 # Bind /dev, /proc, and /sys into the snapshot to enable minimal chroot.
@@ -101,14 +103,22 @@ bind_chroot_essentials_to_mounted_snapshot() {
     local snapshot_mount_point="$2"
 
     echo "🔧 Preparing chroot environment..."
+    # After each bind, detach it from shared mount propagation with
+    # --make-private. Binds otherwise inherit systemd's `shared` propagation, so
+    # unmounting them at teardown propagates into the host's peer group. The
+    # host /dev (devtmpfs) is often busy (mmap'd device nodes: /dev/dri/*,
+    # /dev/nvidia*), making that propagated unmount fail EBUSY and leak the
+    # snapshot. Making each bind private confines teardown to the snapshot. (#24)
     for path in /dev /proc /sys; do
         run_or_echo "$dry_run" "mount --bind $path $snapshot_mount_point$path"
+        run_or_echo "$dry_run" "mount --make-private $snapshot_mount_point$path"
     done
-    
+
     # Bind /etc/resolv.conf for DNS resolution (needed for remote repos like B2/S3)
     if [ -f /etc/resolv.conf ]; then
         echo "🌐 Binding /etc/resolv.conf for DNS resolution..."
         run_or_echo "$dry_run" "mount --bind /etc/resolv.conf $snapshot_mount_point/etc/resolv.conf"
+        run_or_echo "$dry_run" "mount --make-private $snapshot_mount_point/etc/resolv.conf"
     fi
     
     # Bind SSH agent socket directory if it exists (for remote SFTP repos)
@@ -123,6 +133,7 @@ bind_chroot_essentials_to_mounted_snapshot() {
         # Bind mount the socket directory only if not already mounted
         if ! mountpoint -q "$chroot_socket_dir" 2>/dev/null; then
             run_or_echo "$dry_run" "mount --bind \"$socket_dir\" \"$chroot_socket_dir\""
+            run_or_echo "$dry_run" "mount --make-private \"$chroot_socket_dir\""
         fi
     fi
 }
