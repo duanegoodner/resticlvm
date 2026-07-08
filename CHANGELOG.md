@@ -6,6 +6,49 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.0] — 2026-07-07
+
+### ✨ New Features
+- **Automatic cleanup on failure.** A mid-run failure or signal (Ctrl-C, SIGTERM)
+  now automatically tears down LVM snapshots, bind-mounts, and temp directories
+  instead of leaking them. The cleanup trap is idempotent, handles udev settle
+  retries, and fires on EXIT/INT/TERM/HUP. Chroot bind-mounts are detached from
+  systemd's shared mount propagation (`mount --make-private`) so teardown no longer
+  fails with EBUSY on busy devtmpfs nodes. (#24)
+
+### 🐛 Bug Fixes
+- **Continue to remaining repositories when one fails.** A failed backup or prune
+  on one repository no longer aborts the rest — remaining repos in the same job
+  still run, and a summary of failed repos is printed at the end. Applies to all
+  volume types (LV root, LV non-root, standard path) and to the Python-side prune
+  runner. (#46)
+- **Terminal output no longer suppressed after remote-repo failure.** SSH (spawned
+  by restic for SFTP repos) could steal the terminal foreground process group,
+  silencing all subsequent output. A new `terminal.py` module restores the
+  foreground pgroup after each subprocess, and the shell scripts call
+  `restore_terminal_foreground` between repos. (#57, #72)
+- **Don't leak temp-dir parents.** When the leaf mount-point was already removed by
+  orderly teardown, the parent temp directory could be left behind. (#77)
+
+### 📚 Documentation
+- Added failure-injection test harness and runbook (`docs/FAILURE_INJECTION_TESTING.md`,
+  `dev/failure-injection/`).
+- Marked production-readiness review items resolved (`docs/PRODUCTION_READINESS_REVIEW.md`).
+- Updated stale `backup.toml` examples to current config schema.
+
+### 🔧 Internal
+- New `terminal` module (`src/resticlvm/orchestration/terminal.py`) with
+  `preserved_terminal()` context manager.
+- New shell library `lib/lv_snapshots.sh` with `cleanup_snapshot_resources()`,
+  `install_snapshot_cleanup_trap()`, and related helpers.
+- Shell library `lib/command_runners.sh` adds `restore_terminal_foreground` and
+  `report_repo_outcomes`.
+- `BackupJob.run()` returns a `JobResult` dataclass with structured per-job results.
+- Failure-injection test scripts for root, non-root, and multi-repo scenarios.
+- 107 tests (up from 90 in 0.7.0).
+
+---
+
 ## [0.7.0] — 2026-07-03
 
 ### ✨ New Features
