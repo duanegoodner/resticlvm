@@ -413,8 +413,8 @@ packages:
   timestamp: 1765813471974
 - pypi: ./
   name: resticlvm
-  version: 0.4.1
-  sha256: 6f76158fc67a163ebedb24ba6fb337a60624366a99d1a29aca3c6802ced2880d
+  version: 0.8.0
+  sha256: a18df2e2692babba7e1a3e19ab7c43c316c2055985b7371ba9d856e4606ea8aa
   requires_dist:
   - pytest>=7.0 ; extra == 'dev'
   - b2>=3.0 ; extra == 'b2'
