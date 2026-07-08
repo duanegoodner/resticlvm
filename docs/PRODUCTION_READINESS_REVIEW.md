@@ -7,18 +7,34 @@ backup workflow. Scope was deliberately narrow: the core backup paths
 (orchestration layer + the LVM-snapshot shell scripts), looking for **obvious,
 high-value, or critical** issues — not an exhaustive audit and not a refactor.
 
-## How to use this doc
+## Status (updated 2026-07-08)
 
-1. **Fix Critical #1 now** (safe, pure-Python, unit-testable, no VM needed).
-2. **File a GitHub Issue** capturing Critical #2 and the minor items, so they're
-   tracked for a future session (Critical #2 needs VM testing).
+Both criticals and the `SSH_AUTH_SOCK` minor are **resolved**. This review is kept
+for historical context; the original per-item analysis is preserved below with
+resolution notes added inline.
 
-Until Critical #2 is fixed, ResticLVM should be run **manually / attended only**
-— not unattended or on a schedule (see why below).
+- ✅ **Critical #1** (silent failure / exits 0 on failure) — resolved:
+  `BackupJobRunner.run_all()` returns a failure count and prints a "BACKUP FAILED"
+  summary, and `run()` calls `sys.exit(1)` when any job or copy fails.
+- ✅ **Critical #2** (no cleanup trap → leaks snapshot/mounts) — resolved in
+  **0.8.0** via issue #24 (PR #65 `--make-private`, PR #68 cleanup trap).
+- ✅ **Minor** — `$SSH_AUTH_SOCK` unbound under `set -u` — resolved: all uses are
+  now `${SSH_AUTH_SOCK:-}`.
+- ⬜ **Minor** — restic command strings `eval`'d; paths with spaces break — still
+  open, intentionally deferred (tracked separately).
+
+> The earlier "run **attended only** until Critical #2 is fixed" directive **no
+> longer applies**: a mid-run failure now cleans up automatically for any
+> catchable exit (a hard `kill -9` still can't be trapped). Unattended/scheduled
+> runs are supported as of 0.8.0.
 
 ---
 
 ## 🔴 Critical #1 — Backup failures are silent; the process exits 0 on failure
+
+> **✅ Resolved.** `run_all()` collects results, prints a failure summary, and
+> returns a failure count; `run()` exits non-zero when anything failed. Historical
+> analysis follows.
 
 **Where:** `src/resticlvm/orchestration/data_classes.py`, `BackupJob.run()`
 (and `_run_copy_operations()`); `src/resticlvm/orchestration/backup_runner.py`,
@@ -63,6 +79,11 @@ relies specifically on exit-code-driven email + heartbeat alerting.)
 ---
 
 ## 🔴 Critical #2 — No cleanup trap: a mid-run failure leaks the LVM snapshot (and bind-mounts)
+
+> **✅ Resolved in 0.8.0** — issue #24: `--make-private` hardening (PR #65) plus an
+> idempotent `trap`-based cleanup armed right after snapshot creation (PR #68),
+> verified with VM failure injection (`dev/failure-injection/`). Historical
+> analysis follows.
 
 **Where:** `src/resticlvm/scripts/backup_lv_nonroot.sh` and
 `src/resticlvm/scripts/backup_lv_root.sh`; cleanup helpers in
@@ -116,12 +137,11 @@ this is fixed.**
 
 ## 🟡 Minor
 
-- **`$SSH_AUTH_SOCK` referenced without a default under `set -u`** —
-  `lib/command_runners.sh:36`, `lib/mounts.sh:115,167`. The Python wrapper always
-  sets `SSH_AUTH_SOCK`, so this won't bite in the normal flow, but running a script
-  directly with no agent crashes with `SSH_AUTH_SOCK: unbound variable`. Fix:
-  `${SSH_AUTH_SOCK:-}`.
-- **Command strings built then `eval`'d / run via `chroot bash -c`** —
+- **(✅ Resolved)** **`$SSH_AUTH_SOCK` referenced without a default under `set -u`**
+  — `lib/command_runners.sh:36`, `lib/mounts.sh:115,167`. All references now use
+  `${SSH_AUTH_SOCK:-}`, so running a script directly with no agent no longer
+  crashes with `SSH_AUTH_SOCK: unbound variable`.
+- **(⬜ Open — deferred)** **Command strings built then `eval`'d / run via `chroot bash -c`** —
   `backup_lv_root.sh`, `backup_lv_nonroot.sh` build the restic command (and flatten
   exclude/repo args) into a single string. Paths containing spaces would break.
   Works fine for tidy paths; flagged as a known fragility, **not** worth a refactor
