@@ -131,7 +131,13 @@ cleanup_snapshot_resources() {
     if [ -n "$snapshot_mount_point" ] && [ -n "$mount_base" ]; then
         local dir="$snapshot_mount_point"
         while [ -n "$dir" ] && [ "$dir" != "$mount_base" ] && [ "$dir" != "/" ]; do
-            rmdir "$dir" 2>/dev/null || break
+            # Stop only if the dir still exists AND is non-empty. If it is already
+            # gone (e.g. the happy-path clean_up_snapshot already removed the leaf
+            # mount point), keep climbing to remove the now-empty parents + base —
+            # otherwise a nested nonroot mount point (…/mnt/<x>) leaks its parents.
+            if [ -d "$dir" ] && ! rmdir "$dir" 2>/dev/null; then
+                break
+            fi
             dir=$(dirname "$dir")
         done
         rmdir "$mount_base" 2>/dev/null || true
