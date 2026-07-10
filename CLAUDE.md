@@ -49,3 +49,26 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
   `docs/FRASER_VM_READY.md`.
 - **Remaining open:** eval/space-in-path fragility in shell scripts (deferred,
   see `docs/PRODUCTION_READINESS_REVIEW.md`).
+
+## Deployment model
+
+- Install resticlvm in a dedicated venv (e.g. `/opt/resticlvm`), not pixi/conda.
+  Invoke `sudo /opt/resticlvm/bin/rlvm ...`.
+- `restic` must be the **system** apt binary — it needs to be inside the root
+  snapshot chroot for `lv_root` backups.
+- Per-host config lives in `test/test-configs-private/<host>-backup.toml`
+  (gitignored); install to `/etc/resticlvm/backup.toml` for production use.
+- Three-tier repo structure per volume: local, anchor (sftp), Backblaze B2.
+  Password files at `/root/.config/resticlvm/repo-creds/<host>-{local,anchor,b2}`.
+  B2 credentials at `/root/.config/resticlvm/b2-env`.
+- B2 setup uses scoped application keys with minimal capabilities.
+- SSH to anchor uses a dedicated key via `root-ssh-agent` helper (socket at
+  `/root/.ssh/ssh-agent.sock`); must `ssh-add` after reboot.
+
+## Multi-machine rollout
+
+- **fraser** — manual backups working (all 3 tiers) as of 2026-07-10.
+- **rudolph** — next: revise B2 setup (scoped keys, bucket lifecycle).
+- **comet** — after rudolph: full resticlvm setup from scratch.
+- **Cron/systemd scheduling** — after all machines have manual backups working.
+  Coordinate with `workstation-ops` repo `monitoring/` directory.
