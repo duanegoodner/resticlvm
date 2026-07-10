@@ -158,7 +158,7 @@ for REPO in "${REPOS[@]}"; do
   
   if restic -r "$REPO_URL" init --password-file "$PASSWORD_FILE"; then
     echo "✅ Success: $REPO"
-    ((SUCCESS_COUNT++))
+    ((SUCCESS_COUNT++)) || true
   else
     echo "❌ Failed: $REPO"
     ((FAILED_COUNT++))
