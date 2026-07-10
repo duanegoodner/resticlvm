@@ -53,7 +53,10 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
 ## Deployment model
 
 - Install resticlvm in a dedicated venv (e.g. `/opt/resticlvm`), not pixi/conda.
-  Invoke `sudo /opt/resticlvm/bin/rlvm ...`.
+  Symlink the entrypoint onto the system PATH:
+  `sudo ln -sf /opt/resticlvm/bin/rlvm /usr/local/bin/rlvm`.
+  Example docs (`docs/EXAMPLE_SSH_SETUP.md`, `docs/EXAMPLE_B2_SETUP.md`,
+  `tools/b2/README.md`) assume this symlink is in place.
 - `restic` must be the **system** apt binary — it needs to be inside the root
   snapshot chroot for `lv_root` backups.
 - Per-host config lives in `test/test-configs-private/<host>-backup.toml`
