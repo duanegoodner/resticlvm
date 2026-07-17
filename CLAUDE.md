@@ -35,7 +35,7 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
 ## Status & next work
 
 - Pre-1.0. All critical and high-priority items from the production-readiness
-  review are resolved as of 0.8.0:
+  review are resolved as of 0.8.0; incremental parent detection fixed in 0.9.0:
   - **#24 (cleanup-on-failure) — done.** Idempotent `trap` + `--make-private`
     mount isolation. Unattended/scheduled runs are now supported.
   - **#46 (continue on repo failure) — done.** Every repo is attempted; job is
@@ -44,6 +44,9 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
     process group restored after each subprocess (Python side) and between repos
     within a job (shell side).
   - **#77 (temp-dir parent leak) — done.**
+  - **#81 (lv_nonroot parent detection + snapshot paths) — done.** Stable mount
+    base (`/tmp/resticlvm`) + mount namespace (`unshare --mount`) so restic
+    records real source paths and finds parent snapshots for incremental backups.
 - **Failure-injection harness:** `dev/failure-injection/` (runbook:
   `docs/FAILURE_INJECTION_TESTING.md`). Run in the `debian13-vm` VM — see
   `docs/FRASER_VM_READY.md`.
@@ -70,8 +73,8 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
 
 ## Multi-machine rollout
 
-- **fraser** — manual backups working (all 3 tiers) as of 2026-07-10.
-- **rudolph** — next: revise B2 setup (scoped keys, bucket lifecycle).
-- **comet** — after rudolph: full resticlvm setup from scratch.
-- **Cron/systemd scheduling** — after all machines have manual backups working.
+- **fraser** — 0.9.0 deployed, manual backups working (all 3 tiers) as of 2026-07-17.
+- **rudolph** — 0.9.0 deployed, manual backups working (all 3 tiers) as of 2026-07-17.
+- **comet** — 0.9.0 deployed, manual backups working (all 3 tiers) as of 2026-07-17.
+- **Cron/systemd scheduling** — next: all machines have manual backups working.
   Coordinate with `workstation-ops` repo `monitoring/` directory.
