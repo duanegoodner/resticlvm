@@ -65,6 +65,15 @@ parse_arguments() {
             EXCLUDE_PATHS="$2"
             shift 2
             ;;
+        --snapshot-mount)
+            if [[ "$allowed_flags" == *"snapshot-mount"* ]]; then
+                SNAPSHOT_MOUNT="$2"
+                shift 2
+            else
+                echo "❌ Unexpected option: $1"
+                "$usage_function"
+            fi
+            ;;
         -n | --dry-run)
             DRY_RUN=true
             shift
@@ -93,6 +102,7 @@ parse_for_lv() {
     allowed_flags+="password-file "
     allowed_flags+="backup-source "
     allowed_flags+="exclude-paths "
+    allowed_flags+="snapshot-mount "
     allowed_flags+="dry-run"
 
     parse_arguments "$usage_function" "$allowed_flags" "$@"

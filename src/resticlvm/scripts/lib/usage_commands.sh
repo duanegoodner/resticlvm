@@ -25,7 +25,7 @@ usage_path() {
 
 usage_lv_root() {
     echo "Usage:"
-    echo "$0 -g VG -l LV -z SIZE -r REPO -p PASSFILE [-e EXCLUDES] [-s SRC]  [-n]"
+    echo "$0 -g VG -l LV -z SIZE -r REPO -p PASSFILE [-e EXCLUDES] [-s SRC] [--snapshot-mount PATH] [-n]"
     echo ""
     echo "Options:"
     echo "  -g, --vg-name          Volume group name"
@@ -35,6 +35,7 @@ usage_lv_root() {
     echo "  -p, --password-file    Path to password file"
     echo "  -e, --exclude-paths    Space-separated paths to exclude (default: /dev /media /mnt /proc /run /sys /tmp /var/tmp /var/lib/libvirt/images)"
     echo "  -s, --backup-source    Path inside snapshot to back up (default: /)"
+    echo "  --snapshot-mount       Use pre-mounted snapshot at PATH (batch mode, skip create/teardown)"
     echo "  -n, --dry-run          Dry run mode (preview only)"
     echo "  -h, --help             Display this message and exit"
     exit 1
@@ -42,7 +43,7 @@ usage_lv_root() {
 
 usage_lv_nonroot() {
     echo "Usage:"
-    echo "$0 -g VG -l LV -z SIZE -r REPO -p PASSFILE -e EXCLUDES -s SRC  [-n]"
+    echo "$0 -g VG -l LV -z SIZE -r REPO -p PASSFILE -e EXCLUDES -s SRC [--snapshot-mount PATH] [-n]"
     echo ""
     echo "Options:"
     echo "  -g, --vg-name          Volume group name"
@@ -52,6 +53,7 @@ usage_lv_nonroot() {
     echo "  -p, --password-file    Path to password file"
     echo "  -e, --exclude-paths    Space-separated paths to exclude"
     echo "  -s, --backup-source    Path inside snapshot to back up"
+    echo "  --snapshot-mount       Use pre-mounted snapshot at PATH (batch mode, skip create/teardown)"
     echo "  -n, --dry-run          Dry run mode (preview only)"
     echo "  -h, --help             Display this message and exit"
     exit 1

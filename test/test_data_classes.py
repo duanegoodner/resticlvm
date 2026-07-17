@@ -366,6 +366,37 @@ def test_run_copy_passes_dry_run(mock_run):
     assert "-n" in copy_cmd
 
 
+# ─── Snapshot mount (batch mode, issue #84) ────────────────────────────────
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_without_snapshot_mount_does_not_add_flag(mock_run):
+    """Without snapshot_mount, --snapshot-mount is absent from the command."""
+    _make_job().run()
+
+    cmd = mock_run.call_args.kwargs.get("args") or mock_run.call_args[0][0]
+    assert "--snapshot-mount" not in cmd
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_with_snapshot_mount_appends_flag(mock_run):
+    """When snapshot_mount is given, --snapshot-mount and path are appended."""
+    _make_job().run(snapshot_mount="/tmp/resticlvm-20260717/snap")
+
+    cmd = mock_run.call_args.kwargs.get("args") or mock_run.call_args[0][0]
+    idx = cmd.index("--snapshot-mount")
+    assert cmd[idx + 1] == "/tmp/resticlvm-20260717/snap"
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_snapshot_mount_none_is_same_as_omitted(mock_run):
+    """Passing snapshot_mount=None explicitly is equivalent to omitting it."""
+    _make_job().run(snapshot_mount=None)
+
+    cmd = mock_run.call_args.kwargs.get("args") or mock_run.call_args[0][0]
+    assert "--snapshot-mount" not in cmd
+
+
 # ─── SSH_AUTH_SOCK threading ────────────────────────────────────────────────
 
 
