@@ -12,6 +12,7 @@
 #   -p  Path to the Restic password file.
 #   -s  Path to backup source directory inside LV (e.g., "/data").
 #   -e  (Optional) Comma-separated list of paths to exclude.
+#   --snapshot-mount  (Optional) Path to pre-mounted snapshot (batch mode).
 #   --dry-run  (Optional) Show actions without executing them.
 #
 # Usage:
@@ -43,9 +44,10 @@ RESTIC_PASSWORD_FILES=()
 BACKUP_SOURCE_PATH=""
 EXCLUDE_PATHS=""
 DRY_RUN=false
+SNAPSHOT_MOUNT=""
 
 # ─── Parse and Validate Arguments ─────────────────────────────────
-parse_arguments usage_lv_nonroot "vg-name lv-name snap-size restic-repo password-file backup-source exclude-paths dry-run" "$@"
+parse_arguments usage_lv_nonroot "vg-name lv-name snap-size restic-repo password-file backup-source exclude-paths snapshot-mount dry-run" "$@"
 
 # Validate basic LVM args
 validate_args usage_lv_nonroot VG_NAME LV_NAME SNAPSHOT_SIZE
@@ -61,8 +63,17 @@ if [ ${#RESTIC_REPOS[@]} -ne ${#RESTIC_PASSWORD_FILES[@]} ]; then
     usage_lv_nonroot
 fi
 
+# ─── Snapshot Mode ────────────────────────────────────────────────
+# When --snapshot-mount is provided, use a pre-mounted snapshot managed by the
+# Python SnapshotCoordinator (batch mode, issue #84). Otherwise, create and
+# manage the snapshot ourselves (standalone mode).
+MANAGED_SNAPSHOT=true
+if [[ -n "$SNAPSHOT_MOUNT" ]]; then
+    MANAGED_SNAPSHOT=false
+    SNAPSHOT_MOUNT_POINT="$SNAPSHOT_MOUNT"
+fi
+
 # ─── Derived Variables ───────────────────────────────────────────
-SNAP_NAME=$(generate_snapshot_name "$VG_NAME" "$LV_NAME")
 LV_DEVICE_PATH="/dev/$VG_NAME/$LV_NAME"
 
 # ─── Pre-checks ───────────────────────────────────────────────────
@@ -70,15 +81,16 @@ check_device_path "$LV_DEVICE_PATH"
 LV_MOUNT_POINT=$(check_mount_point "$LV_DEVICE_PATH")
 confirm_source_in_lv "$LV_MOUNT_POINT" "$BACKUP_SOURCE_PATH"
 
-# Mount point for snapshot
-MOUNT_BASE="/tmp/resticlvm"
-SNAPSHOT_MOUNT_POINT="${MOUNT_BASE}${LV_MOUNT_POINT}"
-
-confirm_not_yet_exist_snapshot_mount_point "$SNAPSHOT_MOUNT_POINT"
+if [[ "$MANAGED_SNAPSHOT" == true ]]; then
+    SNAP_NAME=$(generate_snapshot_name "$VG_NAME" "$LV_NAME")
+    MOUNT_BASE="/tmp/resticlvm"
+    SNAPSHOT_MOUNT_POINT="${MOUNT_BASE}${LV_MOUNT_POINT}"
+    confirm_not_yet_exist_snapshot_mount_point "$SNAPSHOT_MOUNT_POINT"
+fi
 
 # ─── Display Configuration ───────────────────────────────────────
 display_config "LVM Snapshot Backup Configuration" \
-    VG_NAME LV_NAME SNAPSHOT_SIZE SNAP_NAME SNAPSHOT_MOUNT_POINT \
+    VG_NAME LV_NAME SNAPSHOT_SIZE SNAPSHOT_MOUNT_POINT \
     EXCLUDE_PATHS BACKUP_SOURCE_PATH DRY_RUN
 
 echo "Repositories: ${#RESTIC_REPOS[@]}"
@@ -88,12 +100,14 @@ done
 
 display_dry_run_message "$DRY_RUN"
 
-# ─── Create and Mount Snapshot ────────────────────────────────────
-create_snapshot "$DRY_RUN" "$SNAPSHOT_SIZE" "$SNAP_NAME" "$VG_NAME" "$LV_NAME"
-# Register cleanup-on-failure as soon as the snapshot exists so any later
-# failure/signal idempotently unwinds the snapshot and its mount (issue #24).
-install_snapshot_cleanup_trap
-mount_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
+# ─── Create and Mount Snapshot (standalone mode only) ─────────────
+if [[ "$MANAGED_SNAPSHOT" == true ]]; then
+    create_snapshot "$DRY_RUN" "$SNAPSHOT_SIZE" "$SNAP_NAME" "$VG_NAME" "$LV_NAME"
+    # Register cleanup-on-failure as soon as the snapshot exists so any later
+    # failure/signal idempotently unwinds the snapshot and its mount (issue #24).
+    install_snapshot_cleanup_trap
+    mount_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
+fi
 
 # ─── Build Exclude Arguments (Once) ───────────────────────────────
 EXCLUDE_ARGS=()
@@ -141,10 +155,12 @@ for i in "${!RESTIC_REPOS[@]}"; do
 done
 
 # ─── Cleanup ──────────────────────────────────────────────────────
-clean_up_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
-# Read by the EXIT trap (_snapshot_cleanup_trap) to distinguish an orderly exit
-# from an abort; see lib/lv_snapshots.sh.
-# shellcheck disable=SC2034
-RLVM_CLEANUP_DONE=1
+if [[ "$MANAGED_SNAPSHOT" == true ]]; then
+    clean_up_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
+    # Read by the EXIT trap (_snapshot_cleanup_trap) to distinguish an orderly exit
+    # from an abort; see lib/lv_snapshots.sh.
+    # shellcheck disable=SC2034
+    RLVM_CLEANUP_DONE=1
+fi
 
 report_repo_outcomes "${#RESTIC_REPOS[@]}" ${FAILED_REPOS[@]+"${FAILED_REPOS[@]}"} || exit 1

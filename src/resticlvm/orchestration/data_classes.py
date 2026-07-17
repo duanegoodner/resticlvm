@@ -146,12 +146,17 @@ class BackupJob:
                     return True
         return False
 
-    def run(self) -> "JobResult":
+    def run(self, snapshot_mount: str | None = None) -> "JobResult":
         """Execute the backup job by running the associated script.
 
         Failures are caught (not raised) so that one failed job does not abort the
         others; the outcome is reported via the returned JobResult instead. Copy
         operations are only attempted when the backup script itself succeeds.
+
+        Args:
+            snapshot_mount: When set, pass --snapshot-mount to the shell script
+                so it uses a pre-mounted snapshot instead of managing its own
+                (batch mode, issue #84).
 
         Returns:
             JobResult: The outcome of this job — whether the backup script
@@ -181,13 +186,17 @@ class BackupJob:
                 )
 
         try:
+            cmd = self.cmd
+            if snapshot_mount is not None:
+                cmd = cmd + ["--snapshot-mount", snapshot_mount]
+
             # ssh (spawned by restic for SFTP) can leave the terminal's
             # foreground process group pointing at its dead group on failure,
             # which makes later restic runs suppress their output; restore it
             # afterward so subsequent jobs' output isn't lost (issue #57).
             with preserved_terminal():
                 subprocess.run(
-                    args=self.cmd,
+                    args=cmd,
                     check=True,
                     stdout=sys.stdout,
                     stderr=sys.stderr,
