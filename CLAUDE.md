@@ -47,9 +47,15 @@ layer (`src/resticlvm/orchestration`) drives focused Bash scripts
   - **#81 (lv_nonroot parent detection + snapshot paths) — done.** Stable mount
     base (`/tmp/resticlvm`) + mount namespace (`unshare --mount`) so restic
     records real source paths and finds parent snapshots for incremental backups.
+  - **#84 (cross-LV snapshot atomicity) — done.** All LVM snapshots are created
+    before any backup runs, reducing cross-LV time delta to milliseconds.
+    `SnapshotCoordinator` manages batch lifecycle with pre-flight VG space check,
+    COW usage reporting, and signal-safe cleanup. Copy operations deferred until
+    after snapshot teardown. Optional config: `[snapshot_settings]` in backup TOML.
 - **Failure-injection harness:** `dev/failure-injection/` (runbook:
   `docs/FAILURE_INJECTION_TESTING.md`). Run in the `debian13-vm` VM — see
-  `docs/FRASER_VM_READY.md`.
+  `docs/FRASER_VM_READY.md`. Includes batch snapshot coordination tests
+  (`verify_batch.sh`).
 - **Remaining open:** eval/space-in-path fragility in shell scripts (deferred,
   see `docs/PRODUCTION_READINESS_REVIEW.md`).
 
