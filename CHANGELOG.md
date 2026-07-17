@@ -6,6 +6,30 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.9.0] — 2026-07-17
+
+### 🐛 Bug Fixes
+- **Fixed broken parent detection for `lv_nonroot` backups.** The timestamped
+  snapshot mount path (`/tmp/resticlvm-YYYYMMDD_HHMMSS/...`) changed every run,
+  preventing restic from finding a parent snapshot. Every backup did a full file
+  scan instead of an incremental one — for a 92 GiB volume this meant ~2 minutes
+  per repo instead of ~9 seconds. The mount base is now a stable
+  `/tmp/resticlvm` path. (#81)
+- **Snapshot paths now match the real source path.** Restic previously recorded
+  paths like `/tmp/resticlvm-20260710_095903/data/git` instead of `/data/git`,
+  making restores awkward. The backup command now runs inside a mount namespace
+  (`unshare --mount`) that bind-mounts the snapshot over the original LV mount
+  point, so restic records the real source path (e.g. `/data/git`). (#81)
+
+### 🔧 Internal
+- `backup_lv_nonroot.sh` uses `populate_exclude_paths` / `populate_restic_tags`
+  (the standard variants) instead of the `_for_lv_nonroot` versions, since
+  restic sees the original filesystem layout inside the mount namespace.
+- Removed unused `REL_PATH` / `SNAPSHOT_BACKUP_PATH` variables from
+  `backup_lv_nonroot.sh`.
+
+---
+
 ## [0.8.0] — 2026-07-07
 
 ### ✨ New Features
