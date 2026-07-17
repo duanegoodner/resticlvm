@@ -55,9 +55,15 @@ A few design choices worth calling out:
 
 ## Status and Known Limitations
 
-ResticLVM is pre-1.0. One limitation is worth knowing before you rely on it:
+ResticLVM is pre-1.0 but is used in production for daily backups across multiple
+machines.
 
-- **Run attended for now.** If a backup fails mid-run, the LVM snapshot and its mounts may be left behind. Cleanup-on-failure is not yet automatic (tracked in [#24](https://github.com/duanegoodner/resticlvm/issues/24)). Until that lands, run ResticLVM manually/attended rather than fully unattended on a schedule, and see [Troubleshooting](#troubleshooting) for cleanup steps. The exit-code and end-of-run summary behavior makes such failures easy to detect.
+- **Cleanup-on-failure is automatic.** A mid-run failure or signal (Ctrl-C,
+  SIGTERM) tears down LVM snapshots, bind-mounts, and temp directories
+  automatically. Unattended/scheduled runs are supported.
+- **Cross-LV snapshot atomicity.** When backing up multiple logical volumes, all
+  LVM snapshots are created before any backup runs, ensuring consistent
+  point-in-time captures across volumes.
 
 ## Requirements
 - A Linux system with Logical Volume Manager (LVM).
@@ -74,7 +80,7 @@ A minimal end-to-end example that backs up the `/home` logical volume to a local
 
 ```bash
 # 1. Install
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.6.0
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.10.0
 
 # 2. Create a password file and initialize the Restic repository (one-time)
 sudo mkdir -p /root/.config/resticlvm/repo-creds
@@ -121,7 +127,7 @@ For the full configuration reference (multiple/remote/cloud repositories, `copy_
 Install the latest release directly from GitHub:
 
 ```bash
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.6.0
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.10.0
 ```
 
 This installs the CLI tools:
@@ -339,7 +345,9 @@ sudo rlvm backup --config /path/to/your/backup-config.toml --dry-run
 
 See [below](#running-specific-jobs-from-config-file) for running specific (not all) jobs from a config file.
 
-> **⚠️ If a run fails,** ResticLVM may leave behind an LVM snapshot and its mounts; cleanup-on-failure isn't automatic yet (see [Status and Known Limitations](#status-and-known-limitations)). Check with `sudo lvs | grep snapshot` and `mount | grep resticlvm`, and see [Troubleshooting](#troubleshooting) for cleanup steps.
+> **Note:** Cleanup-on-failure is automatic — a failed or interrupted run tears
+> down LVM snapshots and mounts. See [Troubleshooting](#troubleshooting) if you
+> need to investigate or manually clean up after an unusual failure.
 
 ## Additional Details for Running
 
@@ -385,6 +393,20 @@ backup_source_path = "/path/to/source"
 
 - **`[[volume.<volume_id>.repositories.copy_to]]`**: Copy destination (can have multiple per repository)
   - Copies snapshots from the parent repository after backup completes
+
+- **`[snapshot_settings]`** *(optional)*: Tuning for batch snapshot coordination
+  - `min_vg_free_after_snapshots` (default `"1G"`): Minimum free space to preserve
+    in each VG after allocating all snapshots. Ensures the running system retains
+    headroom during backups.
+  - `snapshot_cow_warn_percent` (default `70`): Warn when any snapshot's COW usage
+    exceeds this percentage. Helps catch undersized `snapshot_size` values before
+    an overflow occurs.
+
+  ```toml
+  [snapshot_settings]
+  min_vg_free_after_snapshots = "2G"
+  snapshot_cow_warn_percent = 60
+  ```
 
 
 ### Running Specific Jobs from Config File
@@ -510,7 +532,7 @@ Snapshots tagged protected will automatically be preserved during pruning, regar
 Replace the version tag with any release from the [releases page](https://github.com/duanegoodner/resticlvm/releases):
 
 ```bash
-pip install git+https://github.com/duanegoodner/resticlvm.git@v0.6.0
+pip install git+https://github.com/duanegoodner/resticlvm.git@v0.10.0
 ```
 
 #### Install from Main Branch
