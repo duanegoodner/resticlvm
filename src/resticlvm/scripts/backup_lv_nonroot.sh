@@ -71,7 +71,7 @@ LV_MOUNT_POINT=$(check_mount_point "$LV_DEVICE_PATH")
 confirm_source_in_lv "$LV_MOUNT_POINT" "$BACKUP_SOURCE_PATH"
 
 # Mount point for snapshot
-MOUNT_BASE=$(generate_mount_base)
+MOUNT_BASE="/tmp/resticlvm"
 SNAPSHOT_MOUNT_POINT="${MOUNT_BASE}${LV_MOUNT_POINT}"
 
 # Backup path inside the mounted snapshot
@@ -121,7 +121,6 @@ for i in "${!RESTIC_REPOS[@]}"; do
     RESTIC_CMD="restic -r $RESTIC_REPO"
     RESTIC_CMD+=" --password-file=$RESTIC_PASSWORD_FILE"
     RESTIC_CMD+=" backup $SNAPSHOT_BACKUP_PATH"
-    RESTIC_CMD+=" --set-path $BACKUP_SOURCE_PATH"
     RESTIC_CMD+=" ${EXCLUDE_ARGS[*]}"
     RESTIC_CMD+=" ${RESTIC_TAGS[*]}"
     RESTIC_CMD+=" --verbose"
