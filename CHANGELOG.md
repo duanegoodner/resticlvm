@@ -6,6 +6,55 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.10.0] — 2026-07-17
+
+### ✨ New Features
+- **Cross-LV snapshot atomicity.** When backing up multiple logical volumes, all
+  LVM snapshots are now created before any backup runs — reducing the cross-LV
+  time delta from minutes (full backup duration of earlier volumes) to milliseconds
+  (just the `lvcreate` time). This ensures restore-time consistency across volumes
+  whose data may be coordinated. (#84)
+- **Pre-flight VG space check.** Before creating batch snapshots, the total
+  allocation (all snapshot sizes + a configurable safety margin) is validated
+  against VG free space. Fails early with a clear message if insufficient. Checks
+  each VG independently for multi-VG configs.
+- **Snapshot COW usage reporting.** After each backup run, the actual COW
+  utilization of each snapshot is printed (e.g. `root (30G allocated): 12.3%`).
+  A configurable warning threshold (default 70%) flags snapshots approaching
+  overflow before it happens.
+- **Deferred copy operations.** Copy-to-remote operations for LV volumes now run
+  after snapshot teardown, freeing COW space sooner and reducing the window for
+  COW overflow.
+
+### 🔌 API Changes
+- **New optional config section: `[snapshot_settings]`.** Two settings control
+  batch snapshot behavior (both optional with sensible defaults):
+  - `min_vg_free_after_snapshots` (default `"1G"`) — minimum free space to
+    preserve in each VG after allocating all snapshots.
+  - `snapshot_cow_warn_percent` (default `70`) — warn when any snapshot's COW
+    usage exceeds this percentage.
+  Existing configs work unchanged.
+
+### 🔧 Internal
+- New `SnapshotCoordinator` class (`snapshot_coordinator.py`) manages the batch
+  snapshot lifecycle: creation with shared timestamp, idempotent reverse-order
+  teardown, signal handlers (SIGINT/SIGTERM), atexit registration, and context
+  manager protocol. Rollback on partial creation failure.
+- New shell scripts: `snapshot_create.sh` (create + mount one snapshot,
+  machine-parseable output) and `snapshot_teardown.sh` (idempotent teardown).
+- `backup_lv_root.sh` and `backup_lv_nonroot.sh` accept `--snapshot-mount` to
+  use a pre-mounted snapshot (batch mode) while preserving standalone behavior
+  when the flag is omitted.
+- `BackupJob.run()` gains `defer_copies` parameter; new `run_deferred_copies()`
+  method for post-teardown copy execution.
+- `BackupJobRunner.run_all()` partitions jobs into LV and non-LV, coordinates
+  LV jobs through `SnapshotCoordinator`, and runs deferred copies after teardown.
+- New failure-injection test script `verify_batch.sh` (5 scenarios: happy path,
+  failure cleanup, SIGTERM, SIGINT, snapshot coexistence verification).
+- 151 tests (up from 110 in 0.9.0).
+
+---
+
 ## [0.9.0] — 2026-07-17
 
 ### 🐛 Bug Fixes
