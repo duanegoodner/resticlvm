@@ -7,6 +7,7 @@ from resticlvm.orchestration.backup_config import (
     BackupConfigFactory,
     CopyDestConfig,
     RepoConfig,
+    SnapshotSettings,
     VolumeConfig,
     VolumeType,
 )
@@ -306,3 +307,34 @@ def test_exclude_paths_defaults_to_empty():
     }
     cfg = BackupConfigFactory(raw).build()
     assert cfg.volumes["boot"].exclude_paths == []
+
+
+# ─── Snapshot settings (issue #84) ────────────────────────────────
+
+
+def test_snapshot_settings_defaults():
+    """Snapshot settings use defaults when not specified in config."""
+    cfg = BackupConfigFactory(_minimal_config()).build()
+    assert cfg.snapshot_settings.min_vg_free_after_snapshots == "1G"
+    assert cfg.snapshot_settings.snapshot_cow_warn_percent == 70
+
+
+def test_snapshot_settings_custom():
+    """Custom snapshot settings are parsed from config."""
+    raw = _minimal_config()
+    raw["snapshot_settings"] = {
+        "min_vg_free_after_snapshots": "5G",
+        "snapshot_cow_warn_percent": 80,
+    }
+    cfg = BackupConfigFactory(raw).build()
+    assert cfg.snapshot_settings.min_vg_free_after_snapshots == "5G"
+    assert cfg.snapshot_settings.snapshot_cow_warn_percent == 80
+
+
+def test_snapshot_settings_partial():
+    """Only specified snapshot settings override defaults."""
+    raw = _minimal_config()
+    raw["snapshot_settings"] = {"snapshot_cow_warn_percent": 50}
+    cfg = BackupConfigFactory(raw).build()
+    assert cfg.snapshot_settings.min_vg_free_after_snapshots == "1G"
+    assert cfg.snapshot_settings.snapshot_cow_warn_percent == 50

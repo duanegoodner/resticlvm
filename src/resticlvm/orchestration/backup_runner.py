@@ -11,47 +11,90 @@ from pathlib import Path
 from typing import Optional
 
 from resticlvm import __version__
+from resticlvm.orchestration.backup_config import SnapshotSettings
 from resticlvm.orchestration.backup_plan import BackupPlan
 from resticlvm.orchestration.data_classes import BackupJob
 from resticlvm.orchestration.privileges import ensure_running_as_root
+from resticlvm.orchestration.snapshot_coordinator import SnapshotCoordinator
+
+_LV_CATEGORIES = {"lv_root", "lv_nonroot"}
 
 
 class BackupJobRunner:
     """Manages and runs a list of backup jobs."""
 
-    def __init__(self, jobs: list[BackupJob]):
-        """Initialize the BackupJobRunner.
-
-        Args:
-            jobs (list[BackupJob]): List of BackupJob instances to manage.
-        """
+    def __init__(
+        self,
+        jobs: list[BackupJob],
+        snapshot_settings: SnapshotSettings | None = None,
+    ):
         self.jobs = jobs
+        self._snap_settings = snapshot_settings or SnapshotSettings()
 
     def run_all(
         self, category: Optional[str] = None, name: Optional[str] = None
     ) -> int:
         """Run all backup jobs, optionally filtering by category and/or job name.
 
+        LV-backed volumes use batch snapshot coordination (issue #84): all
+        snapshots are created before any backup runs, reducing the cross-LV
+        time delta to milliseconds. Copy operations for LV jobs are deferred
+        until after snapshot teardown to minimize snapshot lifetime.
+
         Each job runs in isolation: a failure in one does not stop the others. A
         summary is printed at the end naming any failed jobs and copy operations.
 
-        Args:
-            category (str, optional): Backup category to filter by (e.g., 'standard_path').
-            name (str, optional): Specific backup job name to run.
-
         Returns:
-            int: The number of jobs that failed (a failed backup script or any
-            failed copy operation counts as a failed job). 0 means everything
-            succeeded.
+            int: The number of jobs that failed.
         """
+        active_jobs = [
+            j for j in self.jobs
+            if (not category or j.category == category)
+            and (not name or j.name == name)
+        ]
+
+        lv_jobs = [j for j in active_jobs if j.category in _LV_CATEGORIES]
+        non_lv_jobs = [j for j in active_jobs if j.category not in _LV_CATEGORIES]
+
         results = []
-        for job in self.jobs:
-            if category and job.category != category:
-                continue
-            if name and job.name != name:
-                continue
+        deferred_copy_jobs = []
+
+        if lv_jobs:
+            dry_run = lv_jobs[0].dry_run
+            coord = SnapshotCoordinator(
+                lv_jobs,
+                dry_run=dry_run,
+                min_vg_free_after_snapshots=self._snap_settings.min_vg_free_after_snapshots,
+                snapshot_cow_warn_percent=self._snap_settings.snapshot_cow_warn_percent,
+            )
+
+            with coord:
+                coord.create_all()
+
+                for job in lv_jobs:
+                    mount = coord.get_mount_point(job.name)
+                    result = job.run(snapshot_mount=mount, defer_copies=True)
+                    results.append(result)
+                    if result.script_ok:
+                        deferred_copy_jobs.append(job)
+
+            # Snapshots are now torn down — run deferred copies
+            for job in deferred_copy_jobs:
+                failed = job.run_deferred_copies()
+                if failed:
+                    for r in results:
+                        if r.name == job.name and r.category == job.category:
+                            r.failed_copies = failed
+                            break
+
+        for job in non_lv_jobs:
             results.append(job.run())
 
+        self._print_summary(results)
+        return len([r for r in results if not r.ok])
+
+    @staticmethod
+    def _print_summary(results):
         failures = [r for r in results if not r.ok]
         total = len(results)
         print()
@@ -70,8 +113,6 @@ class BackupJobRunner:
             print("──────── Backup run summary ────────")
             print(f"  ✅ All {total} job(s) completed successfully.")
 
-        return len(failures)
-
 
 def run(args):
     """Execute the backup plan from pre-parsed arguments.
@@ -82,7 +123,10 @@ def run(args):
     config_path = Path(args.config)
 
     plan = BackupPlan(config_path=config_path, dry_run=args.dry_run)
-    runner = BackupJobRunner(plan.backup_jobs)
+    runner = BackupJobRunner(
+        plan.backup_jobs,
+        snapshot_settings=plan.snapshot_settings,
+    )
     failure_count = runner.run_all(category=args.category, name=args.name)
     if failure_count:
         sys.exit(1)

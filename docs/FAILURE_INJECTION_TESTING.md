@@ -63,6 +63,19 @@ exits non-zero, no snapshot/mount/temp dir leaks, and no "aborted" trap message
 is printed (the controlled partial-failure exit path). It creates/uses a `bad`
 repo referenced with a wrong password.
 
+Batch snapshot coordination (issue #84 — all LVM snapshots created before any
+backup runs):
+
+```bash
+sudo bash dev/failure-injection/setup_nonroot.sh    # if not already done
+sudo bash dev/failure-injection/verify_batch.sh "$(command -v rlvm)"
+```
+
+Tests a multi-volume config (root + nonroot in the same VG). Verifies the happy
+path (both volumes backed up, COW usage reported), failure cleanup (wrong
+password), signal handling (SIGTERM/SIGINT tear down all snapshots), and that
+both snapshot LVs coexist during the backup.
+
 Each verify script prints a per-scenario table and a final `N passed, M failed`
 summary (exit 0 iff all passed), and prints a control-run command using a
 generated good config so you can confirm the happy path still succeeds cleanly.
@@ -76,6 +89,11 @@ generated good config so you can confirm the happy path still succeeds cleanly.
 | restic killed mid-backup | root + nonroot | `pkill -9 -x restic` once a backup is in progress |
 | SIGTERM to the backup script | root + nonroot | `pkill -TERM -f backup_lv_*.sh`, then kill restic to unblock |
 | SIGINT (Ctrl-C emulation) | root | `pkill -INT -f backup_lv_root.sh`, then kill restic to unblock |
+| batch happy path | batch | multi-volume config (root + nonroot), both backed up, COW usage reported |
+| batch failure | batch | wrong password for both volumes — all snapshots cleaned up |
+| SIGTERM during batch | batch | `kill -TERM` the `rlvm` Python process — coordinator cleans up all snapshots |
+| SIGINT during batch | batch | `kill -INT` the `rlvm` Python process — coordinator cleans up all snapshots |
+| batch snapshots coexist | batch | observe `lvs` during backup to confirm both snapshot LVs exist simultaneously |
 
 The nonroot path additionally exercises **nested** mount-point cleanup
 (`/tmp/resticlvm-<ts>/mnt/<...>`), which the root path (single-level mount point)

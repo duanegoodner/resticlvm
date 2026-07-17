@@ -56,11 +56,20 @@ class VolumeConfig:
 
 
 @dataclass
+class SnapshotSettings:
+    """Top-level snapshot coordination settings."""
+
+    min_vg_free_after_snapshots: str = "1G"
+    snapshot_cow_warn_percent: int = 70
+
+
+@dataclass
 class BackupConfig:
     """Typed, fully-resolved backup configuration."""
 
     prune_policies: dict[str, ResticPruneKeepParams]
     volumes: dict[str, VolumeConfig]
+    snapshot_settings: SnapshotSettings = field(default_factory=SnapshotSettings)
 
 
 class BackupConfigFactory:
@@ -125,8 +134,20 @@ class BackupConfigFactory:
             )
         return volumes
 
+    def _parse_snapshot_settings(self) -> SnapshotSettings:
+        raw = self._raw.get("snapshot_settings", {})
+        return SnapshotSettings(
+            min_vg_free_after_snapshots=raw.get(
+                "min_vg_free_after_snapshots", "1G"
+            ),
+            snapshot_cow_warn_percent=int(
+                raw.get("snapshot_cow_warn_percent", 70)
+            ),
+        )
+
     def build(self) -> BackupConfig:
         return BackupConfig(
             prune_policies=self._policies,
             volumes=self._parse_volumes(),
+            snapshot_settings=self._parse_snapshot_settings(),
         )

@@ -8,6 +8,7 @@ from pathlib import Path
 from resticlvm.orchestration.backup_config import (
     BackupConfigFactory,
     RepoConfig,
+    SnapshotSettings,
     VolumeConfig,
     VolumeType,
 )
@@ -82,3 +83,7 @@ class BackupPlan:
             self._build_backup_job(name, cfg)
             for name, cfg in self._config.volumes.items()
         ]
+
+    @property
+    def snapshot_settings(self) -> SnapshotSettings:
+        return self._config.snapshot_settings
