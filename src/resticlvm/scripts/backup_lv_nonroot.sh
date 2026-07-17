@@ -4,10 +4,6 @@
 # Restic and LVM snapshots. Backs up directly from the mounted snapshot
 # without using a chroot environment.
 #
-# Note:
-#   - The path stored in the Restic repository will differ from the
-#     original source path (e.g., backing up /data will store under /srv/data).
-#
 # Arguments:
 #   -g  Volume group name.
 #   -l  Logical volume name.
@@ -125,6 +121,7 @@ for i in "${!RESTIC_REPOS[@]}"; do
     RESTIC_CMD="restic -r $RESTIC_REPO"
     RESTIC_CMD+=" --password-file=$RESTIC_PASSWORD_FILE"
     RESTIC_CMD+=" backup $SNAPSHOT_BACKUP_PATH"
+    RESTIC_CMD+=" --set-path $BACKUP_SOURCE_PATH"
     RESTIC_CMD+=" ${EXCLUDE_ARGS[*]}"
     RESTIC_CMD+=" ${RESTIC_TAGS[*]}"
     RESTIC_CMD+=" --verbose"
