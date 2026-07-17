@@ -4,10 +4,6 @@
 # Restic and LVM snapshots. Backs up directly from the mounted snapshot
 # without using a chroot environment.
 #
-# Note:
-#   - The path stored in the Restic repository will differ from the
-#     original source path (e.g., backing up /data will store under /srv/data).
-#
 # Arguments:
 #   -g  Volume group name.
 #   -l  Logical volume name.
@@ -75,12 +71,8 @@ LV_MOUNT_POINT=$(check_mount_point "$LV_DEVICE_PATH")
 confirm_source_in_lv "$LV_MOUNT_POINT" "$BACKUP_SOURCE_PATH"
 
 # Mount point for snapshot
-MOUNT_BASE=$(generate_mount_base)
+MOUNT_BASE="/tmp/resticlvm"
 SNAPSHOT_MOUNT_POINT="${MOUNT_BASE}${LV_MOUNT_POINT}"
-
-# Backup path inside the mounted snapshot
-REL_PATH="${BACKUP_SOURCE_PATH#$LV_MOUNT_POINT}"
-SNAPSHOT_BACKUP_PATH="$SNAPSHOT_MOUNT_POINT$REL_PATH"
 
 confirm_not_yet_exist_snapshot_mount_point "$SNAPSHOT_MOUNT_POINT"
 
@@ -105,10 +97,10 @@ mount_snapshot "$DRY_RUN" "$SNAPSHOT_MOUNT_POINT" "$VG_NAME" "$SNAP_NAME"
 
 # ─── Build Exclude Arguments (Once) ───────────────────────────────
 EXCLUDE_ARGS=()
-populate_exclude_paths_for_lv_nonroot EXCLUDE_ARGS "$EXCLUDE_PATHS" "$SNAPSHOT_MOUNT_POINT"
+populate_exclude_paths EXCLUDE_ARGS "$EXCLUDE_PATHS"
 
 RESTIC_TAGS=()
-populate_restic_tags_for_lv_nonroot RESTIC_TAGS "$EXCLUDE_PATHS" "$SNAPSHOT_MOUNT_POINT"
+populate_restic_tags RESTIC_TAGS "$EXCLUDE_PATHS"
 
 # ─── Loop Over Repositories ───────────────────────────────────────
 echo "🚀 Backing up to ${#RESTIC_REPOS[@]} repository(ies)..."
@@ -121,13 +113,18 @@ for i in "${!RESTIC_REPOS[@]}"; do
     echo ""
     echo "▶️  Repository $((i+1))/${#RESTIC_REPOS[@]}: $RESTIC_REPO"
 
-    # Build Restic command for this repo
-    RESTIC_CMD="restic -r $RESTIC_REPO"
-    RESTIC_CMD+=" --password-file=$RESTIC_PASSWORD_FILE"
-    RESTIC_CMD+=" backup $SNAPSHOT_BACKUP_PATH"
-    RESTIC_CMD+=" ${EXCLUDE_ARGS[*]}"
-    RESTIC_CMD+=" ${RESTIC_TAGS[*]}"
-    RESTIC_CMD+=" --verbose"
+    # Build Restic command. Run inside a mount namespace so we can bind-mount
+    # the snapshot over the original LV mount point — restic then records the
+    # real source path (e.g. /data/git) instead of the temp mount path.
+    RESTIC_INNER="mount --bind $SNAPSHOT_MOUNT_POINT $LV_MOUNT_POINT"
+    RESTIC_INNER+=" && restic -r $RESTIC_REPO"
+    RESTIC_INNER+=" --password-file=$RESTIC_PASSWORD_FILE"
+    RESTIC_INNER+=" backup $BACKUP_SOURCE_PATH"
+    RESTIC_INNER+=" ${EXCLUDE_ARGS[*]}"
+    RESTIC_INNER+=" ${RESTIC_TAGS[*]}"
+    RESTIC_INNER+=" --verbose"
+
+    RESTIC_CMD="unshare --mount sh -c '$RESTIC_INNER'"
 
     # Execute backup for this repo. A failure must not prevent the remaining
     # repositories from being attempted (issue #46).
