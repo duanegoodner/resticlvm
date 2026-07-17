@@ -146,7 +146,11 @@ class BackupJob:
                     return True
         return False
 
-    def run(self, snapshot_mount: str | None = None) -> "JobResult":
+    def run(
+        self,
+        snapshot_mount: str | None = None,
+        defer_copies: bool = False,
+    ) -> "JobResult":
         """Execute the backup job by running the associated script.
 
         Failures are caught (not raised) so that one failed job does not abort the
@@ -157,6 +161,9 @@ class BackupJob:
             snapshot_mount: When set, pass --snapshot-mount to the shell script
                 so it uses a pre-mounted snapshot instead of managing its own
                 (batch mode, issue #84).
+            defer_copies: When True, skip copy operations after backup. The
+                caller is responsible for calling run_deferred_copies() later
+                (used in batch mode to free snapshots before copying).
 
         Returns:
             JobResult: The outcome of this job — whether the backup script
@@ -204,7 +211,14 @@ class BackupJob:
                 )
             print(f"✅ Backup [{self.category}.{self.name}] completed.\n")
 
-            # After successful backup, copy to remote destinations
+            if defer_copies:
+                return JobResult(
+                    category=self.category,
+                    name=self.name,
+                    script_ok=True,
+                    failed_copies=[],
+                )
+
             failed_copies = self._run_copy_operations(env)
             return JobResult(
                 category=self.category,
@@ -224,6 +238,28 @@ class BackupJob:
             script_ok=False,
             failed_copies=[],
         )
+
+    def run_deferred_copies(self) -> list:
+        """Run copy operations that were deferred during run(defer_copies=True).
+
+        Returns:
+            list: Copy-destination repo_paths that failed (empty if all succeeded).
+        """
+        env = os.environ.copy()
+        env.setdefault("SSH_AUTH_SOCK", "/root/.ssh/ssh-agent.sock")
+
+        if self._uses_b2():
+            try:
+                load_b2_credentials(env)
+            except B2CredentialsError as e:
+                print(f"❌ B2 credentials for copies [{self.category}.{self.name}]: {e}")
+                return [
+                    d.repo_path
+                    for r in self.repositories
+                    for d in (r.copy_destinations or [])
+                ]
+
+        return self._run_copy_operations(env)
 
     def _run_copy_operations(self, env: dict) -> list:
         """Execute copy operations for repositories with copy_to destinations.

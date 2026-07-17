@@ -308,6 +308,52 @@ def test_run_script_missing(mock_run):
 
 
 @mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_defer_copies_skips_copy(mock_run):
+    """With defer_copies=True, copy operations are not run inline."""
+    copy_dest = CopyDestination(
+        repo_path="/srv/backup/remote",
+        password_file=Path("/tmp/remote_pw.txt"),
+        prune_keep_params=_make_prune_params(),
+    )
+    repo = ResticRepo(
+        repo_path=Path("/srv/backup/local"),
+        password_file=Path("/tmp/pw.txt"),
+        prune_keep_params=_make_prune_params(),
+        copy_destinations=[copy_dest],
+    )
+
+    result = _make_job(repositories=[repo]).run(defer_copies=True)
+
+    assert result.script_ok is True
+    assert result.failed_copies == []
+    assert mock_run.call_count == 1  # only the backup script, no copy
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
+def test_run_deferred_copies(mock_run):
+    """run_deferred_copies() executes copy operations separately."""
+    copy_dest = CopyDestination(
+        repo_path="/srv/backup/remote",
+        password_file=Path("/tmp/remote_pw.txt"),
+        prune_keep_params=_make_prune_params(),
+    )
+    repo = ResticRepo(
+        repo_path=Path("/srv/backup/local"),
+        password_file=Path("/tmp/pw.txt"),
+        prune_keep_params=_make_prune_params(),
+        copy_destinations=[copy_dest],
+    )
+
+    job = _make_job(repositories=[repo])
+    failed = job.run_deferred_copies()
+
+    assert failed == []
+    assert mock_run.call_count == 1  # copy script only
+    cmd = mock_run.call_args.kwargs.get("args") or mock_run.call_args[0][0]
+    assert "copy_repo.sh" in str(cmd[1])
+
+
+@mock.patch("resticlvm.orchestration.data_classes.subprocess.run")
 def test_run_copy_failure(mock_run):
     """Backup succeeds but a copy fails: script_ok True, copy recorded, not ok."""
     copy_dest = CopyDestination(
