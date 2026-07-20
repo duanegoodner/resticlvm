@@ -11,6 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from resticlvm import scripts
+from resticlvm.orchestration.credentials import (
+    B2CredentialsError,
+    load_b2_credentials,
+    repo_uses_b2,
+)
 from resticlvm.orchestration.terminal import preserved_terminal
 
 
@@ -77,9 +82,15 @@ class ResticRepo:
 
         print(f"▶️ Pruning repo {self.repo_path} (dry-run={dry_run})")
 
-        # Prepare environment with SSH agent socket for SFTP repositories
         env = os.environ.copy()
-        env['SSH_AUTH_SOCK'] = '/root/.ssh/ssh-agent.sock'
+        env.setdefault('SSH_AUTH_SOCK', '/root/.ssh/ssh-agent.sock')
+
+        if repo_uses_b2(self.repo_path):
+            try:
+                load_b2_credentials(env)
+            except B2CredentialsError as e:
+                print(f"❌ B2 credentials for {self.repo_path}: {e}")
+                return
 
         try:
             # Pruning a remote repo runs ssh; guard the terminal (issue #57).
